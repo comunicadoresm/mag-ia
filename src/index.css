@@ -1,0 +1,293 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+ * CM Chat Design System
+ * Comunicadores Magnéticos Brand Guidelines
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /* CM Brand Colors - Primary (#FAFC59) */
+    --cm-yellow: 61 97% 67%;
+    --cm-yellow-hover: 61 95% 60%;
+    
+    /* CM Brand Colors - Accent */
+    --cm-cream: 61 100% 90%;
+    
+    /* CM Brand Colors - Backgrounds (Darker like reference) */
+    --cm-gray-dark: 0 0% 12%;
+    --cm-gray-darker: 0 0% 8%;
+    --cm-gray-card: 0 0% 16%;
+    
+    /* Chat Bubbles */
+    --bubble-user: 61 97% 67%;
+    --bubble-user-text: 0 0% 8%;
+    --bubble-assistant: 0 0% 18%;
+    
+    /* Semantic Design Tokens */
+    --background: 0 0% 10%;
+    --foreground: 0 0% 98%;
+    
+    --card: 0 0% 14%;
+    --card-foreground: 0 0% 98%;
+    
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 98%;
+    
+    --primary: 61 97% 67%;
+    --primary-foreground: 0 0% 8%;
+    
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 61 100% 90%;
+    
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 60%;
+    
+    --accent: 61 97% 67%;
+    --accent-foreground: 0 0% 8%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    
+    --border: 61 30% 25%;
+    --input: 0 0% 16%;
+    --ring: 61 97% 67%;
+    
+    --radius: 1rem;
+    
+    /* Sidebar (using CM dark theme) */
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 98%;
+    --sidebar-primary: 61 97% 67%;
+    --sidebar-primary-foreground: 0 0% 8%;
+    --sidebar-accent: 0 0% 18%;
+    --sidebar-accent-foreground: 0 0% 98%;
+    --sidebar-border: 61 20% 20%;
+    --sidebar-ring: 61 97% 67%;
+  }
+
+  /* Dark mode (default for CM Chat) */
+  .dark {
+    --background: 0 0% 10%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 14%;
+    --card-foreground: 0 0% 98%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 61 97% 67%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 61 100% 90%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 61 97% 67%;
+    --accent-foreground: 0 0% 8%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 61 20% 20%;
+    --input: 0 0% 16%;
+    --ring: 61 97% 67%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+@layer components {
+  /* CM Button Variants */
+  .btn-cm-primary {
+    @apply bg-primary text-primary-foreground hover:brightness-110 transition-all duration-200;
+    @apply rounded-full font-bold shadow-lg;
+    box-shadow: 0 0 24px -4px hsl(var(--primary) / 0.4);
+  }
+
+  .btn-cm-primary:hover {
+    box-shadow: 0 0 32px -4px hsl(var(--primary) / 0.6);
+  }
+
+  .btn-cm-secondary {
+    @apply bg-transparent text-foreground hover:bg-muted/50 transition-all duration-200;
+    @apply rounded-full font-medium border border-border;
+  }
+
+  .btn-cm-ghost {
+    @apply bg-transparent text-foreground hover:bg-muted/50 transition-all duration-200;
+    @apply rounded-full font-medium;
+  }
+
+  /* CM Card Styles - Updated with subtle lime border */
+  .card-cm {
+    @apply bg-card rounded-2xl border border-border/50;
+    @apply transition-all duration-200 hover:border-primary/40;
+  }
+
+  .card-cm-interactive {
+    @apply card-cm cursor-pointer;
+    @apply hover:border-primary/60 hover:shadow-lg;
+  }
+
+  /* Chat Bubble Styles */
+  .bubble-user {
+    @apply bg-primary text-primary-foreground;
+    @apply rounded-2xl rounded-br-md px-4 py-3 font-medium;
+  }
+
+  .bubble-assistant {
+    @apply bg-card text-foreground border border-border/30;
+    @apply rounded-2xl rounded-bl-md px-4 py-3;
+  }
+
+  /* Input Styles - Updated with subtle border */
+  .input-cm {
+    @apply bg-input text-foreground placeholder:text-muted-foreground;
+    @apply rounded-xl border border-border/50 focus:border-primary focus:ring-2 focus:ring-primary/20;
+    @apply transition-all duration-200;
+  }
+
+  /* Navigation Styles */
+  .nav-item {
+    @apply flex flex-col items-center gap-1 py-2 px-4;
+    @apply text-muted-foreground transition-colors duration-200;
+  }
+
+  .nav-item-active {
+    @apply nav-item text-primary;
+  }
+
+  /* Badge/Tag Style - Like reference */
+  .badge-cm {
+    @apply inline-flex items-center gap-2 px-4 py-2;
+    @apply bg-transparent border border-border rounded-full;
+    @apply text-sm font-medium text-foreground;
+  }
+
+  /* Icon Circle - Like reference */
+  .icon-circle {
+    @apply w-12 h-12 rounded-xl bg-primary flex items-center justify-center;
+    @apply text-primary-foreground;
+  }
+
+  .icon-circle-outline {
+    @apply w-12 h-12 rounded-xl bg-transparent border border-primary flex items-center justify-center;
+    @apply text-primary;
+  }
+
+  /* Gradient Overlays */
+  .gradient-cm {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(61 90% 55%) 100%);
+  }
+
+  .gradient-dark {
+    background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(0 0% 6%) 100%);
+  }
+
+  /* Glow Effects */
+  .glow-primary {
+    box-shadow: 0 0 40px -10px hsl(var(--primary) / 0.5);
+  }
+
+  .glow-subtle {
+    box-shadow: 0 8px 32px -8px hsl(0 0% 0% / 0.4);
+  }
+}
+
+@layer utilities {
+  /* Animations */
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  .animate-pulse-subtle {
+    animation: pulseSoft 2s ease-in-out infinite;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slideUp {
+    from { 
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInRight {
+    from { 
+      opacity: 0;
+      transform: translateX(10px);
+    }
+    to { 
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes pulseSoft {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+
+  /* Scrollbar Styling */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted));
+    border-radius: 3px;
+  }
+
+  /* Safe Area for Mobile */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+  }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}

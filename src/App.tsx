@@ -1,0 +1,54 @@
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+
+// Pages
+import Login from "./pages/Login";
+import Verify from "./pages/Verify";
+import AccessDenied from "./pages/AccessDenied";
+import Home from "./pages/Home";
+import Chat from "./pages/Chat";
+import History from "./pages/History";
+import Profile from "./pages/Profile";
+import AdminAgents from "./pages/AdminAgents";
+import Kanban from "./pages/Kanban";
+import NotFound from "./pages/NotFound";
+
+const queryClient = new QueryClient();
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/verify" element={<Verify />} />
+      <Route path="/access-denied" element={<AccessDenied />} />
+      <Route path="/home" element={<Home />} />
+      <Route path="/chat/:conversationId" element={<Chat />} />
+      <Route path="/history" element={<History />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/kanban" element={<Kanban />} />
+        <Route path="/admin/agents" element={<AdminAgents />} />
+        <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <TooltipProvider>
+      <Toaster />
+      <Sonner />
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  </QueryClientProvider>
+);
+
+export default App;
