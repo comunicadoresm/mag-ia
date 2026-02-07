@@ -1,1 +1,7 @@
 project_id = "wlidszutcjsisczhmzjg"
+
+[functions.consume-credits]
+verify_jwt = false
+
+[functions.renew-credits]
+verify_jwt = false
