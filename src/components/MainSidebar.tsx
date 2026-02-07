@@ -4,6 +4,7 @@ import { Home, MessageSquare, User, LogOut, LayoutGrid, Tag } from 'lucide-react
 import { LucideProps } from 'lucide-react';
 import dynamicIconImports from 'lucide-react/dynamicIconImports';
 import { Logo } from './Logo';
+import { CreditBadge } from './CreditBadge';
 import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Tag as TagType } from '@/types';
@@ -138,6 +139,7 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
               {profile?.email}
             </p>
           </div>
+          <CreditBadge />
         </button>
         
         <button
