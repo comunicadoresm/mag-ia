@@ -6,8 +6,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const MAX_HISTORY_MESSAGES = 20;
+
 interface ChatMessage {
-  role: 'user' | 'assistant';
+  role: "user" | "assistant";
   content: string;
 }
 
@@ -24,7 +26,7 @@ interface ScriptStructure {
 }
 
 interface GenerateScriptChatRequest {
-  action: 'start' | 'chat';
+  action: "start" | "chat";
   script: {
     title: string;
     theme?: string;
@@ -37,15 +39,13 @@ interface GenerateScriptChatRequest {
   messages: ChatMessage[];
 }
 
-// Determine provider based on model name
-function getProvider(model: string): string {
-  if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('openai/')) return 'openai';
-  if (model.startsWith('claude') || model.startsWith('anthropic/')) return 'anthropic';
-  if (model.startsWith('gemini') || model.startsWith('google/')) return 'google';
-  return 'openai';
+function getProvider(model: string): "anthropic" | "openai" | "google" {
+  if (model.startsWith("claude")) return "anthropic";
+  if (model.startsWith("gpt-") || model.startsWith("o1")) return "openai";
+  if (model.startsWith("gemini")) return "google";
+  return "anthropic";
 }
 
-// Call AI based on provider
 async function callAI(
   provider: string,
   model: string,
@@ -53,21 +53,57 @@ async function callAI(
   systemPrompt: string,
   messages: ChatMessage[]
 ): Promise<string> {
-  const formattedMessages = [
-    { role: "system", content: systemPrompt },
-    ...messages.map(m => ({ role: m.role, content: m.content })),
-  ];
+  // Limit history
+  const limitedMessages = messages.slice(-MAX_HISTORY_MESSAGES);
 
-  if (provider === 'openai') {
+  if (provider === "anthropic") {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 2048,
+        system: [
+          {
+            type: "text",
+            text: systemPrompt,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: limitedMessages.map((m) => ({ role: m.role, content: m.content })),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Anthropic error:", errorText);
+      throw new Error("Erro na API Anthropic");
+    }
+
+    const data = await response.json();
+    if (data.usage?.cache_read_input_tokens) {
+      console.log(`Cache read: ${data.usage.cache_read_input_tokens} tokens`);
+    }
+    return data.content?.[0]?.text || "";
+  }
+
+  if (provider === "openai") {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model,
-        messages: formattedMessages,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...limitedMessages.map((m) => ({ role: m.role, content: m.content })),
+        ],
         max_tokens: 2048,
         temperature: 0.7,
       }),
@@ -83,35 +119,9 @@ async function callAI(
     return data.choices?.[0]?.message?.content || "";
   }
 
-  if (provider === 'anthropic') {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: messages.map(m => ({ role: m.role, content: m.content })),
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Anthropic error:", errorText);
-      throw new Error("Erro na API Anthropic");
-    }
-
-    const data = await response.json();
-    return data.content?.[0]?.text || "";
-  }
-
   // Google Gemini
-  const geminiMessages = messages.map(m => ({
-    role: m.role === 'assistant' ? 'model' : 'user',
+  const geminiMessages = limitedMessages.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
     parts: [{ text: m.content }],
   }));
 
@@ -138,7 +148,6 @@ async function callAI(
   return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
-// Parse generated script into structure sections
 function parseScriptContent(
   script: string,
   structure: ScriptStructure | undefined
@@ -147,7 +156,6 @@ function parseScriptContent(
 
   const content: Record<string, string> = {};
 
-  // Try to parse IDF sections from the generated script
   const inicioMatch = script.match(/## 🎯 INÍCIO.*?\n([\s\S]*?)(?=## 📚|$)/i);
   const desenvolviMatch = script.match(/## 📚 DESENVOLVIMENTO.*?\n([\s\S]*?)(?=## 🎬|$)/i);
   const finalMatch = script.match(/## 🎬 FINAL.*?\n([\s\S]*?)$/i);
@@ -162,30 +170,12 @@ function parseScriptContent(
     content[structure.final.sections[0].id] = finalMatch[1].trim();
   }
 
-  // Check if we got any content
-  const hasContent = Object.values(content).some(v => v && v.length > 0);
-  if (!hasContent) {
-    // Put full response in first section as fallback
-    if (structure.inicio?.sections?.[0]) {
-      content[structure.inicio.sections[0].id] = script;
-    }
+  const hasContent = Object.values(content).some((v) => v && v.length > 0);
+  if (!hasContent && structure.inicio?.sections?.[0]) {
+    content[structure.inicio.sections[0].id] = script;
   }
 
   return content;
-}
-
-// Check if AI response indicates script generation
-function shouldGenerateScript(messages: ChatMessage[], response: string): boolean {
-  // Generate after enough context is collected (3+ exchanges) 
-  // and response contains script structure markers
-  const hasEnoughContext = messages.length >= 4;
-  const hasScriptMarkers = 
-    response.includes('## 🎯 INÍCIO') || 
-    response.includes('## 📚 DESENVOLVIMENTO') ||
-    response.includes('GANCHO:') ||
-    response.includes('DESENVOLVIMENTO:');
-  
-  return hasEnoughContext || hasScriptMarkers;
 }
 
 Deno.serve(async (req) => {
@@ -197,7 +187,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Get auth token from request
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -206,16 +195,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase client
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify user
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(
       authHeader.replace("Bearer ", "")
     );
 
     if (authError || !user) {
-      console.error("Auth error:", authError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -223,10 +209,8 @@ Deno.serve(async (req) => {
     }
 
     const { action, script, structure, agent_id, messages }: GenerateScriptChatRequest = await req.json();
+    console.log(`Script chat: action=${action}, user=${user.id}, agent=${agent_id}`);
 
-    console.log(`Chat action: ${action}, user: ${user.id}, agent: ${agent_id}`);
-
-    // Get agent if provided
     let agent = null;
     if (agent_id) {
       const { data, error } = await supabaseClient
@@ -235,30 +219,23 @@ Deno.serve(async (req) => {
         .eq("id", agent_id)
         .single();
 
-      if (error) {
-        console.error("Agent fetch error:", error);
-      } else {
-        agent = data;
-      }
+      if (!error) agent = data;
     }
 
-    // Check if agent has API key
     if (!agent?.api_key) {
       return new Response(
-        JSON.stringify({ error: "Este agente não tem uma API Key configurada. Configure no painel de administração." }),
+        JSON.stringify({ error: "Este agente não tem uma API Key configurada." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Map objective to Portuguese
     const objectiveMap: Record<string, string> = {
-      attraction: "Atração (capturar atenção de novos seguidores)",
-      connection: "Conexão (criar vínculo emocional com a audiência)",
-      conversion: "Conversão (levar a audiência a uma ação específica)",
-      retention: "Retenção (manter a audiência engajada)",
+      attraction: "Atração",
+      connection: "Conexão",
+      conversion: "Conversão",
+      retention: "Retenção",
     };
 
-    // Map style to description
     const styleMap: Record<string, string> = {
       storytelling_looping: "Storytelling em Loop",
       analysis: "Análise",
@@ -267,7 +244,6 @@ Deno.serve(async (req) => {
       comparison: "Comparação",
     };
 
-    // Build the system prompt for conversational script creation
     const scriptContext = `
 ## CONTEXTO DO ROTEIRO
 - Título: ${script.title}
@@ -277,74 +253,52 @@ Deno.serve(async (req) => {
 - Objetivo: ${objectiveMap[script.objective || "attraction"] || script.objective}
 
 ## SUA TAREFA
-Você está ajudando a criar um roteiro para vídeo de redes sociais (Reels/TikTok).
-Conduza uma conversa natural para coletar as informações necessárias antes de escrever o roteiro.
+Ajude a criar um roteiro para vídeo de redes sociais (Reels/TikTok).
+Conduza uma conversa natural para coletar informações antes de escrever o roteiro.
 
-### PERGUNTAS QUE VOCÊ DEVE FAZER (uma por vez):
-1. Qual é a mensagem principal ou ponto-chave que você quer passar?
+### PERGUNTAS (uma por vez):
+1. Qual é a mensagem principal?
 2. Quem é seu público-alvo?
-3. Você tem algum gancho ou ideia inicial para o começo do vídeo?
-4. Qual é o CTA (chamada para ação) que você quer no final?
+3. Algum gancho ou ideia inicial?
+4. Qual CTA no final?
 
 ### IMPORTANTE:
 - Faça UMA pergunta por vez
-- Seja conversacional e amigável
-- Quando tiver informações suficientes (após 3-4 trocas), gere o roteiro completo
-- Use a estrutura IDF ao gerar o roteiro final:
+- Quando tiver informações suficientes, gere o roteiro com estrutura IDF:
   - ## 🎯 INÍCIO (Gancho)
   - ## 📚 DESENVOLVIMENTO (Conteúdo Principal)
   - ## 🎬 FINAL (Call-to-Action)`;
 
     const systemPrompt = agent.system_prompt + scriptContext;
 
-    // Handle start action - just send welcome
-    if (action === 'start') {
-      const welcomeMessage = `Olá! 👋 Vou te ajudar a criar o roteiro "${script.title}".
-
-Para criar um conteúdo incrível, preciso entender melhor o que você quer comunicar.
-
-**Qual é a mensagem principal ou ponto-chave que você quer passar nesse vídeo?**`;
-
+    if (action === "start") {
       return new Response(
-        JSON.stringify({ message: welcomeMessage }),
+        JSON.stringify({
+          message: `Olá! 👋 Vou te ajudar a criar o roteiro "${script.title}".\n\nPara criar um conteúdo incrível, preciso entender melhor o que você quer comunicar.\n\n**Qual é a mensagem principal ou ponto-chave que você quer passar nesse vídeo?**`,
+        }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Handle chat action
     const provider = getProvider(agent.model);
-    console.log(`Using agent ${agent.name}, provider: ${provider}, model: ${agent.model}`);
+    console.log(`Provider: ${provider}, model: ${agent.model}`);
 
-    const aiResponse = await callAI(
-      provider,
-      agent.model,
-      agent.api_key,
-      systemPrompt,
-      messages
-    );
-
-    console.log(`AI response length: ${aiResponse.length}`);
-
-    // Check if this response contains a complete script
-    const hasScriptStructure = 
-      aiResponse.includes('## 🎯 INÍCIO') || 
-      aiResponse.includes('## 📚 DESENVOLVIMENTO');
+    const aiResponse = await callAI(provider, agent.model, agent.api_key, systemPrompt, messages);
 
     let scriptContent = null;
+    const hasScriptStructure =
+      aiResponse.includes("## 🎯 INÍCIO") || aiResponse.includes("## 📚 DESENVOLVIMENTO");
+
     if (hasScriptStructure && structure) {
       scriptContent = parseScriptContent(aiResponse, structure);
     }
 
     return new Response(
-      JSON.stringify({
-        message: aiResponse,
-        script_content: scriptContent,
-      }),
+      JSON.stringify({ message: aiResponse, script_content: scriptContent }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("Error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

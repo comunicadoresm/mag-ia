@@ -15,15 +15,13 @@ interface GenerateScriptRequest {
   agent_id?: string;
 }
 
-// Determine provider based on model name
-function getProvider(model: string): string {
-  if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('openai/')) return 'openai';
-  if (model.startsWith('claude') || model.startsWith('anthropic/')) return 'anthropic';
-  if (model.startsWith('gemini') || model.startsWith('google/')) return 'google';
-  return 'openai'; // default
+function getProvider(model: string): "anthropic" | "openai" | "google" {
+  if (model.startsWith("claude")) return "anthropic";
+  if (model.startsWith("gpt-") || model.startsWith("o1")) return "openai";
+  if (model.startsWith("gemini")) return "google";
+  return "anthropic";
 }
 
-// Call AI based on provider
 async function callAI(
   provider: string,
   model: string,
@@ -31,12 +29,47 @@ async function callAI(
   systemPrompt: string,
   userPrompt: string
 ): Promise<string> {
-  if (provider === 'openai') {
+  if (provider === "anthropic") {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 2048,
+        system: [
+          {
+            type: "text",
+            text: systemPrompt,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Anthropic error:", errorText);
+      throw new Error("Erro na API Anthropic");
+    }
+
+    const data = await response.json();
+    if (data.usage?.cache_read_input_tokens) {
+      console.log(`Cache read: ${data.usage.cache_read_input_tokens} tokens`);
+    }
+    return data.content?.[0]?.text || "";
+  }
+
+  if (provider === "openai") {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model,
@@ -57,32 +90,6 @@ async function callAI(
 
     const data = await response.json();
     return data.choices?.[0]?.message?.content || "";
-  }
-
-  if (provider === 'anthropic') {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Anthropic error:", errorText);
-      throw new Error("Erro na API Anthropic");
-    }
-
-    const data = await response.json();
-    return data.content?.[0]?.text || "";
   }
 
   // Google Gemini
@@ -118,7 +125,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Get auth token from request
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -127,16 +133,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase client
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify user
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(
       authHeader.replace("Bearer ", "")
     );
 
     if (authError || !user) {
-      console.error("Auth error:", authError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -144,10 +147,8 @@ Deno.serve(async (req) => {
     }
 
     const { title, theme, style, format, objective, agent_id }: GenerateScriptRequest = await req.json();
+    console.log(`Generate script: user=${user.id}, title="${title}", agent=${agent_id}`);
 
-    console.log(`Generating script for user ${user.id}: ${title}, agent: ${agent_id}`);
-
-    // Get agent if provided
     let agent = null;
     if (agent_id) {
       const { data, error } = await supabaseClient
@@ -156,22 +157,16 @@ Deno.serve(async (req) => {
         .eq("id", agent_id)
         .single();
 
-      if (error) {
-        console.error("Agent fetch error:", error);
-      } else {
-        agent = data;
-      }
+      if (!error) agent = data;
     }
 
-    // Check if agent has API key
     if (!agent?.api_key) {
       return new Response(
-        JSON.stringify({ error: "Este agente não tem uma API Key configurada. Configure no painel de administração." }),
+        JSON.stringify({ error: "Este agente não tem uma API Key configurada." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Map objective to Portuguese
     const objectiveMap: Record<string, string> = {
       attraction: "Atração (capturar atenção de novos seguidores)",
       connection: "Conexão (criar vínculo emocional com a audiência)",
@@ -179,16 +174,14 @@ Deno.serve(async (req) => {
       retention: "Retenção (manter a audiência engajada)",
     };
 
-    // Map style to description
     const styleMap: Record<string, string> = {
-      storytelling_looping: "Storytelling em Loop - história que prende do início ao fim, com gancho que conecta o final ao início",
-      analysis: "Análise - conteúdo educativo que analisa uma tendência, técnica ou fenômeno",
-      tutorial: "Tutorial - passo a passo prático e objetivo",
-      list: "Lista - formato de lista com pontos numerados ou tópicos",
-      comparison: "Comparação - análise comparativa entre duas ou mais opções",
+      storytelling_looping: "Storytelling em Loop",
+      analysis: "Análise",
+      tutorial: "Tutorial",
+      list: "Lista",
+      comparison: "Comparação",
     };
 
-    // Build the system prompt combining agent's prompt with script-specific instructions
     const scriptInstructions = `
 
 ## TAREFA ATUAL: Criar um Roteiro de Vídeo
@@ -200,18 +193,14 @@ Você está sendo solicitado a criar um roteiro para vídeo de redes sociais (Re
 #### INÍCIO (I) - Gancho
 - Primeiro segundo é crucial: deve prender a atenção imediatamente
 - Use perguntas provocativas, afirmações surpreendentes ou cenas intrigantes
-- Evite introduções genéricas como "Olá pessoal" ou "Hoje vou falar sobre"
 
 #### DESENVOLVIMENTO (D) - Conteúdo Principal  
 - Entregue valor real e concreto
 - Mantenha ritmo dinâmico, sem enrolação
-- Use transições naturais entre pontos
-- Inclua exemplos práticos quando possível
 
 #### FINAL (F) - Call-to-Action
 - Finalize com impacto
-- Inclua CTA claro (seguir, comentar, salvar, compartilhar)
-- Pode conectar com o início para criar loop`;
+- Inclua CTA claro`;
 
     const systemPrompt = agent.system_prompt + scriptInstructions;
 
@@ -223,43 +212,31 @@ Você está sendo solicitado a criar um roteiro para vídeo de redes sociais (Re
 **Formato:** ${format || "Falado para câmera"}
 **Objetivo:** ${objectiveMap[objective || "attraction"] || objective}
 
-Por favor, escreva o roteiro seguindo a estrutura IDF, formatando claramente cada seção:
+Por favor, escreva o roteiro seguindo a estrutura IDF:
 
 ## 🎯 INÍCIO (Gancho)
-[Escreva aqui o gancho inicial - máximo 2-3 frases que prendem atenção imediatamente]
+[Gancho inicial]
 
 ## 📚 DESENVOLVIMENTO (Conteúdo Principal)
-[Escreva aqui o corpo do roteiro - desenvolva o tema com exemplos práticos]
+[Corpo do roteiro]
 
 ## 🎬 FINAL (Call-to-Action)
-[Escreva aqui o fechamento com CTA claro]
+[Fechamento com CTA]
 
-Lembre-se: o roteiro deve ser natural para falar, não para ler. Use linguagem coloquial e envolvente.`;
+Lembre-se: o roteiro deve ser natural para falar, não para ler.`;
 
-    // Determine provider and call AI
     const provider = getProvider(agent.model);
-    console.log(`Using agent ${agent.name}, provider: ${provider}, model: ${agent.model}`);
+    console.log(`Provider: ${provider}, model: ${agent.model}`);
 
-    const generatedScript = await callAI(
-      provider,
-      agent.model,
-      agent.api_key,
-      systemPrompt,
-      userPrompt
-    );
-
-    console.log(`Script generated successfully, length: ${generatedScript.length}`);
+    const generatedScript = await callAI(provider, agent.model, agent.api_key, systemPrompt, userPrompt);
+    console.log(`Script generated, length: ${generatedScript.length}`);
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        script: generatedScript,
-      }),
+      JSON.stringify({ success: true, script: generatedScript }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("Error:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -17,70 +17,221 @@ interface Message {
   content: string;
 }
 
-// Search for relevant knowledge from agent's documents using simple text matching
+// Max messages to send to AI (last N messages)
+const MAX_HISTORY_MESSAGES = 20;
+
+// Determine provider based on model name
+function getProvider(model: string): "anthropic" | "openai" | "google" {
+  if (model.startsWith("claude")) return "anthropic";
+  if (model.startsWith("gpt-") || model.startsWith("o1")) return "openai";
+  if (model.startsWith("gemini")) return "google";
+  return "anthropic"; // fallback
+}
+
+// Search for relevant knowledge from agent's documents
 async function searchKnowledge(
   supabase: any,
   agentId: string,
   query: string
 ): Promise<string> {
   try {
-    // Get document chunks for this agent
     const { data: chunks, error } = await supabase
       .from("document_chunks")
       .select("content")
       .eq("agent_id", agentId)
       .limit(20);
 
-    if (error) {
-      console.error("Knowledge search error:", error);
-      return "";
-    }
+    if (error || !chunks || chunks.length === 0) return "";
 
-    if (!chunks || chunks.length === 0) {
-      return "";
-    }
+    const queryWords = query.toLowerCase().split(/\s+/).filter((w: string) => w.length > 3);
 
-    // Simple relevance scoring - count matching words
-    const queryWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-    
     const scoredChunks = chunks.map((chunk: { content: string }) => {
       const contentLower = chunk.content.toLowerCase();
       let score = 0;
-      
       for (const word of queryWords) {
-        if (contentLower.includes(word)) {
-          score += 1;
-        }
+        if (contentLower.includes(word)) score += 1;
       }
-      
       return { content: chunk.content, score };
     });
 
-    // Sort by score and take top 5 relevant chunks
     const relevantChunks = scoredChunks
       .filter((c: { score: number }) => c.score > 0)
       .sort((a: { score: number }, b: { score: number }) => b.score - a.score)
       .slice(0, 5);
 
     if (relevantChunks.length === 0) {
-      // If no relevant chunks, just return the first few chunks as general context
       return chunks.slice(0, 3).map((c: { content: string }) => c.content).join("\n\n---\n\n");
     }
 
-    // Combine relevant chunks into context
-    const context = relevantChunks
-      .map((chunk: { content: string }) => chunk.content)
-      .join("\n\n---\n\n");
-
-    return context;
+    return relevantChunks.map((chunk: { content: string }) => chunk.content).join("\n\n---\n\n");
   } catch (error) {
     console.error("Error searching knowledge:", error);
     return "";
   }
 }
 
+// Call Anthropic with prompt caching
+async function callAnthropic(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  knowledgeContext: string,
+  history: Message[]
+): Promise<{ text: string; tokens: number | null }> {
+  // Build system with cache_control
+  const systemBlocks: any[] = [
+    {
+      type: "text",
+      text: systemPrompt,
+      cache_control: { type: "ephemeral" },
+    },
+  ];
+
+  // Build messages - knowledge context as first user message with caching
+  const messages: any[] = [];
+
+  if (knowledgeContext) {
+    messages.push({
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `Contexto da base de conhecimento:\n${knowledgeContext}`,
+          cache_control: { type: "ephemeral" },
+        },
+      ],
+    });
+    messages.push({
+      role: "assistant",
+      content: "Entendido, vou usar essas informações como contexto.",
+    });
+  }
+
+  // Add conversation history (limited)
+  messages.push(...history.map((m) => ({ role: m.role, content: m.content })));
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 2048,
+      system: systemBlocks,
+      messages,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Anthropic API error:", errorText);
+    throw new Error("Erro na API Anthropic. Verifique sua API Key e modelo.");
+  }
+
+  const data = await response.json();
+  const text = data.content?.[0]?.text || "Desculpe, não consegui gerar uma resposta.";
+  const tokens = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
+
+  // Log cache stats
+  if (data.usage?.cache_creation_input_tokens || data.usage?.cache_read_input_tokens) {
+    console.log(`Cache stats - created: ${data.usage?.cache_creation_input_tokens || 0}, read: ${data.usage?.cache_read_input_tokens || 0}`);
+  }
+
+  return { text, tokens };
+}
+
+// Call OpenAI
+async function callOpenAI(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  knowledgeContext: string,
+  history: Message[]
+): Promise<{ text: string; tokens: number | null }> {
+  const messages: any[] = [{ role: "system", content: systemPrompt }];
+
+  if (knowledgeContext) {
+    messages.push({
+      role: "user",
+      content: `Contexto da base de conhecimento:\n${knowledgeContext}`,
+    });
+    messages.push({
+      role: "assistant",
+      content: "Entendido, vou usar essas informações como contexto.",
+    });
+  }
+
+  messages.push(...history.map((m) => ({ role: m.role, content: m.content })));
+
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({ model, messages, max_tokens: 2048, temperature: 0.7 }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("OpenAI API error:", errorText);
+    throw new Error("Erro na API OpenAI. Verifique sua API Key.");
+  }
+
+  const data = await response.json();
+  return {
+    text: data.choices?.[0]?.message?.content || "Desculpe, não consegui gerar uma resposta.",
+    tokens: data.usage?.total_tokens || null,
+  };
+}
+
+// Call Google Gemini
+async function callGemini(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  knowledgeContext: string,
+  history: Message[]
+): Promise<{ text: string; tokens: number | null }> {
+  const fullSystemPrompt = knowledgeContext
+    ? `${systemPrompt}\n\n## Base de Conhecimento\n${knowledgeContext}`
+    : systemPrompt;
+
+  const contents = history.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents,
+        systemInstruction: { parts: [{ text: fullSystemPrompt }] },
+        generationConfig: { maxOutputTokens: 2048, temperature: 0.7 },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Gemini API error:", errorText);
+    throw new Error("Erro na API Google Gemini. Verifique sua API Key.");
+  }
+
+  const data = await response.json();
+  return {
+    text: data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui gerar uma resposta.",
+    tokens: data.usageMetadata?.totalTokenCount || null,
+  };
+}
+
 Deno.serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -89,7 +240,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Get auth token from request
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -98,16 +248,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create Supabase client with user's token
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify user
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser(
       authHeader.replace("Bearer ", "")
     );
 
     if (authError || !user) {
-      console.error("Auth error:", authError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -115,8 +262,7 @@ Deno.serve(async (req) => {
     }
 
     const { conversation_id, agent_id }: ChatRequest = await req.json();
-
-    console.log(`Processing chat for user ${user.id}, conversation ${conversation_id}`);
+    console.log(`Chat: user=${user.id}, conv=${conversation_id}`);
 
     // Verify conversation belongs to user
     const { data: conversation, error: convError } = await supabaseClient
@@ -127,14 +273,13 @@ Deno.serve(async (req) => {
       .single();
 
     if (convError || !conversation) {
-      console.error("Conversation error:", convError);
       return new Response(
         JSON.stringify({ error: "Conversation not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get agent with system prompt and api_key
+    // Get agent
     const { data: agent, error: agentError } = await supabaseClient
       .from("agents")
       .select("*")
@@ -142,231 +287,103 @@ Deno.serve(async (req) => {
       .single();
 
     if (agentError || !agent) {
-      console.error("Agent error:", agentError);
       return new Response(
         JSON.stringify({ error: "Agent not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Check if agent has API key configured
     if (!agent.api_key) {
-      console.error("Agent has no API key configured");
       return new Response(
-        JSON.stringify({ error: "Este agente não tem uma API Key configurada. Configure no painel de administração." }),
+        JSON.stringify({ error: "Este agente não tem uma API Key configurada." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Get conversation history
+    // Get conversation history — LIMITED to last N messages
     const { data: messagesData, error: messagesError } = await supabaseClient
       .from("messages")
       .select("role, content")
       .eq("conversation_id", conversation_id)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(MAX_HISTORY_MESSAGES);
 
     if (messagesError) {
-      console.error("Messages error:", messagesError);
       return new Response(
         JSON.stringify({ error: "Failed to fetch messages" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Build messages array for AI
-    const conversationHistory: Message[] = messagesData?.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    })) || [];
+    // Reverse to chronological order
+    const conversationHistory: Message[] = (messagesData || [])
+      .reverse()
+      .map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      }));
 
-    // Get the latest user message for knowledge search
+    // Search knowledge base
     const latestUserMessage = conversationHistory
-      .filter(m => m.role === "user")
+      .filter((m) => m.role === "user")
       .pop()?.content || "";
 
-    // Search for relevant knowledge from agent's documents
     let knowledgeContext = "";
     if (latestUserMessage) {
-      knowledgeContext = await searchKnowledge(
-        supabaseClient as any, 
-        agent_id, 
-        latestUserMessage
-      );
+      knowledgeContext = await searchKnowledge(supabaseClient, agent_id, latestUserMessage);
     }
 
-    // Build the system prompt with knowledge context
+    // Build system prompt
     let systemPrompt = agent.system_prompt;
     if (knowledgeContext) {
-      systemPrompt = `${agent.system_prompt}
-
-## Base de Conhecimento
-
-Use as seguintes informações como contexto para responder às perguntas do usuário. Se a informação não estiver disponível no contexto, responda com base no seu conhecimento geral, mas indique quando estiver fazendo isso.
-
-${knowledgeContext}`;
-      console.log(`Added ${knowledgeContext.length} chars of knowledge context`);
+      systemPrompt = `${agent.system_prompt}\n\n## Base de Conhecimento\nUse as seguintes informações como contexto para responder às perguntas do usuário.\n\n${knowledgeContext}`;
     }
-
-    console.log(`Sending ${conversationHistory.length} messages to AI with model: ${agent.model}`);
-
-    // Determine provider based on model name
-    const getProvider = (model: string): string => {
-      if (model.startsWith('gpt-') || model.startsWith('o1') || model.startsWith('openai/')) return 'openai';
-      if (model.startsWith('claude') || model.startsWith('anthropic/')) return 'anthropic';
-      if (model.startsWith('gemini') || model.startsWith('google/')) return 'google';
-      return 'openai'; // default
-    };
 
     const provider = getProvider(agent.model);
-    console.log(`Using provider: ${provider}, model: ${agent.model}`);
+    console.log(`Provider: ${provider}, model: ${agent.model}, history: ${conversationHistory.length} msgs`);
 
-    // Build request based on provider
-    let aiResponse: Response;
-    let assistantMessage: string;
-    let tokensUsed: number | null = null;
+    let result: { text: string; tokens: number | null };
 
-    if (provider === 'openai') {
-      // OpenAI API
-      aiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${agent.api_key}`,
-        },
-        body: JSON.stringify({
-          model: agent.model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...conversationHistory,
-          ],
-          max_tokens: 2048,
-          temperature: 0.7,
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        console.error("OpenAI API error:", errorText);
-        return new Response(
-          JSON.stringify({ error: "Erro na API OpenAI. Verifique sua API Key." }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const aiData = await aiResponse.json();
-      assistantMessage = aiData.choices?.[0]?.message?.content || "Desculpe, não consegui gerar uma resposta.";
-      tokensUsed = aiData.usage?.total_tokens || null;
-
-    } else if (provider === 'anthropic') {
-      // Anthropic API
-      aiResponse = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": agent.api_key,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: agent.model,
-          max_tokens: 2048,
-          system: systemPrompt,
-          messages: conversationHistory.map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        console.error("Anthropic API error:", errorText);
-        return new Response(
-          JSON.stringify({ error: "Erro na API Anthropic. Verifique sua API Key e modelo configurado." }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const aiData = await aiResponse.json();
-      assistantMessage = aiData.content?.[0]?.text || "Desculpe, não consegui gerar uma resposta.";
-      tokensUsed = (aiData.usage?.input_tokens || 0) + (aiData.usage?.output_tokens || 0);
-
+    if (provider === "anthropic") {
+      // For Anthropic, pass knowledge separately for caching
+      result = await callAnthropic(agent.api_key, agent.model, agent.system_prompt, knowledgeContext, conversationHistory);
+    } else if (provider === "openai") {
+      result = await callOpenAI(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
     } else {
-      // Google Gemini API
-      aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${agent.model}:generateContent?key=${agent.api_key}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            ...conversationHistory.map(m => ({
-              role: m.role === 'assistant' ? 'model' : 'user',
-              parts: [{ text: m.content }],
-            })),
-          ],
-          systemInstruction: {
-            parts: [{ text: systemPrompt }],
-          },
-          generationConfig: {
-            maxOutputTokens: 2048,
-            temperature: 0.7,
-          },
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        const errorText = await aiResponse.text();
-        console.error("Gemini API error:", errorText);
-        return new Response(
-          JSON.stringify({ error: "Erro na API Google Gemini. Verifique sua API Key." }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const aiData = await aiResponse.json();
-      assistantMessage = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui gerar uma resposta.";
-      tokensUsed = aiData.usageMetadata?.totalTokenCount || null;
+      result = await callGemini(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
     }
 
-    console.log(`AI response received, tokens: ${tokensUsed}`);
+    console.log(`AI response: ${result.tokens} tokens`);
 
-    // Save assistant message to database
-    const { error: insertError } = await supabaseClient
-      .from("messages")
-      .insert({
-        conversation_id,
-        role: "assistant",
-        content: assistantMessage,
-        tokens_used: tokensUsed,
-      });
-
-    if (insertError) {
-      console.error("Insert error:", insertError);
-      // Still return the response even if saving failed
-    }
+    // Save assistant message
+    await supabaseClient.from("messages").insert({
+      conversation_id,
+      role: "assistant",
+      content: result.text,
+      tokens_used: result.tokens,
+    });
 
     // Update conversation metadata
     await supabaseClient
       .from("conversations")
       .update({
         last_message_at: new Date().toISOString(),
-        message_count: (conversation.message_count || 0) + 2, // user + assistant
+        message_count: (conversation.message_count || 0) + 2,
       })
       .eq("id", conversation_id);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: assistantMessage,
-        tokens_used: tokensUsed,
+        message: result.text,
+        tokens_used: result.tokens,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error) {
-    console.error("Unexpected error:", error);
+    console.error("Chat error:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error" }),
+      JSON.stringify({ error: error instanceof Error ? error.message : "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
