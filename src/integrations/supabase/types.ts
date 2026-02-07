@@ -149,7 +149,9 @@ export type Database = {
       agents: {
         Row: {
           api_key: string | null
+          billing_type: string | null
           created_at: string | null
+          credit_cost: number | null
           description: string | null
           display_order: number | null
           ice_breakers: Json | null
@@ -157,6 +159,7 @@ export type Database = {
           icon_url: string | null
           id: string
           is_active: boolean | null
+          message_package_size: number | null
           model: string | null
           name: string
           slug: string
@@ -166,7 +169,9 @@ export type Database = {
         }
         Insert: {
           api_key?: string | null
+          billing_type?: string | null
           created_at?: string | null
+          credit_cost?: number | null
           description?: string | null
           display_order?: number | null
           ice_breakers?: Json | null
@@ -174,6 +179,7 @@ export type Database = {
           icon_url?: string | null
           id?: string
           is_active?: boolean | null
+          message_package_size?: number | null
           model?: string | null
           name: string
           slug: string
@@ -183,7 +189,9 @@ export type Database = {
         }
         Update: {
           api_key?: string | null
+          billing_type?: string | null
           created_at?: string | null
+          credit_cost?: number | null
           description?: string | null
           display_order?: number | null
           ice_breakers?: Json | null
@@ -191,6 +199,7 @@ export type Database = {
           icon_url?: string | null
           id?: string
           is_active?: boolean | null
+          message_package_size?: number | null
           model?: string | null
           name?: string
           slug?: string
@@ -245,6 +254,132 @@ export type Database = {
           },
           {
             foreignKeyName: "conversations_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_purchases: {
+        Row: {
+          created_at: string | null
+          credits: number
+          id: string
+          package: string
+          payment_status: string | null
+          price_brl: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          credits: number
+          id?: string
+          package: string
+          payment_status?: string | null
+          price_brl: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          credits?: number
+          id?: string
+          package?: string
+          payment_status?: string | null
+          price_brl?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_purchases_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_subscriptions: {
+        Row: {
+          cancelled_at: string | null
+          created_at: string | null
+          credits_per_month: number
+          id: string
+          next_renewal_at: string | null
+          price_brl: number
+          status: string | null
+          tier: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          cancelled_at?: string | null
+          created_at?: string | null
+          credits_per_month: number
+          id?: string
+          next_renewal_at?: string | null
+          price_brl: number
+          status?: string | null
+          tier: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          cancelled_at?: string | null
+          created_at?: string | null
+          credits_per_month?: number
+          id?: string
+          next_renewal_at?: string | null
+          price_brl?: number
+          status?: string | null
+          tier?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_subscriptions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          source: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          source: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          source?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_transactions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -341,24 +476,36 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ac_tags: string[] | null
           created_at: string | null
           email: string
           id: string
+          last_ac_verification: string | null
           name: string | null
+          plan_activated_at: string | null
+          plan_type: string | null
           updated_at: string | null
         }
         Insert: {
+          ac_tags?: string[] | null
           created_at?: string | null
           email: string
           id: string
+          last_ac_verification?: string | null
           name?: string | null
+          plan_activated_at?: string | null
+          plan_type?: string | null
           updated_at?: string | null
         }
         Update: {
+          ac_tags?: string[] | null
           created_at?: string | null
           email?: string
           id?: string
+          last_ac_verification?: string | null
           name?: string | null
+          plan_activated_at?: string | null
+          plan_type?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -542,6 +689,50 @@ export type Database = {
           slug?: string
         }
         Relationships: []
+      }
+      user_credits: {
+        Row: {
+          bonus_credits: number | null
+          created_at: string | null
+          cycle_end_date: string | null
+          cycle_start_date: string | null
+          id: string
+          plan_credits: number | null
+          subscription_credits: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          bonus_credits?: number | null
+          created_at?: string | null
+          cycle_end_date?: string | null
+          cycle_start_date?: string | null
+          id?: string
+          plan_credits?: number | null
+          subscription_credits?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          bonus_credits?: number | null
+          created_at?: string | null
+          cycle_end_date?: string | null
+          cycle_start_date?: string | null
+          id?: string
+          plan_credits?: number | null
+          subscription_credits?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_credits_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
