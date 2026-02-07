@@ -15,6 +15,7 @@ import History from "./pages/History";
 import Profile from "./pages/Profile";
 import AdminAgents from "./pages/AdminAgents";
 import Kanban from "./pages/Kanban";
+import Credits from "./pages/Credits";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ function AppRoutes() {
       <Route path="/chat/:conversationId" element={<Chat />} />
       <Route path="/history" element={<History />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/profile/credits" element={<Credits />} />
         <Route path="/kanban" element={<Kanban />} />
         <Route path="/admin/agents" element={<AdminAgents />} />
         <Route path="*" element={<NotFound />} />

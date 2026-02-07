@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Mail, Calendar, Pencil, Check, X, Loader2 } from 'lucide-react';
+import { LogOut, Mail, Calendar, Pencil, Check, X, Loader2, Coins, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { BottomNavigation } from '@/components/BottomNavigation';
@@ -167,6 +167,21 @@ export default function Profile() {
               </div>
             </div>
           </div>
+
+          {/* Credits Link */}
+          <button
+            onClick={() => navigate('/profile/credits')}
+            className="card-cm p-4 flex items-center gap-3 w-full text-left mb-3"
+          >
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+              <Coins className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">Créditos</p>
+              <p className="text-sm font-medium text-foreground">Ver meus créditos e consumo</p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+          </button>
 
           {/* Sign Out Button */}
           <Button
