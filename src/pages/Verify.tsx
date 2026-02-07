@@ -12,9 +12,15 @@ export default function Verify() {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { signInWithOtp } = useAuth();
+  const { signInWithOtp, user, loading: authLoading } = useAuth();
 
   const email = location.state?.email;
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      navigate('/home', { replace: true });
+    }
+  }, [user, authLoading, navigate]);
 
   useEffect(() => {
     if (!email) {
