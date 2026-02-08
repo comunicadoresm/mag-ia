@@ -55,7 +55,6 @@ Deno.serve(async (req) => {
           .single();
 
         if (profile?.plan_type === "magnetic") {
-          const oldTotal = credit.plan_credits + credit.subscription_credits + credit.bonus_credits;
           const newCycleStart = new Date();
           const newCycleEnd = new Date();
           newCycleEnd.setMonth(newCycleEnd.getMonth() + 1);
@@ -90,6 +89,32 @@ Deno.serve(async (req) => {
             });
           } else {
             console.error(`Error renewing credits for user ${credit.user_id}:`, updateError);
+          }
+        } else if (profile?.plan_type === "basic") {
+          // Basic plan: trial credits EXPIRE after cycle ends — zero them out, no renewal
+          console.log(`Basic user ${credit.user_id}: trial expired, zeroing credits`);
+
+          const { error: updateError } = await supabase
+            .from("user_credits")
+            .update({
+              plan_credits: 0,
+              subscription_credits: 0,
+            })
+            .eq("id", credit.id);
+
+          if (!updateError) {
+            // Log expiration
+            await supabase.from("credit_transactions").insert({
+              user_id: credit.user_id,
+              type: "consumption",
+              amount: -(credit.plan_credits || 0),
+              source: "trial_expired",
+              balance_after: credit.bonus_credits || 0,
+              metadata: {
+                plan: "basic",
+                expired_credits: credit.plan_credits,
+              },
+            });
           }
         }
       }
