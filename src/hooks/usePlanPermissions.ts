@@ -16,7 +16,7 @@ export function usePlanPermissions() {
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false);
 
   const planType = useMemo<PlanType>(() => {
-    return (profile as any)?.plan_type || 'none';
+    return (profile?.plan_type as PlanType) || 'none';
   }, [profile]);
 
   const hasFeature = useCallback((feature: FeatureFlag): boolean => {

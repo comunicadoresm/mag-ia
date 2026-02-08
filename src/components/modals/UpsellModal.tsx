@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Zap, ShoppingCart, Crown, Loader2 } from 'lucide-react';
 import { useHotmartCheckout } from '@/hooks/useHotmartCheckout';
 import { useUpsellPlans } from '@/hooks/useUpsellPlans';
+import { usePlanPermissions } from '@/hooks/usePlanPermissions';
 
 interface UpsellModalProps {
   open: boolean;
@@ -14,6 +15,9 @@ interface UpsellModalProps {
 export function UpsellModal({ open, onOpenChange, onBuyCredits }: UpsellModalProps) {
   const { openCheckout } = useHotmartCheckout();
   const { magnetic, loading } = useUpsellPlans();
+  const { planType } = usePlanPermissions();
+
+  const isMagnetic = planType === 'magnetic';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -26,7 +30,9 @@ export function UpsellModal({ open, onOpenChange, onBuyCredits }: UpsellModalPro
             Seus créditos acabaram!
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">
-            Escolha uma opção para continuar usando a IA
+            {isMagnetic
+              ? 'Compre mais créditos para continuar usando a IA'
+              : 'Faça upgrade para o plano Magnético e libere a IA completa'}
           </DialogDescription>
         </DialogHeader>
 
@@ -34,8 +40,8 @@ export function UpsellModal({ open, onOpenChange, onBuyCredits }: UpsellModalPro
           <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
         ) : (
           <div className="space-y-3 mt-4">
-            {/* Option 1: Upgrade to Magnetic */}
-            {magnetic && (
+            {/* For BASIC users: show only magnetic upgrade */}
+            {!isMagnetic && magnetic && (
               <div className="card-cm p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -72,30 +78,39 @@ export function UpsellModal({ open, onOpenChange, onBuyCredits }: UpsellModalPro
               </div>
             )}
 
-            {/* Option 2: Buy credits */}
-            <div className="card-cm p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-                    <ShoppingCart className="w-5 h-5 text-foreground" />
+            {/* For MAGNETIC users: show buy credits option */}
+            {isMagnetic && (
+              <div className="card-cm p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
+                      <ShoppingCart className="w-5 h-5 text-foreground" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-foreground">Comprar Créditos</h4>
+                      <p className="text-xs text-muted-foreground">Pacotes avulsos ou assinatura mensal</p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground">Créditos Avulsos</h4>
-                    <p className="text-xs text-muted-foreground">Compre pacotes ou assine</p>
-                  </div>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => {
+                      onOpenChange(false);
+                      onBuyCredits?.();
+                    }}
+                  >
+                    Ver opções
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    onOpenChange(false);
-                    onBuyCredits?.();
-                  }}
-                >
-                  Ver opções
-                </Button>
               </div>
-            </div>
+            )}
+
+            {/* For BASIC users: NO credit purchase option, only magnetic upgrade */}
+            {!isMagnetic && (
+              <p className="text-xs text-center text-muted-foreground px-4">
+                Faça upgrade para o plano Magnético para ter acesso a créditos mensais e pacotes avulsos.
+              </p>
+            )}
           </div>
         )}
       </DialogContent>

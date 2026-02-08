@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { UpsellModal } from '@/components/modals/UpsellModal';
 import { BuyCreditsModal } from '@/components/modals/BuyCreditsModal';
+import { usePlanPermissions } from '@/hooks/usePlanPermissions';
 
 interface CreditsModalContextType {
   showUpsell: () => void;
@@ -19,9 +20,19 @@ export function useCreditsModals() {
 export function CreditsModalProvider({ children }: { children: React.ReactNode }) {
   const [upsellOpen, setUpsellOpen] = useState(false);
   const [buyCreditsOpen, setBuyCreditsOpen] = useState(false);
+  const { planType } = usePlanPermissions();
 
   const showUpsell = useCallback(() => setUpsellOpen(true), []);
-  const showBuyCredits = useCallback(() => setBuyCreditsOpen(true), []);
+  
+  // Only magnetic users can access BuyCreditsModal
+  const showBuyCredits = useCallback(() => {
+    if (planType === 'magnetic') {
+      setBuyCreditsOpen(true);
+    } else {
+      // For basic users, show upsell to magnetic instead
+      setUpsellOpen(true);
+    }
+  }, [planType]);
 
   return (
     <CreditsModalContext.Provider value={{ showUpsell, showBuyCredits }}>
@@ -31,10 +42,14 @@ export function CreditsModalProvider({ children }: { children: React.ReactNode }
         onOpenChange={setUpsellOpen}
         onBuyCredits={() => {
           setUpsellOpen(false);
-          setBuyCreditsOpen(true);
+          if (planType === 'magnetic') {
+            setBuyCreditsOpen(true);
+          }
         }}
       />
-      <BuyCreditsModal open={buyCreditsOpen} onOpenChange={setBuyCreditsOpen} />
+      {planType === 'magnetic' && (
+        <BuyCreditsModal open={buyCreditsOpen} onOpenChange={setBuyCreditsOpen} />
+      )}
     </CreditsModalContext.Provider>
   );
 }
