@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.renew-credits]
 verify_jwt = false
+
+[functions.setup-user-plan]
+verify_jwt = false

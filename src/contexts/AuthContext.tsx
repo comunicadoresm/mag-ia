@@ -58,8 +58,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Defer Supabase calls with setTimeout to prevent deadlock
         if (currentSession?.user) {
-          setTimeout(() => {
-            fetchProfile(currentSession.user.id).then(setProfile);
+          setTimeout(async () => {
+            const profileData = await fetchProfile(currentSession.user.id);
+            setProfile(profileData);
+
+            // After sign-in, set up user plan if pending
+            if (event === 'SIGNED_IN') {
+              const pendingPlan = localStorage.getItem('pending_plan_type');
+              if (pendingPlan && (pendingPlan === 'basic' || pendingPlan === 'magnetic')) {
+                localStorage.removeItem('pending_plan_type');
+                try {
+                  await supabase.functions.invoke('setup-user-plan', {
+                    body: { planType: pendingPlan },
+                  });
+                  // Refresh profile to get updated plan_type
+                  const updatedProfile = await fetchProfile(currentSession.user.id);
+                  setProfile(updatedProfile);
+                } catch (err) {
+                  console.error('Error setting up user plan:', err);
+                }
+              }
+            }
           }, 0);
         } else {
           setProfile(null);

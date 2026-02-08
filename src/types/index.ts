@@ -2,6 +2,10 @@ export interface Profile {
   id: string;
   email: string;
   name: string | null;
+  plan_type: string | null;
+  plan_activated_at: string | null;
+  ac_tags: string[] | null;
+  last_ac_verification: string | null;
   created_at: string;
   updated_at: string;
 }

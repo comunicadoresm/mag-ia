@@ -30,19 +30,44 @@ async function fetchJson(url: string, apiKey: string) {
   return JSON.parse(text);
 }
 
-function parseRequiredTagInputs(input: string) {
-  return input
-    .split(",")
-    .map((t) => t.trim())
-    .filter(Boolean);
+function parseTagInputs(input: string) {
+  return input.split(",").map((t) => t.trim()).filter(Boolean);
 }
 
 function isNumericTagId(value: string) {
   return /^\d+$/.test(value);
 }
 
+async function resolveTagIds(baseUrl: string, acApiKey: string, tagInput: string): Promise<Set<string>> {
+  const inputs = parseTagInputs(tagInput);
+  const ids = new Set<string>();
+
+  for (const input of inputs) {
+    if (isNumericTagId(input)) {
+      ids.add(input);
+      continue;
+    }
+
+    const searchData = await fetchJson(
+      `${baseUrl}/api/3/tags?search=${encodeURIComponent(input)}`,
+      acApiKey
+    );
+    const tags: ActiveCampaignTag[] = searchData.tags || [];
+    const normalizedNeedle = input.toLowerCase();
+    const match = tags.find((t) => (t.tag || "").toLowerCase() === normalizedNeedle) || tags[0];
+
+    if (match?.id) {
+      ids.add(String(match.id));
+      console.log(`Resolved tag "${input}" -> id ${match.id} (${match.tag})`);
+    } else {
+      console.log(`Could not resolve tag "${input}"`);
+    }
+  }
+
+  return ids;
+}
+
 serve(async (req: Request): Promise<Response> => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -59,7 +84,6 @@ serve(async (req: Request): Promise<Response> => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -67,16 +91,17 @@ serve(async (req: Request): Promise<Response> => {
     // Check if user already exists in profiles
     const { data: existingProfile } = await supabase
       .from("profiles")
-      .select("id")
+      .select("id, plan_type")
       .eq("email", normalizedEmail)
       .single();
 
     if (existingProfile) {
-      console.log(`User ${normalizedEmail} already exists in database - granting access`);
+      console.log(`User ${normalizedEmail} already exists (plan: ${existingProfile.plan_type}) - granting access`);
       return new Response(
         JSON.stringify({
           isVerified: true,
           source: "database",
+          planType: existingProfile.plan_type || "none",
           message: "User exists in database - access granted",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -86,9 +111,14 @@ serve(async (req: Request): Promise<Response> => {
     // User not in database, check ActiveCampaign
     const acApiKey = Deno.env.get("ACTIVECAMPAIGN_API_KEY");
     const acApiUrl = Deno.env.get("ACTIVECAMPAIGN_API_URL");
-    const acTagName = Deno.env.get("ACTIVECAMPAIGN_TAG_NAME");
+    
+    // New: separate tag env vars for each plan
+    const acTagBasic = Deno.env.get("ACTIVECAMPAIGN_TAG_BASIC");
+    const acTagMagnetic = Deno.env.get("ACTIVECAMPAIGN_TAG_MAGNETIC");
+    // Fallback to legacy single tag
+    const acTagLegacy = Deno.env.get("ACTIVECAMPAIGN_TAG_NAME");
 
-    if (!acApiKey || !acApiUrl || !acTagName) {
+    if (!acApiKey || !acApiUrl) {
       console.error("ActiveCampaign configuration missing");
       return new Response(
         JSON.stringify({ error: "ActiveCampaign configuration missing" }),
@@ -96,7 +126,6 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Clean API URL (remove trailing slash)
     const baseUrl = acApiUrl.replace(/\/$/, "");
 
     // Step 1: Find contact by email
@@ -113,6 +142,7 @@ serve(async (req: Request): Promise<Response> => {
         JSON.stringify({
           isVerified: false,
           source: "activecampaign",
+          planType: "none",
           message: "Email not found in ActiveCampaign",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -122,59 +152,64 @@ serve(async (req: Request): Promise<Response> => {
     const contactId = contacts[0].id;
     console.log(`Found contact ID: ${contactId}`);
 
-    // Step 2: Get contact tag IDs (contactTags[].tag)
+    // Step 2: Get contact tag IDs
     const tagsData = await fetchJson(
       `${baseUrl}/api/3/contacts/${contactId}/contactTags`,
       acApiKey
     );
     const contactTags = tagsData.contactTags || [];
-
     const contactTagIds = new Set<string>(contactTags.map((ct: { tag: string }) => String(ct.tag)));
-    console.log(`Contact tag IDs for ${normalizedEmail}: ${Array.from(contactTagIds).join(",") || "(none)"}`);
+    console.log(`Contact tag IDs: ${Array.from(contactTagIds).join(",") || "(none)"}`);
 
-    // Step 3: Resolve required tag(s) -> tag IDs, then compare by ID
-    // Supports either:
-    // - ACTIVECAMPAIGN_TAG_NAME="Minha Tag"
-    // - ACTIVECAMPAIGN_TAG_NAME="Minha Tag,Outra Tag"
-    // - ACTIVECAMPAIGN_TAG_NAME="123" (tag ID)
-    const requiredInputs = parseRequiredTagInputs(acTagName);
-    const requiredTagIds = new Set<string>();
+    // Step 3: Resolve tag IDs for each plan
+    let detectedPlan: "none" | "basic" | "magnetic" = "none";
+    const allMatchedTags: string[] = [];
 
-    for (const input of requiredInputs) {
-      if (isNumericTagId(input)) {
-        requiredTagIds.add(input);
-        continue;
-      }
-
-      // Use AC search to avoid pagination/limit issues
-      const searchData = await fetchJson(
-        `${baseUrl}/api/3/tags?search=${encodeURIComponent(input)}`,
-        acApiKey
-      );
-
-      const tags: ActiveCampaignTag[] = searchData.tags || [];
-      const normalizedNeedle = input.toLowerCase();
-      const match = tags.find((t) => (t.tag || "").toLowerCase() === normalizedNeedle) || tags[0];
-
-      if (match?.id) {
-        requiredTagIds.add(String(match.id));
-        console.log(`Resolved required tag "${input}" -> id ${match.id} (${match.tag})`);
-      } else {
-        console.log(`Could not resolve required tag "${input}" via /tags?search`);
+    // Check for MAGNETIC plan first (higher priority)
+    if (acTagMagnetic) {
+      const magneticIds = await resolveTagIds(baseUrl, acApiKey, acTagMagnetic);
+      const hasMagnetic = Array.from(magneticIds).some((id) => contactTagIds.has(id));
+      if (hasMagnetic) {
+        detectedPlan = "magnetic";
+        allMatchedTags.push("magnetic");
+        console.log(`User has MAGNETIC tag`);
       }
     }
 
-    console.log(`Required tag IDs: ${Array.from(requiredTagIds).join(",") || "(none)"}`);
-    const hasRequiredTag = Array.from(requiredTagIds).some((id) => contactTagIds.has(id));
+    // Check for BASIC plan
+    if (detectedPlan === "none" && acTagBasic) {
+      const basicIds = await resolveTagIds(baseUrl, acApiKey, acTagBasic);
+      const hasBasic = Array.from(basicIds).some((id) => contactTagIds.has(id));
+      if (hasBasic) {
+        detectedPlan = "basic";
+        allMatchedTags.push("basic");
+        console.log(`User has BASIC tag`);
+      }
+    }
 
-    console.log(`Tag verification result for ${normalizedEmail}: ${hasRequiredTag}`);
+    // Fallback: legacy single tag → treat as basic
+    if (detectedPlan === "none" && acTagLegacy && !acTagBasic && !acTagMagnetic) {
+      const legacyIds = await resolveTagIds(baseUrl, acApiKey, acTagLegacy);
+      const hasLegacy = Array.from(legacyIds).some((id) => contactTagIds.has(id));
+      if (hasLegacy) {
+        detectedPlan = "basic";
+        allMatchedTags.push("legacy");
+        console.log(`User has LEGACY tag - defaulting to basic`);
+      }
+    }
+
+    const isVerified = detectedPlan !== "none";
+
+    console.log(`Verification result for ${normalizedEmail}: verified=${isVerified}, plan=${detectedPlan}`);
 
     return new Response(
       JSON.stringify({
-        isVerified: hasRequiredTag,
+        isVerified,
         source: "activecampaign",
-        message: hasRequiredTag
-          ? "Student verified via ActiveCampaign tag"
+        planType: detectedPlan,
+        matchedTags: allMatchedTags,
+        message: isVerified
+          ? `Student verified - plan: ${detectedPlan}`
           : "Student tag not found",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

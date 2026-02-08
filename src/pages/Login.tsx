@@ -66,6 +66,11 @@ export default function Login() {
         return;
       }
 
+      // Store detected plan type for post-login setup
+      const detectedPlanType = verifyData.planType || 'basic';
+      localStorage.setItem('pending_plan_type', detectedPlanType);
+      console.log(`Detected plan: ${detectedPlanType}`);
+
       // Step 3: Student is verified, send magic link
       const { error } = await signInWithOtp(email);
 
