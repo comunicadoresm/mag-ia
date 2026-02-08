@@ -222,6 +222,7 @@ export default function UserManagement() {
             <TableRow>
               <TableHead>Email</TableHead>
               <TableHead>Nome</TableHead>
+              <TableHead>Plano</TableHead>
               <TableHead>Cadastrado em</TableHead>
               <TableHead className="text-right">Ações</TableHead>
             </TableRow>
@@ -229,7 +230,7 @@ export default function UserManagement() {
           <TableBody>
             {filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   {searchQuery ? 'Nenhum usuário encontrado.' : 'Nenhum usuário cadastrado.'}
                 </TableCell>
               </TableRow>
@@ -238,6 +239,16 @@ export default function UserManagement() {
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.email}</TableCell>
                   <TableCell>{user.name || '-'}</TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      user.plan_type === 'magnetic' ? 'bg-primary/20 text-primary' :
+                      user.plan_type === 'basic' ? 'bg-blue-500/20 text-blue-400' :
+                      'bg-muted text-muted-foreground'
+                    }`}>
+                      {user.plan_type === 'magnetic' ? 'Magnético' :
+                       user.plan_type === 'basic' ? 'Básico' : 'Nenhum'}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(user.created_at)}
                   </TableCell>
