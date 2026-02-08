@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Coins, Star, Zap, Check } from 'lucide-react';
+import { useHotmartCheckout } from '@/hooks/useHotmartCheckout';
 
 interface BuyCreditsModalProps {
   open: boolean;
@@ -11,26 +12,22 @@ interface BuyCreditsModalProps {
   hasActiveSubscription?: boolean;
 }
 
+// TODO: Replace with real Hotmart URLs for each product
 const subscriptions = [
-  { tier: 'plus_20', credits: 20, price: 27, perCredit: '1,35', popular: false },
-  { tier: 'plus_50', credits: 50, price: 47, perCredit: '0,94', popular: true },
-  { tier: 'plus_100', credits: 100, price: 77, perCredit: '0,77', popular: false },
+  { tier: 'plus_20', credits: 20, price: 27, perCredit: '1,35', popular: false, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
+  { tier: 'plus_50', credits: 50, price: 47, perCredit: '0,94', popular: true, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
+  { tier: 'plus_100', credits: 100, price: 77, perCredit: '0,77', popular: false, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
 ];
 
 const packages = [
-  { id: 'avulso_10', credits: 10, price: 19.9, perCredit: '1,99', popular: false },
-  { id: 'avulso_25', credits: 25, price: 39.9, perCredit: '1,60', popular: true },
-  { id: 'avulso_40', credits: 40, price: 59.9, perCredit: '1,50', popular: false },
+  { id: 'avulso_10', credits: 10, price: 19.9, perCredit: '1,99', popular: false, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
+  { id: 'avulso_25', credits: 25, price: 39.9, perCredit: '1,60', popular: true, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
+  { id: 'avulso_40', credits: 40, price: 59.9, perCredit: '1,50', popular: false, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
 ];
 
 export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: BuyCreditsModalProps) {
   const [selectedTab, setSelectedTab] = useState('subscriptions');
-
-  const handlePurchase = (type: string, id: string) => {
-    // TODO: integrate with Stripe/Hotmart payment
-    console.log(`Purchase: ${type} - ${id}`);
-    window.open('https://pay.hotmart.com/credits', '_blank');
-  };
+  const { openCheckout } = useHotmartCheckout();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -89,7 +86,7 @@ export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: B
                 <Button
                   className="w-full mt-3 btn-cm-primary"
                   variant={sub.popular ? 'default' : 'outline'}
-                  onClick={() => handlePurchase('subscription', sub.tier)}
+                  onClick={() => openCheckout(sub.hotmartUrl)}
                 >
                   {hasActiveSubscription ? 'Fazer Upgrade' : 'Assinar'}
                 </Button>
@@ -128,7 +125,7 @@ export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: B
                 <Button
                   className="w-full mt-3"
                   variant={pkg.popular ? 'default' : 'outline'}
-                  onClick={() => handlePurchase('package', pkg.id)}
+                  onClick={() => openCheckout(pkg.hotmartUrl)}
                 >
                   Comprar
                 </Button>
