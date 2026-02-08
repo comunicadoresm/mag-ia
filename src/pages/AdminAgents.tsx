@@ -767,34 +767,40 @@ export default function AdminAgents() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="credit_cost">Custo (créditos)</Label>
+                  <Label htmlFor="credit_cost">
+                    {formData.billing_type === 'per_generation' ? 'Custo por geração (créditos)' : 'Créditos cobrados'}
+                  </Label>
                   <Input
                     id="credit_cost"
                     type="number"
                     min={1}
-                    max={10}
                     value={formData.credit_cost}
                     onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, credit_cost: parseInt(e.target.value) || 1 }))
+                      setFormData((prev) => ({ ...prev, credit_cost: Math.max(1, parseInt(e.target.value) || 1) }))
                     }
                   />
-                  <p className="text-xs text-muted-foreground">Créditos por cobrança</p>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.billing_type === 'per_generation'
+                      ? 'Créditos debitados a cada chamada'
+                      : `Cobra ${formData.credit_cost} crédito(s) a cada ${formData.message_package_size} msg(s)`}
+                  </p>
                 </div>
 
                 {formData.billing_type === 'per_messages' && (
                   <div className="space-y-2">
-                    <Label htmlFor="message_package_size">A cada N mensagens</Label>
+                    <Label htmlFor="message_package_size">A cada quantas mensagens</Label>
                     <Input
                       id="message_package_size"
                       type="number"
                       min={1}
-                      max={20}
                       value={formData.message_package_size}
                       onChange={(e) =>
-                        setFormData((prev) => ({ ...prev, message_package_size: parseInt(e.target.value) || 5 }))
+                        setFormData((prev) => ({ ...prev, message_package_size: Math.max(1, parseInt(e.target.value) || 1) }))
                       }
                     />
-                    <p className="text-xs text-muted-foreground">Cobra 1x a cada N msgs</p>
+                    <p className="text-xs text-muted-foreground">
+                      Ex: 1 = cobra a cada msg, 5 = cobra a cada 5 msgs
+                    </p>
                   </div>
                 )}
               </div>
