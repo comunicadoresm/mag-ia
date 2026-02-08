@@ -50,7 +50,6 @@ export function ChatSidebar({ agent, onNewConversation, collapsed, onToggleColla
           .eq('agent_id', agent.id)
           .order('last_message_at', { ascending: false })
           .limit(50);
-
         if (!error) setConversations(data as Conversation[]);
       } catch (error) {
         console.error('Error fetching conversations:', error);
@@ -74,10 +73,7 @@ export function ChatSidebar({ agent, onNewConversation, collapsed, onToggleColla
   };
 
   const handleRename = async (convId: string) => {
-    if (!editTitle.trim()) {
-      setEditingId(null);
-      return;
-    }
+    if (!editTitle.trim()) { setEditingId(null); return; }
     await supabase.from('conversations').update({ title: editTitle.trim() }).eq('id', convId);
     setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, title: editTitle.trim() } : c)));
     setEditingId(null);
@@ -87,9 +83,7 @@ export function ChatSidebar({ agent, onNewConversation, collapsed, onToggleColla
     await supabase.from('messages').delete().eq('conversation_id', convId);
     await supabase.from('conversations').delete().eq('id', convId);
     setConversations((prev) => prev.filter((c) => c.id !== convId));
-    if (convId === conversationId) {
-      navigate('/home');
-    }
+    if (convId === conversationId) navigate('/home');
   };
 
   const grouped = groupConversations(conversations);
@@ -100,12 +94,12 @@ export function ChatSidebar({ agent, onNewConversation, collapsed, onToggleColla
 
     if (isEditing) {
       return (
-        <div key={conv.id} className="flex items-center gap-1 px-2 py-1">
+        <div key={conv.id} className="flex items-center gap-1 px-2 py-1 mx-1">
           <Input
             value={editTitle}
             onChange={(e) => setEditTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') handleRename(conv.id); if (e.key === 'Escape') setEditingId(null); }}
-            className="h-7 text-xs bg-muted border-border"
+            className="h-7 text-xs bg-muted border-border flex-1"
             autoFocus
           />
           <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => handleRename(conv.id)}>
@@ -122,39 +116,48 @@ export function ChatSidebar({ agent, onNewConversation, collapsed, onToggleColla
       <div
         key={conv.id}
         className={cn(
-          "group flex items-center gap-1 px-2 py-1.5 rounded-lg transition-colors cursor-pointer",
+          "group relative flex items-center rounded-lg mx-1 transition-colors cursor-pointer",
           isActive ? "bg-muted" : "hover:bg-muted/50"
         )}
       >
         <button
           onClick={() => navigate(`/chat/${conv.id}`)}
-          className={cn(
-            "flex-1 text-left text-sm truncate min-w-0",
-            isActive ? "text-foreground font-medium" : "text-muted-foreground"
-          )}
-          title={conv.title || 'Nova conversa'}
+          className="flex-1 text-left py-2 pl-3 pr-8 min-w-0"
         >
-          {conv.title || 'Nova conversa'}
+          <span className={cn(
+            "block text-sm leading-5 truncate",
+            isActive ? "text-foreground font-medium" : "text-muted-foreground"
+          )}>
+            {conv.title || 'Nova conversa'}
+          </span>
         </button>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-36">
-            <DropdownMenuItem onClick={() => { setEditingId(conv.id); setEditTitle(conv.title || ''); }}>
-              <Pencil className="h-3.5 w-3.5 mr-2" /> Renomear
-            </DropdownMenuItem>
-            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(conv.id)}>
-              <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+
+        {/* 3-dot menu - absolute positioned, visible on hover & active */}
+        <div className={cn(
+          "absolute right-1 top-1/2 -translate-y-1/2 transition-opacity",
+          isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+        )}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 rounded-md hover:bg-background/60"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="bottom" className="w-40">
+              <DropdownMenuItem onClick={() => { setEditingId(conv.id); setEditTitle(conv.title || ''); }}>
+                <Pencil className="h-3.5 w-3.5 mr-2" /> Renomear
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(conv.id)}>
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     );
   };
@@ -162,8 +165,8 @@ export function ChatSidebar({ agent, onNewConversation, collapsed, onToggleColla
   const renderGroup = (title: string, items: Conversation[]) => {
     if (items.length === 0) return null;
     return (
-      <div className="mb-3">
-        <h3 className="text-[11px] font-medium text-muted-foreground mb-1 px-2 uppercase tracking-wider">
+      <div className="mb-4">
+        <h3 className="text-[11px] font-semibold text-muted-foreground/70 mb-1.5 px-3 uppercase tracking-wider">
           {title}
         </h3>
         <div className="space-y-0.5">
@@ -173,13 +176,14 @@ export function ChatSidebar({ agent, onNewConversation, collapsed, onToggleColla
     );
   };
 
+  // Collapsed state
   if (collapsed) {
     return (
-      <aside className="hidden md:flex flex-col w-12 bg-sidebar-background border-r border-sidebar-border h-screen items-center py-3 gap-2">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleCollapse}>
+      <aside className="hidden md:flex flex-col w-[52px] bg-sidebar-background border-r border-sidebar-border h-screen items-center py-3 gap-3">
+        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" onClick={onToggleCollapse}>
           <PanelLeftOpen className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onNewConversation}>
+        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" onClick={onNewConversation}>
           <Plus className="h-4 w-4" />
         </Button>
       </aside>
@@ -187,34 +191,37 @@ export function ChatSidebar({ agent, onNewConversation, collapsed, onToggleColla
   }
 
   return (
-    <aside className="hidden md:flex md:flex-col md:w-64 bg-sidebar-background border-r border-sidebar-border h-screen">
-      {/* Top bar */}
-      <div className="flex items-center justify-between p-3 border-b border-sidebar-border">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleCollapse}>
+    <aside className="hidden md:flex md:flex-col md:w-[260px] bg-sidebar-background h-screen">
+      {/* Header */}
+      <div className="flex items-center justify-between px-2 py-3">
+        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" onClick={onToggleCollapse}>
           <PanelLeftClose className="h-4 w-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onNewConversation}>
+        <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg" onClick={onNewConversation}>
           <Plus className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Agent info */}
-      <div className="px-3 py-3 border-b border-sidebar-border">
-        <button onClick={() => navigate('/home')} className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm w-full">
-          <ArrowLeft className="h-3.5 w-3.5" />
-          <span className="truncate">{agent?.name || 'Agente'}</span>
+      {/* Back to agent */}
+      <div className="px-3 pb-3">
+        <button
+          onClick={() => navigate('/home')}
+          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-sm w-full rounded-lg hover:bg-muted/50 px-2 py-1.5"
+        >
+          <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate text-xs font-medium">{agent?.name || 'Voltar'}</span>
         </button>
       </div>
 
-      {/* Conversations */}
-      <ScrollArea className="flex-1 px-2 py-3">
+      {/* Conversations list */}
+      <ScrollArea className="flex-1 px-1 py-1">
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-4 h-4 text-muted-foreground animate-spin" />
           </div>
         ) : conversations.length === 0 ? (
-          <div className="px-2 py-8 text-center">
-            <p className="text-xs text-muted-foreground">Nenhuma conversa ainda</p>
+          <div className="px-3 py-8 text-center">
+            <p className="text-xs text-muted-foreground/60">Nenhuma conversa ainda</p>
           </div>
         ) : (
           <>
