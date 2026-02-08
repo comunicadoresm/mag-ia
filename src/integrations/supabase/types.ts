@@ -690,6 +690,66 @@ export type Database = {
         }
         Relationships: []
       }
+      upsell_plans: {
+        Row: {
+          badge_text: string | null
+          button_text: string
+          created_at: string | null
+          credits: number
+          credits_label: string | null
+          description: string | null
+          display_order: number | null
+          features: Json | null
+          hotmart_url: string
+          id: string
+          is_active: boolean | null
+          name: string
+          per_credit_label: string | null
+          price_brl: number
+          price_label: string | null
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          badge_text?: string | null
+          button_text?: string
+          created_at?: string | null
+          credits?: number
+          credits_label?: string | null
+          description?: string | null
+          display_order?: number | null
+          features?: Json | null
+          hotmart_url?: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          per_credit_label?: string | null
+          price_brl: number
+          price_label?: string | null
+          type: string
+          updated_at?: string | null
+        }
+        Update: {
+          badge_text?: string | null
+          button_text?: string
+          created_at?: string | null
+          credits?: number
+          credits_label?: string | null
+          description?: string | null
+          display_order?: number | null
+          features?: Json | null
+          hotmart_url?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          per_credit_label?: string | null
+          price_brl?: number
+          price_label?: string | null
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_credits: {
         Row: {
           bonus_credits: number | null

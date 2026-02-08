@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Coins, Star, Zap, Check } from 'lucide-react';
+import { Coins, Star, Zap, Check, Loader2 } from 'lucide-react';
 import { useHotmartCheckout } from '@/hooks/useHotmartCheckout';
+import { useUpsellPlans } from '@/hooks/useUpsellPlans';
 
 interface BuyCreditsModalProps {
   open: boolean;
@@ -12,22 +13,10 @@ interface BuyCreditsModalProps {
   hasActiveSubscription?: boolean;
 }
 
-// TODO: Replace with real Hotmart URLs for each product
-const subscriptions = [
-  { tier: 'plus_20', credits: 20, price: 27, perCredit: '1,35', popular: false, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
-  { tier: 'plus_50', credits: 50, price: 47, perCredit: '0,94', popular: true, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
-  { tier: 'plus_100', credits: 100, price: 77, perCredit: '0,77', popular: false, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
-];
-
-const packages = [
-  { id: 'avulso_10', credits: 10, price: 19.9, perCredit: '1,99', popular: false, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
-  { id: 'avulso_25', credits: 25, price: 39.9, perCredit: '1,60', popular: true, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
-  { id: 'avulso_40', credits: 40, price: 59.9, perCredit: '1,50', popular: false, hotmartUrl: 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon' },
-];
-
 export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: BuyCreditsModalProps) {
   const [selectedTab, setSelectedTab] = useState('subscriptions');
   const { openCheckout } = useHotmartCheckout();
+  const { subscriptions, packages, loading } = useUpsellPlans();
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -44,100 +33,116 @@ export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: B
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="mt-2">
-          <TabsList className="grid w-full grid-cols-2 bg-secondary">
-            <TabsTrigger value="subscriptions">Assinaturas Mensais</TabsTrigger>
-            <TabsTrigger value="packages">Pacotes Avulsos</TabsTrigger>
-          </TabsList>
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+        ) : (
+          <Tabs value={selectedTab} onValueChange={setSelectedTab} className="mt-2">
+            <TabsList className="grid w-full grid-cols-2 bg-secondary">
+              <TabsTrigger value="subscriptions">Assinaturas Mensais</TabsTrigger>
+              <TabsTrigger value="packages">Pacotes Avulsos</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="subscriptions" className="space-y-3 mt-4">
-            {subscriptions.map((sub) => (
-              <div
-                key={sub.tier}
-                className={`card-cm p-4 relative ${sub.popular ? 'border-primary/60' : ''}`}
-              >
-                {sub.popular && (
-                  <Badge className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-[10px]">
-                    <Star className="w-3 h-3 mr-1" /> Mais popular
-                  </Badge>
-                )}
-                {sub.tier === 'plus_100' && (
-                  <Badge variant="outline" className="absolute -top-2.5 right-4 border-primary text-primary text-[10px]">
-                    Melhor custo
-                  </Badge>
-                )}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <Zap className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">
-                        +{sub.credits} créditos<span className="text-muted-foreground font-normal">/mês</span>
-                      </h4>
-                      <p className="text-xs text-muted-foreground">R${sub.perCredit}/crédito</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-foreground">R${sub.price}</div>
-                    <div className="text-xs text-muted-foreground">/mês</div>
-                  </div>
-                </div>
-                <Button
-                  className="w-full mt-3 btn-cm-primary"
-                  variant={sub.popular ? 'default' : 'outline'}
-                  onClick={() => openCheckout(sub.hotmartUrl)}
+            <TabsContent value="subscriptions" className="space-y-3 mt-4">
+              {subscriptions.map((sub, idx) => (
+                <div
+                  key={sub.id}
+                  className={`card-cm p-4 relative ${sub.badge_text ? 'border-primary/60' : ''}`}
                 >
-                  {hasActiveSubscription ? 'Fazer Upgrade' : 'Assinar'}
-                </Button>
-              </div>
-            ))}
-          </TabsContent>
-
-          <TabsContent value="packages" className="space-y-3 mt-4">
-            {packages.map((pkg) => (
-              <div
-                key={pkg.id}
-                className={`card-cm p-4 relative ${pkg.popular ? 'border-primary/60' : ''}`}
-              >
-                {pkg.popular && (
-                  <Badge className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-[10px]">
-                    <Star className="w-3 h-3 mr-1" /> Mais vendido
-                  </Badge>
-                )}
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
-                      <Coins className="w-5 h-5 text-foreground" />
+                  {sub.badge_text && (
+                    <Badge className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-[10px]">
+                      <Star className="w-3 h-3 mr-1" /> {sub.badge_text}
+                    </Badge>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <Zap className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">
+                          {sub.name}
+                          {sub.credits_label && <span className="text-muted-foreground font-normal">{sub.credits_label}</span>}
+                        </h4>
+                        {sub.per_credit_label && (
+                          <p className="text-xs text-muted-foreground">{sub.per_credit_label}</p>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground">+{pkg.credits} créditos</h4>
-                      <p className="text-xs text-muted-foreground">R${pkg.perCredit}/crédito • Não expiram</p>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-foreground">
+                        R${Number(sub.price_brl).toFixed(0)}
+                      </div>
+                      {sub.price_label && (
+                        <div className="text-xs text-muted-foreground">{sub.price_label}</div>
+                      )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-lg font-bold text-foreground">
-                      R${pkg.price.toFixed(2).replace('.', ',')}
-                    </div>
-                    <div className="text-xs text-muted-foreground">único</div>
-                  </div>
+                  <Button
+                    className="w-full mt-3 btn-cm-primary"
+                    variant={sub.badge_text ? 'default' : 'outline'}
+                    onClick={() => openCheckout(sub.hotmart_url)}
+                  >
+                    {hasActiveSubscription ? 'Fazer Upgrade' : sub.button_text}
+                  </Button>
                 </div>
-                <Button
-                  className="w-full mt-3"
-                  variant={pkg.popular ? 'default' : 'outline'}
-                  onClick={() => openCheckout(pkg.hotmartUrl)}
-                >
-                  Comprar
-                </Button>
-              </div>
-            ))}
+              ))}
+              {subscriptions.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma assinatura disponível.</p>
+              )}
+            </TabsContent>
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2 px-1">
-              <Check className="w-3.5 h-3.5 text-primary" />
-              Créditos avulsos nunca expiram
-            </div>
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="packages" className="space-y-3 mt-4">
+              {packages.map((pkg) => (
+                <div
+                  key={pkg.id}
+                  className={`card-cm p-4 relative ${pkg.badge_text ? 'border-primary/60' : ''}`}
+                >
+                  {pkg.badge_text && (
+                    <Badge className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-[10px]">
+                      <Star className="w-3 h-3 mr-1" /> {pkg.badge_text}
+                    </Badge>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
+                        <Coins className="w-5 h-5 text-foreground" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground">{pkg.name}</h4>
+                        <p className="text-xs text-muted-foreground">
+                          {pkg.per_credit_label && `${pkg.per_credit_label} • `}Não expiram
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-foreground">
+                        R${Number(pkg.price_brl).toFixed(2).replace('.', ',')}
+                      </div>
+                      {pkg.price_label && (
+                        <div className="text-xs text-muted-foreground">{pkg.price_label}</div>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full mt-3"
+                    variant={pkg.badge_text ? 'default' : 'outline'}
+                    onClick={() => openCheckout(pkg.hotmart_url)}
+                  >
+                    {pkg.button_text}
+                  </Button>
+                </div>
+              ))}
+              {packages.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Nenhum pacote disponível.</p>
+              )}
+
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2 px-1">
+                <Check className="w-3.5 h-3.5 text-primary" />
+                Créditos avulsos nunca expiram
+              </div>
+            </TabsContent>
+          </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   );
