@@ -1,7 +1,7 @@
 import React from 'react';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { usePlanPermissions } from '@/hooks/usePlanPermissions';
+import { useCreditsModals } from '@/contexts/CreditsModalContext';
 
 interface UpgradePromptProps {
   title?: string;
@@ -14,7 +14,7 @@ export function UpgradePrompt({
   description = 'Faça upgrade para acessar a IA completa, agentes e muito mais.',
   className = '',
 }: UpgradePromptProps) {
-  const { showUpgradeModal } = usePlanPermissions();
+  const { showUpsell } = useCreditsModals();
 
   return (
     <div className={`flex flex-col items-center justify-center p-8 text-center space-y-4 ${className}`}>
@@ -23,7 +23,7 @@ export function UpgradePrompt({
       </div>
       <h3 className="text-lg font-semibold text-foreground">{title}</h3>
       <p className="text-sm text-muted-foreground max-w-sm">{description}</p>
-      <Button onClick={showUpgradeModal} className="gap-2">
+      <Button onClick={showUpsell} className="gap-2">
         Fazer Upgrade
         <ArrowRight className="w-4 h-4" />
       </Button>
