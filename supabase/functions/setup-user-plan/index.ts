@@ -121,25 +121,28 @@ Deno.serve(async (req) => {
           metadata: { plan: "magnetic", initial: true },
         });
       } else {
-        // Basic: 10 trial credits that EXPIRE in 30 days (plan_credits with cycle)
-        console.log("Creating basic credits: 10 plan_credits (trial, expires in 30 days)");
+        // Basic: 10 one-time trial credits that expire 30 days after signup (NOT a cycle)
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 30);
+        
+        console.log("Creating basic credits: 10 plan_credits (one-time trial, expires " + expiresAt.toISOString() + ")");
         await supabase.from("user_credits").insert({
           user_id: user.id,
           plan_credits: 10,
           subscription_credits: 0,
           bonus_credits: 0,
-          cycle_start_date: cycleStart.toISOString(),
-          cycle_end_date: cycleEnd.toISOString(),
+          cycle_start_date: null,          // No cycle for basic
+          cycle_end_date: expiresAt.toISOString(), // Expiration date only
         });
 
         // Log transaction
         await supabase.from("credit_transactions").insert({
           user_id: user.id,
-          type: "plan_renewal",
+          type: "bonus_purchase",
           amount: 10,
           source: "trial_credits",
           balance_after: 10,
-          metadata: { plan: "basic", trial: true, expires_in_days: 30 },
+          metadata: { plan: "basic", trial: true, one_time: true, expires_at: expiresAt.toISOString() },
         });
       }
     } else if (currentPlan !== planType && planType === "magnetic" && currentPlan === "basic") {
