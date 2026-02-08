@@ -294,26 +294,31 @@ Deno.serve(async (req) => {
     }
 
     // === CREDIT CONSUMPTION ===
-    const billingType = agent.billing_type || "per_messages";
+    const billingType = agent.billing_type || "per_generation";
     const creditCost = agent.credit_cost || 1;
     const packageSize = agent.message_package_size || 5;
 
     let shouldCharge = true;
 
     if (billingType === "per_messages") {
-      // Count user messages to determine if this is a billing point
+      // Count user messages already in this conversation (BEFORE current one is inserted)
       const { count } = await supabaseClient
         .from("messages")
         .select("*", { count: "exact", head: true })
         .eq("conversation_id", conversation_id)
         .eq("role", "user");
 
-      const messageCount = count || 0;
-      if (messageCount > 0 && messageCount % packageSize !== 0) {
+      // messageCount = messages already saved. Current message adds +1, so effective = count + 1
+      const effectiveCount = (count || 0) + 1;
+      // Charge on every Nth message (1st charge at message N, then 2N, etc.)
+      if (effectiveCount % packageSize !== 0) {
         shouldCharge = false;
-        console.log(`Message ${messageCount} - not a billing point (every ${packageSize}). Skipping charge.`);
+        console.log(`Message ${effectiveCount}/${packageSize} - not a billing point. Skipping charge.`);
+      } else {
+        console.log(`Message ${effectiveCount}/${packageSize} - billing point! Charging ${creditCost} credits.`);
       }
     }
+    // per_generation: always charge (shouldCharge stays true)
 
     if (shouldCharge) {
       const { data: credits, error: creditsError } = await supabaseClient

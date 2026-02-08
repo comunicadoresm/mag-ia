@@ -85,6 +85,9 @@ interface AgentFormData {
   display_order: number;
   selectedTags: string[];
   ice_breakers: string[];
+  billing_type: string;
+  credit_cost: number;
+  message_package_size: number;
 }
 
 const defaultFormData: AgentFormData = {
@@ -100,6 +103,9 @@ const defaultFormData: AgentFormData = {
   display_order: 0,
   selectedTags: [],
   ice_breakers: ['', '', ''],
+  billing_type: 'per_generation',
+  credit_cost: 1,
+  message_package_size: 5,
 };
 
 export default function AdminAgents() {
@@ -209,6 +215,9 @@ export default function AdminAgents() {
         display_order: agent.display_order,
         selectedTags: agentTags[agent.id] || [],
         ice_breakers: paddedIceBreakers,
+        billing_type: (agent as any).billing_type || 'per_generation',
+        credit_cost: (agent as any).credit_cost || 1,
+        message_package_size: (agent as any).message_package_size || 5,
       });
     } else {
       setEditingAgent(null);
@@ -384,6 +393,9 @@ export default function AdminAgents() {
             is_active: formData.is_active,
             display_order: formData.display_order,
             ice_breakers: filteredIceBreakers,
+            billing_type: formData.billing_type,
+            credit_cost: formData.credit_cost,
+            message_package_size: formData.message_package_size,
           })
           .eq('id', editingAgent.id);
 
@@ -421,6 +433,9 @@ export default function AdminAgents() {
             is_active: formData.is_active,
             display_order: formData.display_order,
             ice_breakers: filteredIceBreakers,
+            billing_type: formData.billing_type,
+            credit_cost: formData.credit_cost,
+            message_package_size: formData.message_package_size,
           })
           .select()
           .single();
@@ -720,6 +735,68 @@ export default function AdminAgents() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            {/* Billing / Credit Config */}
+            <div className="space-y-4 border-t border-border pt-4">
+              <Label className="text-base font-semibold">Consumo de Créditos</Label>
+              
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="billing_type">Tipo de Cobrança</Label>
+                  <Select
+                    value={formData.billing_type}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({ ...prev, billing_type: value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="per_generation">Por Geração</SelectItem>
+                      <SelectItem value="per_messages">Por Mensagens</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.billing_type === 'per_generation'
+                      ? 'Cobra a cada chamada de IA'
+                      : 'Cobra a cada N mensagens do usuário'}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="credit_cost">Custo (créditos)</Label>
+                  <Input
+                    id="credit_cost"
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={formData.credit_cost}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, credit_cost: parseInt(e.target.value) || 1 }))
+                    }
+                  />
+                  <p className="text-xs text-muted-foreground">Créditos por cobrança</p>
+                </div>
+
+                {formData.billing_type === 'per_messages' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="message_package_size">A cada N mensagens</Label>
+                    <Input
+                      id="message_package_size"
+                      type="number"
+                      min={1}
+                      max={20}
+                      value={formData.message_package_size}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, message_package_size: parseInt(e.target.value) || 5 }))
+                      }
+                    />
+                    <p className="text-xs text-muted-foreground">Cobra 1x a cada N msgs</p>
+                  </div>
+                )}
               </div>
             </div>
 

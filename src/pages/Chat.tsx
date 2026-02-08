@@ -166,8 +166,16 @@ export default function Chat() {
         return;
       }
 
-      // Note: We don't add the message optimistically anymore to avoid duplicates
-      // The realtime subscription will handle adding the message when it's confirmed
+      // Optimistic UI: add the user message immediately
+      const optimisticMsg: Message = {
+        id: `temp-${Date.now()}`,
+        conversation_id: conversationId,
+        role: 'user',
+        content: content.trim(),
+        tokens_used: null,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, optimisticMsg]);
 
       // Call AI edge function
       const { error: aiError } = await supabase.functions.invoke('chat', {
