@@ -141,14 +141,38 @@ export default function Chat() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, sending]);
 
+  // Helper to refetch messages from DB
+  const refetchMessages = async () => {
+    if (!conversationId) return;
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at');
+    if (!error && data) {
+      setMessages(data as Message[]);
+    }
+  };
+
   const handleSend = async (content: string) => {
     if (!conversationId || !agent || sending || !content.trim()) return;
 
     setSending(true);
     setInputValue('');
 
+    // Optimistic UI: add user message immediately BEFORE any DB call
+    const optimisticMsg: Message = {
+      id: `temp-${Date.now()}`,
+      conversation_id: conversationId,
+      role: 'user',
+      content: content.trim(),
+      tokens_used: null,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
     try {
-      // Insert user message
+      // Insert user message in DB
       const { error: userMsgError } = await supabase.from('messages').insert({
         conversation_id: conversationId,
         role: 'user',
@@ -157,6 +181,8 @@ export default function Chat() {
 
       if (userMsgError) {
         console.error('Error sending message:', userMsgError);
+        // Remove optimistic message on error
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
         toast({
           title: 'Erro ao enviar',
           description: 'Não foi possível enviar sua mensagem.',
@@ -165,17 +191,6 @@ export default function Chat() {
         setSending(false);
         return;
       }
-
-      // Optimistic UI: add the user message immediately
-      const optimisticMsg: Message = {
-        id: `temp-${Date.now()}`,
-        conversation_id: conversationId,
-        role: 'user',
-        content: content.trim(),
-        tokens_used: null,
-        created_at: new Date().toISOString(),
-      };
-      setMessages((prev) => [...prev, optimisticMsg]);
 
       // Call AI edge function
       const { error: aiError } = await supabase.functions.invoke('chat', {
@@ -188,7 +203,6 @@ export default function Chat() {
 
       if (aiError) {
         console.error('Error from AI:', aiError);
-        // Check if it's a credits error (402)
         const errorBody = typeof aiError === 'object' && aiError !== null ? (aiError as any) : null;
         const errorMessage = errorBody?.context?.body ? (() => { try { return JSON.parse(errorBody.context.body); } catch { return null; } })() : null;
         
@@ -207,6 +221,9 @@ export default function Chat() {
           });
         }
       }
+
+      // CRITICAL: Refetch messages to get the AI response immediately
+      await refetchMessages();
 
       // Update conversation title if it's the first message
       const userMessages = messages.filter((m) => m.role === 'user');
