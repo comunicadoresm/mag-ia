@@ -91,8 +91,8 @@ Deno.serve(async (req) => {
             console.error(`Error renewing credits for user ${credit.user_id}:`, updateError);
           }
         } else if (profile?.plan_type === "basic") {
-          // Basic plan: trial credits EXPIRE after cycle ends — zero them out, no renewal
-          console.log(`Basic user ${credit.user_id}: trial expired, zeroing credits`);
+          // Basic plan: one-time trial credits — expire after 30 days, NO renewal ever
+          console.log(`Basic user ${credit.user_id}: trial expired after 30 days, zeroing credits permanently`);
 
           const { error: updateError } = await supabase
             .from("user_credits")
