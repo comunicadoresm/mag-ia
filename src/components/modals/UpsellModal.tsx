@@ -2,6 +2,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Sparkles, Zap, ShoppingCart, Crown } from 'lucide-react';
+import { useHotmartCheckout } from '@/hooks/useHotmartCheckout';
 
 interface UpsellModalProps {
   open: boolean;
@@ -9,7 +10,12 @@ interface UpsellModalProps {
   onBuyCredits?: () => void;
 }
 
+// Hotmart checkout URL for the Magnetic plan
+const HOTMART_MAGNETIC_URL = 'https://pay.hotmart.com/H103963338X?checkoutMode=2&off=g4gweuon';
+
 export function UpsellModal({ open, onOpenChange, onBuyCredits }: UpsellModalProps) {
+  const { openCheckout } = useHotmartCheckout();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md bg-card border-border">
@@ -57,10 +63,7 @@ export function UpsellModal({ open, onOpenChange, onBuyCredits }: UpsellModalPro
             </ul>
             <Button
               className="w-full btn-cm-primary"
-              onClick={() => {
-                // TODO: redirect to payment page
-                window.open('https://pay.hotmart.com/magnetic', '_blank');
-              }}
+              onClick={() => openCheckout(HOTMART_MAGNETIC_URL)}
             >
               <Crown className="w-4 h-4 mr-2" />
               Fazer Upgrade — R$197/ano
