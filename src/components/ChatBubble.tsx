@@ -1,6 +1,7 @@
 import React from 'react';
 import { Message } from '@/types';
 import ReactMarkdown from 'react-markdown';
+import { User } from 'lucide-react';
 
 interface ChatBubbleProps {
   message: Message;
@@ -10,26 +11,25 @@ interface ChatBubbleProps {
 export function ChatBubble({ message, agentEmoji }: ChatBubbleProps) {
   const isUser = message.role === 'user';
 
-  return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'} gap-3 animate-slide-up`}>
-      {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-base shrink-0 mt-1">
-          {agentEmoji || '🤖'}
-        </div>
-      )}
-      
-      <div
-        className={`max-w-[85%] md:max-w-[70%] ${
-          isUser ? 'bubble-user' : 'bubble-assistant'
-        }`}
-      >
-        {isUser ? (
+  if (isUser) {
+    return (
+      <div className="flex justify-end animate-slide-up">
+        <div className="max-w-[85%] md:max-w-[60%] bg-primary text-primary-foreground rounded-2xl rounded-br-sm px-4 py-3">
           <p className="text-sm md:text-base whitespace-pre-wrap">{message.content}</p>
-        ) : (
-          <div className="text-sm md:text-base prose prose-invert prose-sm max-w-none">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
-          </div>
-        )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-3 animate-slide-up max-w-3xl mx-auto">
+      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-sm shrink-0 mt-1">
+        {agentEmoji || '🤖'}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm md:text-base prose prose-invert prose-sm max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+          <ReactMarkdown>{message.content}</ReactMarkdown>
+        </div>
       </div>
     </div>
   );
@@ -37,14 +37,14 @@ export function ChatBubble({ message, agentEmoji }: ChatBubbleProps) {
 
 export function TypingIndicator() {
   return (
-    <div className="flex justify-start gap-3 animate-fade-in">
-      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-base shrink-0">
+    <div className="flex gap-3 animate-fade-in max-w-3xl mx-auto">
+      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center text-sm shrink-0">
         🤖
       </div>
-      <div className="bubble-assistant flex items-center gap-1">
-        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-        <div className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+      <div className="flex items-center gap-1.5 pt-2">
+        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+        <div className="w-2 h-2 bg-muted-foreground/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
       </div>
     </div>
   );
