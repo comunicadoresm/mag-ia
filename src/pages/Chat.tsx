@@ -179,16 +179,36 @@ export default function Chat() {
         return;
       }
 
-      const { error: aiError } = await supabase.functions.invoke('chat', {
+      const { data: aiData, error: aiError } = await supabase.functions.invoke('chat', {
         body: { conversation_id: conversationId, message: messageContent, agent_id: agent.id },
       });
 
       if (aiError) {
-        const errorBody = typeof aiError === 'object' && aiError !== null ? (aiError as any) : null;
-        const errorMessage = errorBody?.context?.body ? (() => { try { return JSON.parse(errorBody.context.body); } catch { return null; } })() : null;
-        if (errorMessage?.error === 'insufficient_credits') {
+        // Try to parse the error body from multiple possible structures
+        let parsedError: any = null;
+        try {
+          // supabase-js v2: error.context is the Response, try to read body
+          if ((aiError as any)?.context) {
+            const ctx = (aiError as any).context;
+            if (typeof ctx.json === 'function') {
+              parsedError = await ctx.json();
+            } else if (typeof ctx.body === 'string') {
+              parsedError = JSON.parse(ctx.body);
+            } else if (ctx.body) {
+              parsedError = ctx.body;
+            }
+          }
+          // Fallback: try parsing the error message itself
+          if (!parsedError && aiError.message) {
+            try { parsedError = JSON.parse(aiError.message); } catch {}
+          }
+        } catch (e) {
+          console.error('Error parsing AI error:', e);
+        }
+
+        if (parsedError?.error === 'insufficient_credits' || parsedError?.error === 'no_credits') {
           showUpsell();
-          toast({ title: 'Créditos insuficientes', description: errorMessage.message || 'Seus créditos acabaram!', variant: 'destructive' });
+          toast({ title: 'Créditos insuficientes', description: parsedError.message || 'Seus créditos acabaram!', variant: 'destructive' });
         } else {
           toast({ title: 'Erro do agente', description: 'O agente não conseguiu responder. Tente novamente.', variant: 'destructive' });
         }
