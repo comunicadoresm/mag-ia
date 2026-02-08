@@ -293,6 +293,75 @@ Deno.serve(async (req) => {
       );
     }
 
+    // === CREDIT CONSUMPTION ===
+    const billingType = agent.billing_type || "per_messages";
+    const creditCost = agent.credit_cost || 1;
+    const packageSize = agent.message_package_size || 5;
+
+    let shouldCharge = true;
+
+    if (billingType === "per_messages") {
+      // Count user messages to determine if this is a billing point
+      const { count } = await supabaseClient
+        .from("messages")
+        .select("*", { count: "exact", head: true })
+        .eq("conversation_id", conversation_id)
+        .eq("role", "user");
+
+      const messageCount = count || 0;
+      if (messageCount > 0 && messageCount % packageSize !== 0) {
+        shouldCharge = false;
+        console.log(`Message ${messageCount} - not a billing point (every ${packageSize}). Skipping charge.`);
+      }
+    }
+
+    if (shouldCharge) {
+      const { data: credits, error: creditsError } = await supabaseClient
+        .from("user_credits")
+        .select("*")
+        .eq("user_id", user.id)
+        .single();
+
+      if (creditsError || !credits) {
+        return new Response(
+          JSON.stringify({ error: "insufficient_credits", message: "Você não tem créditos configurados." }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const totalBalance = (credits.plan_credits || 0) + (credits.subscription_credits || 0) + (credits.bonus_credits || 0);
+      if (totalBalance < creditCost) {
+        return new Response(
+          JSON.stringify({
+            error: "insufficient_credits",
+            message: "Seus créditos acabaram!",
+            balance: { plan: credits.plan_credits, subscription: credits.subscription_credits, bonus: credits.bonus_credits, total: totalBalance },
+            required: creditCost,
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Debit in priority order: plan → subscription → bonus
+      let remaining = creditCost;
+      let newPlan = credits.plan_credits || 0;
+      let newSub = credits.subscription_credits || 0;
+      let newBonus = credits.bonus_credits || 0;
+
+      if (remaining > 0 && newPlan > 0) { const d = Math.min(remaining, newPlan); newPlan -= d; remaining -= d; }
+      if (remaining > 0 && newSub > 0) { const d = Math.min(remaining, newSub); newSub -= d; remaining -= d; }
+      if (remaining > 0 && newBonus > 0) { const d = Math.min(remaining, newBonus); newBonus -= d; remaining -= d; }
+
+      await supabaseClient.from("user_credits").update({ plan_credits: newPlan, subscription_credits: newSub, bonus_credits: newBonus }).eq("user_id", user.id);
+      await supabaseClient.from("credit_transactions").insert({
+        user_id: user.id, type: "consumption", amount: -creditCost, source: "chat_messages",
+        balance_after: newPlan + newSub + newBonus,
+        metadata: { agent_id, conversation_id },
+      });
+      console.log(`Credits consumed: ${creditCost}, remaining: ${newPlan + newSub + newBonus}`);
+    }
+    // === END CREDIT CONSUMPTION ===
+
     if (!agent.api_key) {
       return new Response(
         JSON.stringify({ error: "Este agente não tem uma API Key configurada." }),

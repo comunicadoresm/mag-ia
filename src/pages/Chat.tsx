@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Agent, Message } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCreditsModals } from '@/contexts/CreditsModalContext';
 import {
   Sheet,
   SheetContent,
@@ -33,6 +34,7 @@ export default function Chat() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const { showUpsell } = useCreditsModals();
 
   // Handle initial message from Home page
   const initialMessage = (location.state as { initialMessage?: string })?.initialMessage;
@@ -178,11 +180,24 @@ export default function Chat() {
 
       if (aiError) {
         console.error('Error from AI:', aiError);
-        toast({
-          title: 'Erro do agente',
-          description: 'O agente não conseguiu responder. Tente novamente.',
-          variant: 'destructive',
-        });
+        // Check if it's a credits error (402)
+        const errorBody = typeof aiError === 'object' && aiError !== null ? (aiError as any) : null;
+        const errorMessage = errorBody?.context?.body ? (() => { try { return JSON.parse(errorBody.context.body); } catch { return null; } })() : null;
+        
+        if (errorMessage?.error === 'insufficient_credits') {
+          showUpsell();
+          toast({
+            title: 'Créditos insuficientes',
+            description: errorMessage.message || 'Seus créditos acabaram!',
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Erro do agente',
+            description: 'O agente não conseguiu responder. Tente novamente.',
+            variant: 'destructive',
+          });
+        }
       }
 
       // Update conversation title if it's the first message

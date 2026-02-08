@@ -13,6 +13,7 @@ import { Agent } from '@/types';
 import { UserScript, ScriptStructure } from '@/types/kanban';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCreditsModals } from '@/contexts/CreditsModalContext';
 import { cn } from '@/lib/utils';
 
 interface Message {
@@ -39,6 +40,7 @@ export function AIScriptChat({
   onScriptGenerated,
 }: AIScriptChatProps) {
   const { toast } = useToast();
+  const { showUpsell } = useCreditsModals();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -149,7 +151,18 @@ export function AIScriptChat({
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check for insufficient credits
+        const errorBody = typeof error === 'object' && error !== null ? (error as any) : null;
+        const errorMessage = errorBody?.context?.body ? (() => { try { return JSON.parse(errorBody.context.body); } catch { return null; } })() : null;
+        if (errorMessage?.error === 'insufficient_credits') {
+          showUpsell();
+          toast({ title: 'Créditos insuficientes', description: errorMessage.message || 'Seus créditos acabaram!', variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+        throw error;
+      }
 
       if (data?.message) {
         setMessages(prev => [...prev, {

@@ -167,6 +167,52 @@ Deno.serve(async (req) => {
       );
     }
 
+    // === CREDIT CONSUMPTION (script_generation = 3 credits default) ===
+    const creditCost = agent.credit_cost || 3;
+
+    const { data: credits, error: creditsError } = await supabaseClient
+      .from("user_credits")
+      .select("*")
+      .eq("user_id", user.id)
+      .single();
+
+    if (creditsError || !credits) {
+      return new Response(
+        JSON.stringify({ error: "insufficient_credits", message: "Você não tem créditos configurados." }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const totalBalance = (credits.plan_credits || 0) + (credits.subscription_credits || 0) + (credits.bonus_credits || 0);
+    if (totalBalance < creditCost) {
+      return new Response(
+        JSON.stringify({
+          error: "insufficient_credits", message: "Seus créditos acabaram!",
+          balance: { plan: credits.plan_credits, subscription: credits.subscription_credits, bonus: credits.bonus_credits, total: totalBalance },
+          required: creditCost,
+        }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    let remaining = creditCost;
+    let newPlan = credits.plan_credits || 0;
+    let newSub = credits.subscription_credits || 0;
+    let newBonus = credits.bonus_credits || 0;
+
+    if (remaining > 0 && newPlan > 0) { const d = Math.min(remaining, newPlan); newPlan -= d; remaining -= d; }
+    if (remaining > 0 && newSub > 0) { const d = Math.min(remaining, newSub); newSub -= d; remaining -= d; }
+    if (remaining > 0 && newBonus > 0) { const d = Math.min(remaining, newBonus); newBonus -= d; remaining -= d; }
+
+    await supabaseClient.from("user_credits").update({ plan_credits: newPlan, subscription_credits: newSub, bonus_credits: newBonus }).eq("user_id", user.id);
+    await supabaseClient.from("credit_transactions").insert({
+      user_id: user.id, type: "consumption", amount: -creditCost, source: "script_generation",
+      balance_after: newPlan + newSub + newBonus,
+      metadata: { agent_id },
+    });
+    console.log(`Credits consumed: ${creditCost}, remaining: ${newPlan + newSub + newBonus}`);
+    // === END CREDIT CONSUMPTION ===
+
     const objectiveMap: Record<string, string> = {
       attraction: "Atração (capturar atenção de novos seguidores)",
       connection: "Conexão (criar vínculo emocional com a audiência)",
