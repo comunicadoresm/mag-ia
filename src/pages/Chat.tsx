@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, Loader2, RotateCcw, Send, Paperclip, Menu } from 'lucide-react';
+import { ArrowLeft, Loader2, Send, Paperclip, Menu, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatBubble, TypingIndicator } from '@/components/ChatBubble';
 import { ChatSidebar } from '@/components/ChatSidebar';
@@ -29,218 +29,180 @@ export default function Chat() {
   const [sending, setSending] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const { showUpsell } = useCreditsModals();
 
-  // Handle initial message from Home page
   const initialMessage = (location.state as { initialMessage?: string })?.initialMessage;
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      navigate('/login');
-    }
+    if (!authLoading && !user) navigate('/login');
   }, [user, authLoading, navigate]);
 
   useEffect(() => {
     const fetchConversationData = async () => {
       if (!conversationId || !user) return;
-
       try {
-        // Fetch conversation
         const { data: convData, error: convError } = await supabase
           .from('conversations')
           .select('*')
           .eq('id', conversationId)
           .single();
 
-        if (convError) {
-          console.error('Error fetching conversation:', convError);
-          navigate('/home');
-          return;
-        }
-
+        if (convError) { navigate('/home'); return; }
         setConversation(convData);
 
-        // Fetch agent
         const { data: agentData, error: agentError } = await supabase
           .from('agents_public')
           .select('*')
           .eq('id', convData.agent_id)
           .single();
+        if (!agentError && agentData) setAgent(agentData as Agent);
 
-        if (!agentError && agentData) {
-          setAgent(agentData as Agent);
-        }
-
-        // Fetch messages
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
           .select('*')
           .eq('conversation_id', conversationId)
           .order('created_at');
-
-        if (!messagesError && messagesData) {
-          setMessages(messagesData as Message[]);
-        }
+        if (!messagesError && messagesData) setMessages(messagesData as Message[]);
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchConversationData();
   }, [conversationId, user, navigate]);
 
-  // Send initial message if provided
   useEffect(() => {
     if (initialMessage && !loading && agent && messages.length === 0) {
       handleSend(initialMessage);
-      // Clear the state to prevent re-sending
       window.history.replaceState({}, document.title);
     }
   }, [initialMessage, loading, agent, messages.length]);
 
-  // Subscribe to realtime messages
+  // Realtime subscription
   useEffect(() => {
     if (!conversationId) return;
-
     const channel = supabase
       .channel(`messages-${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`,
-        },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
           const newMessage = payload.new as Message;
-          setMessages((prev) => {
-            if (prev.some((m) => m.id === newMessage.id)) {
-              return prev;
-            }
-            return [...prev, newMessage];
-          });
+          setMessages((prev) => prev.some((m) => m.id === newMessage.id) ? prev : [...prev, newMessage]);
         }
       )
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [conversationId]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, sending]);
 
-  // Helper to refetch messages from DB
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 160) + 'px';
+    }
+  }, [inputValue]);
+
   const refetchMessages = async () => {
     if (!conversationId) return;
     const { data, error } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('created_at');
-    if (!error && data) {
-      setMessages(data as Message[]);
-    }
+      .from('messages').select('*').eq('conversation_id', conversationId).order('created_at');
+    if (!error && data) setMessages(data as Message[]);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    
+    // Validate size (20MB max)
+    const validFiles = files.filter(f => {
+      if (f.size > 20 * 1024 * 1024) {
+        toast({ title: 'Arquivo muito grande', description: `${f.name} excede 20MB`, variant: 'destructive' });
+        return false;
+      }
+      return true;
+    });
+    setAttachedFiles(prev => [...prev, ...validFiles].slice(0, 10));
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const removeFile = (index: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSend = async (content: string) => {
-    if (!conversationId || !agent || sending || !content.trim()) return;
+    if (!conversationId || !agent || sending || (!content.trim() && attachedFiles.length === 0)) return;
 
     setSending(true);
     setInputValue('');
 
-    // Optimistic UI: add user message immediately BEFORE any DB call
+    // Build message content with file names if attached
+    let messageContent = content.trim();
+    if (attachedFiles.length > 0) {
+      const fileNames = attachedFiles.map(f => f.name).join(', ');
+      messageContent = messageContent
+        ? `${messageContent}\n\n📎 Arquivos: ${fileNames}`
+        : `📎 Arquivos: ${fileNames}`;
+    }
+    setAttachedFiles([]);
+
     const optimisticMsg: Message = {
       id: `temp-${Date.now()}`,
       conversation_id: conversationId,
       role: 'user',
-      content: content.trim(),
+      content: messageContent,
       tokens_used: null,
       created_at: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, optimisticMsg]);
 
     try {
-      // Insert user message in DB
       const { error: userMsgError } = await supabase.from('messages').insert({
-        conversation_id: conversationId,
-        role: 'user',
-        content: content.trim(),
+        conversation_id: conversationId, role: 'user', content: messageContent,
       });
 
       if (userMsgError) {
-        console.error('Error sending message:', userMsgError);
-        // Remove optimistic message on error
         setMessages((prev) => prev.filter((m) => m.id !== optimisticMsg.id));
-        toast({
-          title: 'Erro ao enviar',
-          description: 'Não foi possível enviar sua mensagem.',
-          variant: 'destructive',
-        });
+        toast({ title: 'Erro ao enviar', description: 'Não foi possível enviar sua mensagem.', variant: 'destructive' });
         setSending(false);
         return;
       }
 
-      // Call AI edge function
       const { error: aiError } = await supabase.functions.invoke('chat', {
-        body: {
-          conversation_id: conversationId,
-          message: content.trim(),
-          agent_id: agent.id,
-        },
+        body: { conversation_id: conversationId, message: messageContent, agent_id: agent.id },
       });
 
       if (aiError) {
-        console.error('Error from AI:', aiError);
         const errorBody = typeof aiError === 'object' && aiError !== null ? (aiError as any) : null;
         const errorMessage = errorBody?.context?.body ? (() => { try { return JSON.parse(errorBody.context.body); } catch { return null; } })() : null;
-        
         if (errorMessage?.error === 'insufficient_credits') {
           showUpsell();
-          toast({
-            title: 'Créditos insuficientes',
-            description: errorMessage.message || 'Seus créditos acabaram!',
-            variant: 'destructive',
-          });
+          toast({ title: 'Créditos insuficientes', description: errorMessage.message || 'Seus créditos acabaram!', variant: 'destructive' });
         } else {
-          toast({
-            title: 'Erro do agente',
-            description: 'O agente não conseguiu responder. Tente novamente.',
-            variant: 'destructive',
-          });
+          toast({ title: 'Erro do agente', description: 'O agente não conseguiu responder. Tente novamente.', variant: 'destructive' });
         }
       }
 
-      // CRITICAL: Refetch messages to get the AI response immediately
       await refetchMessages();
 
-      // Update conversation title if it's the first message
       const userMessages = messages.filter((m) => m.role === 'user');
       if (userMessages.length === 0) {
         const titlePreview = content.slice(0, 50) + (content.length > 50 ? '...' : '');
-        await supabase
-          .from('conversations')
-          .update({ title: titlePreview })
-          .eq('id', conversationId);
+        await supabase.from('conversations').update({ title: titlePreview }).eq('id', conversationId);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: 'Erro inesperado',
-        description: 'Tente novamente em alguns instantes.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro inesperado', description: 'Tente novamente em alguns instantes.', variant: 'destructive' });
     } finally {
       setSending(false);
     }
@@ -248,24 +210,12 @@ export default function Chat() {
 
   const handleNewConversation = async () => {
     if (!agent || !user) return;
-
     try {
       const { data: newConv, error } = await supabase
         .from('conversations')
-        .insert({
-          user_id: user.id,
-          agent_id: agent.id,
-          title: `Conversa com ${agent.name}`,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating conversation:', error);
-        return;
-      }
-
-      navigate(`/chat/${newConv.id}`);
+        .insert({ user_id: user.id, agent_id: agent.id, title: `Conversa com ${agent.name}` })
+        .select().single();
+      if (!error) navigate(`/chat/${newConv.id}`);
     } catch (error) {
       console.error('Error creating conversation:', error);
     }
@@ -286,139 +236,141 @@ export default function Chat() {
     );
   }
 
-  // Build display messages including welcome message
   const displayMessages: Message[] = [];
   if (agent?.welcome_message && messages.length === 0) {
     displayMessages.push({
-      id: 'welcome',
-      conversation_id: conversationId || '',
-      role: 'assistant',
-      content: agent.welcome_message,
-      tokens_used: null,
-      created_at: new Date().toISOString(),
+      id: 'welcome', conversation_id: conversationId || '', role: 'assistant',
+      content: agent.welcome_message, tokens_used: null, created_at: new Date().toISOString(),
     });
   }
   displayMessages.push(...messages);
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Desktop Sidebar */}
-      <ChatSidebar agent={agent} onNewConversation={handleNewConversation} />
+      {/* Desktop Sidebar - collapsible */}
+      <ChatSidebar
+        agent={agent}
+        onNewConversation={handleNewConversation}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
 
       {/* Main Chat Area */}
-      <main className="flex-1 flex flex-col h-screen md:h-screen">
-        {/* Header */}
-        <header className="flex items-center justify-between px-4 py-3 border-b border-border bg-background">
-          <div className="flex items-center gap-3">
-            {/* Mobile back button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/home')}
-              className="md:hidden shrink-0"
-            >
-              <ArrowLeft className="w-5 h-5" />
+      <main className="flex-1 flex flex-col h-screen">
+        {/* Minimal Header */}
+        <header className="flex items-center justify-between px-4 py-2 border-b border-border/50 bg-background">
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/home')} className="md:hidden shrink-0 h-8 w-8">
+              <ArrowLeft className="w-4 h-4" />
             </Button>
-            
-            <h1 className="font-semibold text-foreground">
-              {agent?.name || 'Chat'}
-            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-base">{agent?.icon_emoji || '🤖'}</span>
+              <h1 className="font-medium text-foreground text-sm">{agent?.name || 'Chat'}</h1>
+            </div>
           </div>
 
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="text-muted-foreground">
-              <RotateCcw className="w-5 h-5" />
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={handleNewConversation}>
+              <Plus className="w-4 h-4" />
             </Button>
-            
-            {/* Mobile history button */}
             <Sheet open={mobileHistoryOpen} onOpenChange={setMobileHistoryOpen}>
               <SheetTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="md:hidden text-muted-foreground"
-                >
-                  <Menu className="w-5 h-5" />
+                <Button variant="ghost" size="icon" className="md:hidden h-8 w-8 text-muted-foreground">
+                  <Menu className="w-4 h-4" />
                 </Button>
               </SheetTrigger>
               <SheetContent side="right" className="w-80 p-0">
                 <SheetHeader className="p-4 border-b border-border">
                   <SheetTitle>Histórico</SheetTitle>
                 </SheetHeader>
-                <MobileChatHistory 
-                  agent={agent} 
+                <MobileChatHistory
+                  agent={agent}
                   currentConversationId={conversationId}
-                  onConversationSelect={(id) => {
-                    setMobileHistoryOpen(false);
-                    navigate(`/chat/${id}`);
-                  }}
-                  onNewConversation={() => {
-                    setMobileHistoryOpen(false);
-                    handleNewConversation();
-                  }}
+                  onConversationSelect={(id) => { setMobileHistoryOpen(false); navigate(`/chat/${id}`); }}
+                  onNewConversation={() => { setMobileHistoryOpen(false); handleNewConversation(); }}
                 />
               </SheetContent>
             </Sheet>
           </div>
         </header>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 scrollbar-thin pb-4">
-          {displayMessages.map((message) => (
-            <ChatBubble 
-              key={message.id} 
-              message={message}
-              agentEmoji={agent?.icon_emoji}
-            />
-          ))}
-          
-          {/* Ice Breakers - show when no user messages yet */}
-          {messages.length === 0 && agent?.ice_breakers && agent.ice_breakers.length > 0 && (
-            <IceBreakers
-              suggestions={agent.ice_breakers as string[]}
-              onSelect={(message) => handleSend(message)}
-              disabled={sending}
-            />
-          )}
-          
-          {sending && <TypingIndicator />}
-          <div ref={messagesEndRef} />
+        {/* Messages - centered like ChatGPT */}
+        <div className="flex-1 overflow-y-auto scrollbar-thin">
+          <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 space-y-6">
+            {displayMessages.map((message) => (
+              <ChatBubble key={message.id} message={message} agentEmoji={agent?.icon_emoji} />
+            ))}
+
+            {messages.length === 0 && agent?.ice_breakers && agent.ice_breakers.length > 0 && (
+              <IceBreakers
+                suggestions={agent.ice_breakers as string[]}
+                onSelect={(message) => handleSend(message)}
+                disabled={sending}
+              />
+            )}
+
+            {sending && <TypingIndicator />}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
-        {/* Input Area */}
-        <div className="p-4 border-t border-border bg-background pb-safe">
+        {/* Input Area - centered, floating style */}
+        <div className="p-3 md:p-4 bg-background">
           <div className="max-w-3xl mx-auto">
-            <div className="flex items-end gap-2 bg-muted rounded-xl border border-border p-2">
+            {/* Attached files preview */}
+            {attachedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2 px-1">
+                {attachedFiles.map((file, i) => (
+                  <div key={i} className="flex items-center gap-1.5 bg-muted rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground">
+                    <Paperclip className="h-3 w-3" />
+                    <span className="max-w-[120px] truncate">{file.name}</span>
+                    <button onClick={() => removeFile(i)} className="hover:text-foreground ml-0.5">×</button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-end gap-2 bg-muted/60 rounded-2xl border border-border/50 px-3 py-2 focus-within:border-primary/40 transition-colors">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={handleFileSelect}
+                accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-muted-foreground hover:text-foreground shrink-0"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+
               <textarea
                 ref={textareaRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={`Fale com ${agent?.name || 'o agente'}...`}
-                className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-sm min-h-[40px] max-h-[120px] py-2 px-2"
+                placeholder={`Mensagem para ${agent?.name || 'o agente'}...`}
+                className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-sm min-h-[24px] max-h-[160px] py-1.5"
                 rows={1}
                 disabled={sending}
               />
-              
-              <div className="flex items-center gap-1 shrink-0 pb-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                >
-                  <Paperclip className="h-5 w-5" />
-                </Button>
-                
-                <Button
-                  onClick={() => handleSend(inputValue)}
-                  size="icon"
-                  className="h-8 w-8 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
-                  disabled={!inputValue.trim() || sending}
-                >
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
+
+              <Button
+                onClick={() => handleSend(inputValue)}
+                size="icon"
+                className="h-8 w-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 shrink-0 disabled:opacity-30"
+                disabled={(!inputValue.trim() && attachedFiles.length === 0) || sending}
+              >
+                <Send className="h-4 w-4" />
+              </Button>
             </div>
+            <p className="text-[10px] text-muted-foreground/50 text-center mt-1.5">
+              Magnetic.IA pode cometer erros. Verifique informações importantes.
+            </p>
           </div>
         </div>
       </main>
