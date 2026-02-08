@@ -17,22 +17,24 @@ import UserManagement from '@/components/admin/UserManagement';
 import { AdminCreditsOverview } from '@/components/admin/AdminCreditsOverview';
 import { AdminUserCredits } from '@/components/admin/AdminUserCredits';
 import { AdminUpsellPlans } from '@/components/admin/AdminUpsellPlans';
+import { AdminMetricsDashboard } from '@/components/admin/AdminMetricsDashboard';
 
 const ADMIN_SECTIONS = [
+  { id: 'dashboard', label: 'Dashboard', icon: BarChart3, group: 'Geral' },
   { id: 'agents', label: 'Agentes', icon: Bot, group: 'Conteúdo' },
   { id: 'templates', label: 'Templates', icon: LayoutGrid, group: 'Conteúdo' },
   { id: 'options', label: 'Opções de Roteiro', icon: Settings2, group: 'Conteúdo' },
   { id: 'users', label: 'Usuários', icon: Users, group: 'Gestão' },
-  { id: 'credits-overview', label: 'Visão Geral', icon: BarChart3, group: 'Créditos' },
+  { id: 'credits-overview', label: 'Visão Geral', icon: Coins, group: 'Créditos' },
   { id: 'credits-users', label: 'Por Usuário', icon: Coins, group: 'Créditos' },
   { id: 'plans', label: 'Planos & Upsell', icon: Settings, group: 'Créditos' },
 ];
 
-const GROUPS = ['Conteúdo', 'Gestão', 'Créditos'];
+const GROUPS = ['Geral', 'Conteúdo', 'Gestão', 'Créditos'];
 
 export default function Admin() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const activeSection = searchParams.get('section') || 'agents';
+  const activeSection = searchParams.get('section') || 'dashboard';
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
@@ -168,6 +170,7 @@ export default function Admin() {
 
         {/* Content */}
         <main className="flex-1 p-4 md:p-6 lg:p-8 max-w-6xl">
+          {activeSection === 'dashboard' && <AdminMetricsDashboard />}
           {activeSection === 'agents' && <AdminAgentsSection />}
           {activeSection === 'templates' && <AdminAgentsSection section="templates" />}
           {activeSection === 'options' && <ScriptOptionsManagement />}
