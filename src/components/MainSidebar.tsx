@@ -1,11 +1,12 @@
-import React, { lazy, Suspense } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageSquare, User, LogOut, LayoutGrid, Tag } from 'lucide-react';
+import { Home, MessageSquare, User, LogOut, LayoutGrid, Tag, ShieldCheck } from 'lucide-react';
 import { LucideProps } from 'lucide-react';
 import dynamicIconImports from 'lucide-react/dynamicIconImports';
 import { Logo } from './Logo';
 import { CreditBadge } from './CreditBadge';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { Tag as TagType } from '@/types';
 
@@ -43,7 +44,14 @@ interface MainSidebarProps {
 export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagFilter = false }: MainSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
 
   const navItems = [
     { path: '/home', icon: Home, label: 'Home' },
@@ -141,6 +149,21 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
           </div>
           <CreditBadge />
         </button>
+        
+        {isAdmin && (
+          <button
+            onClick={() => navigate('/admin')}
+            className={cn(
+              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors mb-2",
+              location.pathname.startsWith('/admin')
+                ? "bg-primary/20 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+          >
+            <ShieldCheck className="w-5 h-5" />
+            Admin
+          </button>
+        )}
         
         <button
           onClick={handleSignOut}

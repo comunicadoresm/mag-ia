@@ -14,8 +14,7 @@ import Home from "./pages/Home";
 import Chat from "./pages/Chat";
 import History from "./pages/History";
 import Profile from "./pages/Profile";
-import AdminAgents from "./pages/AdminAgents";
-import AdminCredits from "./pages/AdminCredits";
+import Admin from "./pages/Admin";
 import Kanban from "./pages/Kanban";
 import Credits from "./pages/Credits";
 import NotFound from "./pages/NotFound";
@@ -32,12 +31,14 @@ function AppRoutes() {
       <Route path="/home" element={<Home />} />
       <Route path="/chat/:conversationId" element={<Chat />} />
       <Route path="/history" element={<History />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/profile/credits" element={<Credits />} />
-        <Route path="/kanban" element={<Kanban />} />
-        <Route path="/admin/agents" element={<AdminAgents />} />
-        <Route path="/admin/credits" element={<AdminCredits />} />
-        <Route path="*" element={<NotFound />} />
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/profile/credits" element={<Credits />} />
+      <Route path="/kanban" element={<Kanban />} />
+      <Route path="/admin" element={<Admin />} />
+      {/* Legacy routes redirect to unified admin */}
+      <Route path="/admin/agents" element={<Navigate to="/admin?section=agents" replace />} />
+      <Route path="/admin/credits" element={<Navigate to="/admin?section=credits-overview" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }
