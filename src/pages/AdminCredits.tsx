@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BarChart3, Users, Coins, Loader2 } from 'lucide-react';
+import { ArrowLeft, BarChart3, Users, Coins, Loader2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Logo } from '@/components/Logo';
 import { AdminCreditsOverview } from '@/components/admin/AdminCreditsOverview';
 import { AdminUserCredits } from '@/components/admin/AdminUserCredits';
+import { AdminUpsellPlans } from '@/components/admin/AdminUpsellPlans';
 
 export default function AdminCredits() {
   const navigate = useNavigate();
@@ -70,6 +71,10 @@ export default function AdminCredits() {
               <Users className="w-4 h-4" />
               Por Usuário
             </TabsTrigger>
+            <TabsTrigger value="plans" className="gap-2">
+              <Settings className="w-4 h-4" />
+              Planos & Upsell
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
@@ -78,6 +83,10 @@ export default function AdminCredits() {
 
           <TabsContent value="users">
             <AdminUserCredits />
+          </TabsContent>
+
+          <TabsContent value="plans">
+            <AdminUpsellPlans />
           </TabsContent>
         </Tabs>
       </main>
