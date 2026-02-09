@@ -8,3 +8,24 @@ verify_jwt = false
 
 [functions.setup-user-plan]
 verify_jwt = false
+
+[functions.generate-script]
+verify_jwt = false
+
+[functions.generate-script-chat]
+verify_jwt = false
+
+[functions.chat]
+verify_jwt = false
+
+[functions.process-document]
+verify_jwt = false
+
+[functions.verify-student]
+verify_jwt = false
+
+[functions.admin-create-user]
+verify_jwt = false
+
+[functions.admin-delete-user]
+verify_jwt = false
