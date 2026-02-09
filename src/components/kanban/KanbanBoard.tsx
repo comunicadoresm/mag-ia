@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { KanbanColumn } from './KanbanColumn';
 import { ScriptEditor } from './ScriptEditor';
@@ -194,12 +194,28 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
   const handleNewCardCreated = (newScript: UserScript, agentId?: string) => {
     setUserScripts((prev) => [newScript, ...prev]);
     setIsNewCardOpen(false);
-    // Open editor for the new card with free editing
     setSelectedScript(newScript);
     setSelectedStructure(null);
     setSelectedAgentId(agentId);
     setIsFromTemplate(false);
     setIsEditorOpen(true);
+  };
+
+  const handleDelete = async (script: UserScript) => {
+    try {
+      const { error } = await supabase
+        .from('user_scripts')
+        .delete()
+        .eq('id', script.id);
+
+      if (error) throw error;
+
+      setUserScripts((prev) => prev.filter((s) => s.id !== script.id));
+      toast({ title: 'Roteiro excluído com sucesso!' });
+    } catch (error) {
+      console.error('Error deleting script:', error);
+      toast({ title: 'Erro ao excluir roteiro', variant: 'destructive' });
+    }
   };
 
   if (isLoading) {
@@ -222,6 +238,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
               onCardClick={handleCardClick}
               onWriteWithAI={handleWriteWithAI}
               onOpenMetrics={handleOpenMetrics}
+              onDelete={handleDelete}
               onDrop={handleDrop}
               onAddCard={column.id === 'scripting' ? () => setIsNewCardOpen(true) : undefined}
             />
