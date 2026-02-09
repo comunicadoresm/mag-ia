@@ -294,7 +294,7 @@ export default function Home() {
   const m = metrics;
   const pa = postAggregates;
   const displayName = profile?.name || m?.display_name || 'Usuário';
-  const totalFollowers = m?.current_followers || 0;
+  const totalFollowers = (m?.current_followers || 0) + pa.total_followers_from_posts;
 
   const comparisonData = m ? [
     { label: 'Seguidores', before: m.initial_followers, current: totalFollowers },
