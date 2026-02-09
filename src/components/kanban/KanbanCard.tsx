@@ -120,11 +120,11 @@ export function KanbanCard({
             Duplicar
           </Button>
         )}
-        {!isTemplate && !isPosted && onWriteWithAI && (
+        {(columnId === 'scripting' || columnId === 'editing') && onWriteWithAI && (
           <Button
             size="sm"
             variant="ghost"
-            className="text-xs h-8 rounded-xl text-muted-foreground opacity-70 hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-all"
+            className="text-xs h-8 rounded-xl text-muted-foreground opacity-0 group-hover:opacity-70 hover:!opacity-100 hover:bg-primary/10 hover:text-primary transition-all"
             onClick={(e) => { e.stopPropagation(); onWriteWithAI(userScript); }}
           >
             <Sparkles className="w-3 h-3 mr-1.5" />
