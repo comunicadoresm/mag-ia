@@ -229,9 +229,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // === CREDIT CONSUMPTION (script_adjustment = 1 credit default) ===
+    // === CREDIT CONSUMPTION (script_adjustment = 1 credit, fixed) ===
     if (action !== "start") {
-      const creditCost = agent.credit_cost || 1;
+      const creditCost = 1; // Script adjustment always costs 1 credit
 
       const { data: credits, error: creditsError } = await supabaseClient
         .from("user_credits")
