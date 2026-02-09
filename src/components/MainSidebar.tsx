@@ -46,12 +46,18 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
   const location = useLocation();
   const { signOut, profile, user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState('');
   const { balance, isLoading: creditsLoading } = useCredits();
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle()
-      .then(({ data }) => setIsAdmin(!!data));
+    Promise.all([
+      supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle(),
+      supabase.from('user_metrics').select('profile_photo_url').eq('user_id', user.id).maybeSingle(),
+    ]).then(([roleRes, metricsRes]) => {
+      setIsAdmin(!!roleRes.data);
+      if (metricsRes.data?.profile_photo_url) setPhotoUrl(metricsRes.data.profile_photo_url);
+    });
   }, [user]);
 
   const navItems = [
