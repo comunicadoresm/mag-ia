@@ -14,6 +14,7 @@ import { CreditCompositionChart } from '@/components/credits/CreditCompositionCh
 import { CycleProgressBar } from '@/components/credits/CycleProgressBar';
 import { PurchaseHistoryTable } from '@/components/credits/PurchaseHistoryTable';
 import { UsageByFeatureChart } from '@/components/credits/UsageByFeatureChart';
+import { PlanInfoCard } from '@/components/credits/PlanInfoCard';
 
 export default function Credits() {
   const navigate = useNavigate();
@@ -108,7 +109,8 @@ export default function Credits() {
               </div>
 
               {/* Row 2: Detail Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                <PlanInfoCard />
                 <CreditCompositionChart />
                 <CycleProgressBar />
                 <UsageByFeatureChart />
