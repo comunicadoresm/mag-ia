@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, Sparkles, BarChart3, ArrowUpRight, Trash2 } from 'lucide-react';
+import { Copy, Sparkles, BarChart3, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScriptTemplate, UserScript } from '@/types/kanban';
 
@@ -58,12 +58,11 @@ export function KanbanCard({
         </button>
       )}
 
-      {/* Title + Arrow */}
-      <div className="flex items-start justify-between gap-2 mb-3">
+      {/* Title */}
+      <div className="flex items-start gap-2 mb-3 pr-6">
         <h4 className="font-bold text-foreground text-sm leading-tight line-clamp-2 flex-1">
           {item.title}
         </h4>
-        <ArrowUpRight className="w-4 h-4 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
 
       {/* Tags: Objetivo, Estilo, Formato */}
@@ -113,7 +112,8 @@ export function KanbanCard({
         {isTemplate && onDuplicate && (
           <Button
             size="sm"
-            className="flex-1 text-xs h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
+            variant="ghost"
+            className="text-xs h-8 rounded-xl text-muted-foreground opacity-70 hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-all"
             onClick={(e) => { e.stopPropagation(); onDuplicate(item as ScriptTemplate); }}
           >
             <Copy className="w-3 h-3 mr-1.5" />
@@ -134,7 +134,8 @@ export function KanbanCard({
         {isPosted && onOpenMetrics && (
           <Button
             size="sm"
-            className="flex-1 text-xs h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
+            variant="ghost"
+            className="text-xs h-8 rounded-xl text-muted-foreground opacity-70 hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-all"
             onClick={(e) => { e.stopPropagation(); onOpenMetrics(userScript); }}
           >
             <BarChart3 className="w-3 h-3 mr-1.5" />
