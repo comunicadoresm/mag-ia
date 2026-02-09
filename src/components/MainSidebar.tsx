@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, MessageSquare, User, LogOut, LayoutGrid, Tag, ShieldCheck, Columns3, Bot } from 'lucide-react';
 import { LucideProps } from 'lucide-react';
@@ -45,12 +46,18 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
   const location = useLocation();
   const { signOut, profile, user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState('');
   const { balance, isLoading: creditsLoading } = useCredits();
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle()
-      .then(({ data }) => setIsAdmin(!!data));
+    Promise.all([
+      supabase.from('user_roles').select('role').eq('user_id', user.id).eq('role', 'admin').maybeSingle(),
+      supabase.from('user_metrics').select('profile_photo_url').eq('user_id', user.id).maybeSingle(),
+    ]).then(([roleRes, metricsRes]) => {
+      setIsAdmin(!!roleRes.data);
+      if (metricsRes.data?.profile_photo_url) setPhotoUrl(metricsRes.data.profile_photo_url);
+    });
   }, [user]);
 
   const navItems = [
@@ -165,9 +172,12 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
           onClick={() => navigate('/profile')}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-muted transition-colors mb-2"
         >
-          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold shrink-0">
-            {profile?.name?.charAt(0).toUpperCase() || profile?.email?.charAt(0).toUpperCase() || 'U'}
-          </div>
+          <Avatar className="w-10 h-10 shrink-0">
+            <AvatarImage src={photoUrl} className="object-cover" />
+            <AvatarFallback className="bg-primary text-primary-foreground font-bold">
+              {profile?.name?.charAt(0).toUpperCase() || profile?.email?.charAt(0).toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
           <div className="flex-1 min-w-0 text-left">
             <p className="text-sm font-medium truncate text-foreground">
               {profile?.name || profile?.email?.split('@')[0] || 'Usuário'}
