@@ -21,6 +21,7 @@ export interface UserMetrics {
 export interface PostAggregates {
   total_posts: number;
   total_views: number;
+  total_likes: number;
   total_comments: number;
   total_saves: number;
   total_shares: number;
@@ -31,7 +32,7 @@ export function useDashboardMetrics() {
   const { user, profile } = useAuth();
   const [metrics, setMetrics] = useState<UserMetrics | null>(null);
   const [postAggregates, setPostAggregates] = useState<PostAggregates>({
-    total_posts: 0, total_views: 0, total_comments: 0,
+    total_posts: 0, total_views: 0, total_likes: 0, total_comments: 0,
     total_saves: 0, total_shares: 0, total_followers_from_posts: 0,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -43,7 +44,7 @@ export function useDashboardMetrics() {
       // Fetch user metrics + posted scripts in parallel
       const [metricsRes, scriptsRes] = await Promise.all([
         supabase.from('user_metrics').select('*').eq('user_id', user.id).maybeSingle(),
-        supabase.from('user_scripts').select('views, comments, saves, shares, followers, status').eq('user_id', user.id).eq('status', 'posted'),
+        supabase.from('user_scripts').select('views, likes, comments, saves, shares, followers, status').eq('user_id', user.id).eq('status', 'posted'),
       ]);
 
       if (metricsRes.data) {
@@ -55,6 +56,7 @@ export function useDashboardMetrics() {
       setPostAggregates({
         total_posts: posts.length,
         total_views: posts.reduce((s, p) => s + (p.views || 0), 0),
+        total_likes: posts.reduce((s, p) => s + ((p as any).likes || 0), 0),
         total_comments: posts.reduce((s, p) => s + (p.comments || 0), 0),
         total_saves: posts.reduce((s, p) => s + (p.saves || 0), 0),
         total_shares: posts.reduce((s, p) => s + (p.shares || 0), 0),

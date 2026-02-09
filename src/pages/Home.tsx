@@ -291,7 +291,7 @@ export default function Home() {
                 <MetricCard title="Posts Realizados" value={pa.total_posts} icon={<FileText className="w-5 h-5" />} />
                 <MetricCard title="Novos Seguidores" value={pa.total_followers_from_posts} icon={<Users className="w-5 h-5" />} />
                 <MetricCard title="Visualizações" value={pa.total_views} icon={<Eye className="w-5 h-5" />} />
-                <MetricCard title="Curtidas" value={0} icon={<Heart className="w-5 h-5" />} />
+                <MetricCard title="Curtidas" value={pa.total_likes} icon={<Heart className="w-5 h-5" />} />
                 <MetricCard title="Comentários" value={pa.total_comments} icon={<MessageCircle className="w-5 h-5" />} />
                 <MetricCard title="Salvos" value={pa.total_saves} icon={<Bookmark className="w-5 h-5" />} />
                 <MetricCard title="Compartilhamentos" value={pa.total_shares} icon={<Share2 className="w-5 h-5" />} />
