@@ -229,9 +229,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // === CREDIT CONSUMPTION (script_adjustment = 1 credit, fixed) ===
+    // === CREDIT CONSUMPTION (uses agent's credit_cost) ===
     if (action !== "start") {
-      const creditCost = 1; // Script adjustment always costs 1 credit
+      const creditCost = agent.credit_cost || 1;
 
       const { data: credits, error: creditsError } = await supabaseClient
         .from("user_credits")
@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
         balance_after: newPlan + newSub + newBonus,
         metadata: { agent_id },
       });
-      console.log(`Credits consumed: ${creditCost}, remaining: ${newPlan + newSub + newBonus}`);
+      console.log(`Credits consumed: ${creditCost} (agent cost), remaining: ${newPlan + newSub + newBonus}`);
     }
     // === END CREDIT CONSUMPTION ===
 
