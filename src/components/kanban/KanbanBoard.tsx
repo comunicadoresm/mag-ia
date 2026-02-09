@@ -33,6 +33,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isFromTemplate, setIsFromTemplate] = useState(false);
+  const [isReadOnly, setIsReadOnly] = useState(false);
   
   // Metrics state
   const [metricsScript, setMetricsScript] = useState<UserScript | null>(null);
@@ -119,12 +120,44 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
 
   const handleCardClick = (item: ScriptTemplate | UserScript) => {
     if ('status' in item) {
+      // UserScript - open editor
       const template = templates.find(t => t.id === item.template_id);
       const fromTemplate = !!item.template_id;
       setSelectedScript(item);
       setSelectedStructure(template?.script_structure || null);
       setSelectedAgentId(template?.agent_id || undefined);
       setIsFromTemplate(fromTemplate);
+      setIsReadOnly(false);
+      setIsEditorOpen(true);
+    } else {
+      // ScriptTemplate - open in read-only mode
+      const tpl = item as ScriptTemplate;
+      // Create a fake UserScript for viewing
+      const viewScript: UserScript = {
+        id: tpl.id,
+        user_id: '',
+        template_id: tpl.id,
+        title: tpl.title,
+        theme: tpl.theme,
+        style: tpl.style,
+        format: tpl.format,
+        objective: tpl.objective,
+        status: 'scripting',
+        script_content: {},
+        views: null,
+        comments: null,
+        followers: null,
+        shares: null,
+        saves: null,
+        posted_at: null,
+        created_at: tpl.created_at,
+        updated_at: tpl.updated_at,
+      };
+      setSelectedScript(viewScript);
+      setSelectedStructure(tpl.script_structure);
+      setSelectedAgentId(tpl.agent_id || undefined);
+      setIsFromTemplate(true);
+      setIsReadOnly(true);
       setIsEditorOpen(true);
     }
   };
@@ -136,6 +169,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
     setSelectedStructure(template?.script_structure || null);
     setSelectedAgentId(template?.agent_id || undefined);
     setIsFromTemplate(fromTemplate);
+    setIsReadOnly(false);
     setIsEditorOpen(true);
   };
 
@@ -198,6 +232,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
     setSelectedStructure(null);
     setSelectedAgentId(agentId);
     setIsFromTemplate(false);
+    setIsReadOnly(false);
     setIsEditorOpen(true);
   };
 
@@ -256,6 +291,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
         agents={agents}
         selectedAgentId={selectedAgentId}
         isFromTemplate={isFromTemplate}
+        isReadOnly={isReadOnly}
       />
 
       <MetricsModal

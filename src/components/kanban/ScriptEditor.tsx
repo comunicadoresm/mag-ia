@@ -8,7 +8,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
-import { UserScript, ScriptStructure, OBJECTIVES, STYLES, FORMATS } from '@/types/kanban';
+import { UserScript, ScriptStructure, DEFAULT_SCRIPT_STRUCTURE } from '@/types/kanban';
 import { Agent } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +23,13 @@ interface ScriptEditorProps {
   agents: Agent[];
   selectedAgentId?: string;
   isFromTemplate?: boolean;
+  isReadOnly?: boolean;
+}
+
+interface DynamicOption {
+  value: string;
+  label: string;
+  color?: string;
 }
 
 export function ScriptEditor({
@@ -34,6 +41,7 @@ export function ScriptEditor({
   agents,
   selectedAgentId,
   isFromTemplate = false,
+  isReadOnly = false,
 }: ScriptEditorProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +49,28 @@ export function ScriptEditor({
   const [editedScript, setEditedScript] = useState<UserScript | null>(null);
   const [content, setContent] = useState<Record<string, string>>({});
   const [chosenAgentId, setChosenAgentId] = useState<string | undefined>(selectedAgentId);
+
+  // Dynamic options from DB
+  const [dbStyles, setDbStyles] = useState<DynamicOption[]>([]);
+  const [dbFormats, setDbFormats] = useState<DynamicOption[]>([]);
+  const [dbObjectives, setDbObjectives] = useState<DynamicOption[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDynamicOptions();
+    }
+  }, [isOpen]);
+
+  const fetchDynamicOptions = async () => {
+    const [stylesRes, formatsRes, objectivesRes] = await Promise.all([
+      supabase.from('script_styles').select('value, label').eq('is_active', true).order('display_order'),
+      supabase.from('script_formats').select('value, label').eq('is_active', true).order('display_order'),
+      supabase.from('script_objectives').select('value, label, color').eq('is_active', true).order('display_order'),
+    ]);
+    if (stylesRes.data) setDbStyles(stylesRes.data);
+    if (formatsRes.data) setDbFormats(formatsRes.data);
+    if (objectivesRes.data) setDbObjectives(objectivesRes.data);
+  };
 
   useEffect(() => {
     if (script) {
@@ -50,11 +80,13 @@ export function ScriptEditor({
     }
   }, [script, selectedAgentId]);
 
-  // Whether metadata fields are locked (duplicated from template)
   const isMetadataLocked = isFromTemplate;
 
+  // Use template structure, or default structure for free cards
+  const activeStructure = structure || DEFAULT_SCRIPT_STRUCTURE;
+
   const handleSave = async () => {
-    if (!editedScript) return;
+    if (!editedScript || isReadOnly) return;
     
     setIsLoading(true);
     try {
@@ -82,10 +114,7 @@ export function ScriptEditor({
       toast({ title: 'Roteiro salvo com sucesso!' });
     } catch (error) {
       console.error('Error saving script:', error);
-      toast({
-        title: 'Erro ao salvar',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao salvar', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -100,10 +129,11 @@ export function ScriptEditor({
     setContent(generatedContent);
   };
 
-  // Use the agent from template OR the one the user picked for custom cards
   const selectedAgent = agents.find(a => a.id === chosenAgentId) || null;
 
   if (!editedScript) return null;
+
+  const title = isReadOnly ? 'Visualizar Template' : 'Editar Roteiro';
 
   return (
     <Sheet open={isOpen} onOpenChange={() => onClose()}>
@@ -111,7 +141,7 @@ export function ScriptEditor({
         <ScrollArea className="h-full">
           <div className="p-6">
             <SheetHeader className="mb-6">
-              <SheetTitle className="text-xl">Editar Roteiro</SheetTitle>
+              <SheetTitle className="text-xl">{title}</SheetTitle>
             </SheetHeader>
 
             {/* Basic Info Section */}
@@ -126,6 +156,7 @@ export function ScriptEditor({
                   value={editedScript.title}
                   onChange={(e) => setEditedScript({ ...editedScript, title: e.target.value })}
                   className="bg-input"
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -137,6 +168,7 @@ export function ScriptEditor({
                     onChange={(e) => setEditedScript({ ...editedScript, theme: e.target.value })}
                     className="bg-input"
                     placeholder="Ex: Marketing, Lifestyle..."
+                    disabled={isReadOnly}
                   />
                 </div>
 
@@ -145,13 +177,13 @@ export function ScriptEditor({
                   <Select
                     value={editedScript.style}
                     onValueChange={(value) => setEditedScript({ ...editedScript, style: value })}
-                    disabled={isMetadataLocked}
+                    disabled={isMetadataLocked || isReadOnly}
                   >
-                    <SelectTrigger className={`bg-input ${isMetadataLocked ? 'opacity-60' : ''}`}>
+                    <SelectTrigger className={`bg-input ${isMetadataLocked || isReadOnly ? 'opacity-60' : ''}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {STYLES.map((style) => (
+                      {dbStyles.map((style) => (
                         <SelectItem key={style.value} value={style.value}>
                           {style.label}
                         </SelectItem>
@@ -167,13 +199,13 @@ export function ScriptEditor({
                   <Select
                     value={editedScript.format || ''}
                     onValueChange={(value) => setEditedScript({ ...editedScript, format: value })}
-                    disabled={isMetadataLocked}
+                    disabled={isMetadataLocked || isReadOnly}
                   >
-                    <SelectTrigger className={`bg-input ${isMetadataLocked ? 'opacity-60' : ''}`}>
+                    <SelectTrigger className={`bg-input ${isMetadataLocked || isReadOnly ? 'opacity-60' : ''}`}>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {FORMATS.map((format) => (
+                      {dbFormats.map((format) => (
                         <SelectItem key={format.value} value={format.value}>
                           {format.label}
                         </SelectItem>
@@ -186,14 +218,14 @@ export function ScriptEditor({
                   <label className="text-sm text-muted-foreground mb-1.5 block">Objetivo</label>
                   <Select
                     value={editedScript.objective || ''}
-                    onValueChange={(value) => setEditedScript({ ...editedScript, objective: value as any })}
-                    disabled={isMetadataLocked}
+                    onValueChange={(value) => setEditedScript({ ...editedScript, objective: value })}
+                    disabled={isMetadataLocked || isReadOnly}
                   >
-                    <SelectTrigger className={`bg-input ${isMetadataLocked ? 'opacity-60' : ''}`}>
+                    <SelectTrigger className={`bg-input ${isMetadataLocked || isReadOnly ? 'opacity-60' : ''}`}>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {OBJECTIVES.map((obj) => (
+                      {dbObjectives.map((obj) => (
                         <SelectItem key={obj.value} value={obj.value}>
                           <div className="flex items-center gap-2">
                             <div
@@ -210,7 +242,7 @@ export function ScriptEditor({
               </div>
 
               {/* Agent selector - only for custom (non-template) cards */}
-              {!isMetadataLocked && (
+              {!isMetadataLocked && !isReadOnly && (
                 <div>
                   <label className="text-sm text-muted-foreground mb-1.5 block">Agente IA</label>
                   <Select
@@ -234,8 +266,8 @@ export function ScriptEditor({
                 </div>
               )}
 
-              {/* Show locked agent info for template-based cards */}
-              {isMetadataLocked && selectedAgent && (
+              {/* Show locked agent info for template-based or read-only cards */}
+              {(isMetadataLocked || isReadOnly) && selectedAgent && (
                 <div>
                   <label className="text-sm text-muted-foreground mb-1.5 block">Agente IA</label>
                   <div className="flex items-center gap-2 bg-input rounded-md px-3 py-2 opacity-60">
@@ -255,106 +287,117 @@ export function ScriptEditor({
                   🎬 Roteiro IDF
                 </h3>
                 
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleWriteWithAI}
-                  className="gap-2"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  Escrever com IA
-                </Button>
+                {!isReadOnly && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleWriteWithAI}
+                    className="gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Escrever com IA
+                  </Button>
+                )}
               </div>
 
-              {structure && (
-                <div className="space-y-6">
-                  <div className="bg-muted/30 rounded-xl p-4">
-                    <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                      <Target className="w-4 h-4 text-destructive" />
-                      {structure.inicio.title}
-                    </h4>
-                    {structure.inicio.sections.map((section) => (
-                      <div key={section.id} className="mb-3">
-                        <label className="text-sm text-muted-foreground mb-1.5 block flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-warning" />
-                          {section.label}
-                        </label>
-                        <Textarea
-                          value={content[section.id] || ''}
-                          onChange={(e) => setContent({ ...content, [section.id]: e.target.value })}
-                          placeholder={section.placeholder}
-                          className="bg-card min-h-[100px]"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="bg-muted/30 rounded-xl p-4">
-                    <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                      <Palette className="w-4 h-4 text-primary" />
-                      {structure.desenvolvimento.title}
-                    </h4>
-                    {structure.desenvolvimento.sections.map((section) => (
-                      <div key={section.id} className="mb-3">
-                        <label className="text-sm text-muted-foreground mb-1.5 block flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-primary" />
-                          {section.label}
-                        </label>
-                        <Textarea
-                          value={content[section.id] || ''}
-                          onChange={(e) => setContent({ ...content, [section.id]: e.target.value })}
-                          placeholder={section.placeholder}
-                          className="bg-card min-h-[100px]"
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="bg-muted/30 rounded-xl p-4">
-                    <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                      <Crosshair className="w-4 h-4 text-success" />
-                      {structure.final.title}
-                    </h4>
-                    {structure.final.sections.map((section) => (
-                      <div key={section.id} className="mb-3">
-                        <label className="text-sm text-muted-foreground mb-1.5 block flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-success" />
-                          {section.label}
-                        </label>
-                        <Textarea
-                          value={content[section.id] || ''}
-                          onChange={(e) => setContent({ ...content, [section.id]: e.target.value })}
-                          placeholder={section.placeholder}
-                          className="bg-card min-h-[100px]"
-                        />
-                      </div>
-                    ))}
-                  </div>
+              <div className="space-y-6">
+                <div className="bg-muted/30 rounded-xl p-4">
+                  <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <Target className="w-4 h-4 text-destructive" />
+                    {activeStructure.inicio.title}
+                  </h4>
+                  {activeStructure.inicio.sections.map((section) => (
+                    <div key={section.id} className="mb-3">
+                      <label className="text-sm text-muted-foreground mb-1.5 block flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-warning" />
+                        {section.label}
+                      </label>
+                      <Textarea
+                        value={content[section.id] || ''}
+                        onChange={(e) => setContent({ ...content, [section.id]: e.target.value })}
+                        placeholder={section.placeholder}
+                        className="bg-card min-h-[100px]"
+                        disabled={isReadOnly}
+                      />
+                    </div>
+                  ))}
                 </div>
-              )}
+
+                <div className="bg-muted/30 rounded-xl p-4">
+                  <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <Palette className="w-4 h-4 text-primary" />
+                    {activeStructure.desenvolvimento.title}
+                  </h4>
+                  {activeStructure.desenvolvimento.sections.map((section) => (
+                    <div key={section.id} className="mb-3">
+                      <label className="text-sm text-muted-foreground mb-1.5 block flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-primary" />
+                        {section.label}
+                      </label>
+                      <Textarea
+                        value={content[section.id] || ''}
+                        onChange={(e) => setContent({ ...content, [section.id]: e.target.value })}
+                        placeholder={section.placeholder}
+                        className="bg-card min-h-[100px]"
+                        disabled={isReadOnly}
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="bg-muted/30 rounded-xl p-4">
+                  <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <Crosshair className="w-4 h-4 text-success" />
+                    {activeStructure.final.title}
+                  </h4>
+                  {activeStructure.final.sections.map((section) => (
+                    <div key={section.id} className="mb-3">
+                      <label className="text-sm text-muted-foreground mb-1.5 block flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-success" />
+                        {section.label}
+                      </label>
+                      <Textarea
+                        value={content[section.id] || ''}
+                        onChange={(e) => setContent({ ...content, [section.id]: e.target.value })}
+                        placeholder={section.placeholder}
+                        className="bg-card min-h-[100px]"
+                        disabled={isReadOnly}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Actions */}
             <div className="flex gap-3 mt-8 pt-6 border-t border-border">
-              <Button variant="outline" onClick={onClose} className="flex-1">
-                Cancelar
-              </Button>
-              <Button onClick={handleSave} disabled={isLoading} className="flex-1">
-                {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                Salvar
-              </Button>
+              {isReadOnly ? (
+                <Button variant="outline" onClick={onClose} className="flex-1">
+                  Fechar
+                </Button>
+              ) : (
+                <>
+                  <Button variant="outline" onClick={onClose} className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleSave} disabled={isLoading} className="flex-1">
+                    {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                    Salvar
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </ScrollArea>
       </SheetContent>
 
       {/* AI Chat Modal */}
-      {editedScript && (
+      {editedScript && !isReadOnly && (
         <AIScriptChat
           isOpen={isAIChatOpen}
           onClose={() => setIsAIChatOpen(false)}
           script={editedScript}
-          structure={structure}
+          structure={activeStructure}
           agent={selectedAgent}
           onScriptGenerated={handleScriptGenerated}
         />
