@@ -1,12 +1,14 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Coins, TrendingDown, Gift, Wallet, Percent, Loader2 } from 'lucide-react';
+import { Coins, TrendingDown, Gift, Wallet, Percent, Loader2, ShoppingCart } from 'lucide-react';
 import { MainSidebar } from '@/components/MainSidebar';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { Logo } from '@/components/Logo';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCredits } from '@/hooks/useCredits';
 import { useCycleProgress } from '@/hooks/useCycleProgress';
+import { useCreditsModals } from '@/contexts/CreditsModalContext';
 import { CreditMetricCard } from '@/components/credits/CreditMetricCard';
 import { CreditCompositionChart } from '@/components/credits/CreditCompositionChart';
 import { CycleProgressBar } from '@/components/credits/CycleProgressBar';
@@ -18,6 +20,7 @@ export default function Credits() {
   const { user, loading: authLoading } = useAuth();
   const { balance, isLoading: creditsLoading } = useCredits();
   const { totalConsumed, totalMonthly, percentUsed } = useCycleProgress();
+  const { showBuyCredits } = useCreditsModals();
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -52,14 +55,17 @@ export default function Credits() {
           </button>
         </header>
 
-        <div className="p-4 md:p-8 max-w-4xl">
-          {/* Page Title */}
-          <div className="flex items-center justify-between mb-6">
+        <div className="p-4 md:p-6 max-w-4xl">
+          {/* Page Title + CTA */}
+          <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-xl font-bold text-foreground">Meus Créditos</h1>
               <p className="text-sm text-muted-foreground">Acompanhe seu consumo e saldo</p>
             </div>
-            {/* Future: Buy credits button */}
+            <Button onClick={showBuyCredits} className="gap-2">
+              <ShoppingCart className="w-4 h-4" />
+              Adquirir Créditos
+            </Button>
           </div>
 
           {creditsLoading ? (
@@ -67,9 +73,9 @@ export default function Credits() {
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : (
-            <div className="space-y-4 animate-fade-in">
+            <div className="space-y-3 animate-fade-in">
               {/* Row 1: Metric Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                 <CreditMetricCard
                   title="Total Mensal"
                   value={totalMonthly}
@@ -102,14 +108,14 @@ export default function Credits() {
               </div>
 
               {/* Row 2: Detail Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 <CreditCompositionChart />
                 <CycleProgressBar />
-                <PurchaseHistoryTable />
+                <UsageByFeatureChart />
               </div>
 
-              {/* Row 3: Usage by Feature */}
-              <UsageByFeatureChart />
+              {/* Row 3: History (full width) */}
+              <PurchaseHistoryTable />
             </div>
           )}
         </div>
