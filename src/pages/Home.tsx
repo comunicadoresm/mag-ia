@@ -320,14 +320,14 @@ export default function Home() {
             <div className="card-cm p-4 md:p-5">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="relative cursor-pointer shrink-0" onClick={() => fileRef.current?.click()}>
-                  <Avatar className="w-14 h-14 border-2 border-primary">
-                    <AvatarImage src={m?.profile_photo_url || ''} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">
+                  <Avatar className="w-12 h-12 border-2 border-primary">
+                    <AvatarImage src={m?.profile_photo_url || ''} className="object-cover" />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-base font-bold">
                       {displayName.charAt(0).toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                    {uploading ? <Loader2 className="w-3 h-3 text-primary-foreground animate-spin" /> : <Camera className="w-3 h-3 text-primary-foreground" />}
+                  <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                    {uploading ? <Loader2 className="w-2.5 h-2.5 text-primary-foreground animate-spin" /> : <Camera className="w-2.5 h-2.5 text-primary-foreground" />}
                   </div>
                   <input ref={fileRef} type="file" accept="image/jpeg,image/jpg,image/png" className="hidden" onChange={handlePhotoUpload} />
                 </div>
