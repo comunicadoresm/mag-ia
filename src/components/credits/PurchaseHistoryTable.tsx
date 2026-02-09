@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useCreditHistory } from '@/hooks/useCreditHistory';
+import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Loader2 } from 'lucide-react';
@@ -15,6 +16,7 @@ const sourceLabels: Record<string, string> = {
   bonus_purchase: 'Compra Avulsa',
   admin_adjustment: 'Ajuste Admin',
   trial_credits: 'Créditos Trial',
+  trial_expired: 'Trial Expirado',
 };
 
 const typeLabels: Record<string, string> = {
@@ -27,6 +29,30 @@ const typeLabels: Record<string, string> = {
 
 export function PurchaseHistoryTable() {
   const { transactions, isLoading } = useCreditHistory(15);
+  const [agentNames, setAgentNames] = useState<Record<string, string>>({});
+
+  // Collect unique agent IDs from metadata
+  const agentIds = [...new Set(
+    transactions
+      .map(t => (t.metadata as any)?.agent_id)
+      .filter(Boolean)
+  )];
+
+  useEffect(() => {
+    if (agentIds.length === 0) return;
+    const fetchAgents = async () => {
+      const { data } = await supabase
+        .from('agents')
+        .select('id, name')
+        .in('id', agentIds);
+      if (data) {
+        const map: Record<string, string> = {};
+        data.forEach(a => { map[a.id] = a.name; });
+        setAgentNames(map);
+      }
+    };
+    fetchAgents();
+  }, [agentIds.join(',')]);
 
   return (
     <Card className="card-cm">
@@ -35,11 +61,11 @@ export function PurchaseHistoryTable() {
       </CardHeader>
       <CardContent className="p-4 pt-0">
         {isLoading ? (
-          <div className="flex justify-center py-6">
+          <div className="flex justify-center py-4">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         ) : transactions.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">Nenhuma transação ainda.</p>
+          <p className="text-sm text-muted-foreground text-center py-4">Nenhuma transação ainda.</p>
         ) : (
           <div className="overflow-x-auto -mx-4">
             <Table>
@@ -48,24 +74,30 @@ export function PurchaseHistoryTable() {
                   <TableHead className="text-xs">Data</TableHead>
                   <TableHead className="text-xs">Tipo</TableHead>
                   <TableHead className="text-xs">Descrição</TableHead>
-                  <TableHead className="text-xs text-right">Créditos</TableHead>
+                  <TableHead className="text-xs">Agente</TableHead>
+                  <TableHead className="text-xs text-right">Créd.</TableHead>
                   <TableHead className="text-xs text-right">Saldo</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {transactions.map((tx) => (
-                  <TableRow key={tx.id}>
-                    <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                      {format(new Date(tx.created_at), 'dd/MM HH:mm', { locale: ptBR })}
-                    </TableCell>
-                    <TableCell className="text-xs">{typeLabels[tx.type] || tx.type}</TableCell>
-                    <TableCell className="text-xs">{sourceLabels[tx.source] || tx.source}</TableCell>
-                    <TableCell className={`text-xs text-right font-medium ${tx.amount < 0 ? 'text-destructive' : 'text-success'}`}>
-                      {tx.amount > 0 ? '+' : ''}{tx.amount}
-                    </TableCell>
-                    <TableCell className="text-xs text-right text-muted-foreground">{tx.balance_after}</TableCell>
-                  </TableRow>
-                ))}
+                {transactions.map((tx) => {
+                  const agentId = (tx.metadata as any)?.agent_id;
+                  const agentName = agentId ? (agentNames[agentId] || '—') : '—';
+                  return (
+                    <TableRow key={tx.id}>
+                      <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                        {format(new Date(tx.created_at), 'dd/MM HH:mm', { locale: ptBR })}
+                      </TableCell>
+                      <TableCell className="text-xs">{typeLabels[tx.type] || tx.type}</TableCell>
+                      <TableCell className="text-xs">{sourceLabels[tx.source] || tx.source}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground truncate max-w-[100px]">{agentName}</TableCell>
+                      <TableCell className={`text-xs text-right font-medium ${tx.amount < 0 ? 'text-destructive' : 'text-success'}`}>
+                        {tx.amount > 0 ? '+' : ''}{tx.amount}
+                      </TableCell>
+                      <TableCell className="text-xs text-right text-muted-foreground">{tx.balance_after}</TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

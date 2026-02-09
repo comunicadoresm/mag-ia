@@ -6,6 +6,8 @@ import type { CreditBalance, CreditAction, ConsumeResult, UserCredits } from '@/
 export function useCredits() {
   const { user } = useAuth();
   const [balance, setBalance] = useState<CreditBalance>({ plan: 0, subscription: 0, bonus: 0, total: 0 });
+  const [cycleEndDate, setCycleEndDate] = useState<string | null>(null);
+  const [planType, setPlanType] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchBalance = useCallback(async () => {
@@ -16,25 +18,36 @@ export function useCredits() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('user_credits')
-        .select('plan_credits, subscription_credits, bonus_credits')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const [creditsRes, profileRes] = await Promise.all([
+        supabase
+          .from('user_credits')
+          .select('plan_credits, subscription_credits, bonus_credits, cycle_end_date')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('profiles')
+          .select('plan_type')
+          .eq('id', user.id)
+          .maybeSingle(),
+      ]);
 
-      if (error) {
-        console.error('Error fetching credits:', error);
+      if (creditsRes.error) {
+        console.error('Error fetching credits:', creditsRes.error);
         return;
       }
 
-      if (data) {
-        const b: CreditBalance = {
-          plan: data.plan_credits,
-          subscription: data.subscription_credits,
-          bonus: data.bonus_credits,
-          total: data.plan_credits + data.subscription_credits + data.bonus_credits,
-        };
-        setBalance(b);
+      if (creditsRes.data) {
+        const d = creditsRes.data;
+        setBalance({
+          plan: d.plan_credits ?? 0,
+          subscription: d.subscription_credits ?? 0,
+          bonus: d.bonus_credits ?? 0,
+          total: (d.plan_credits ?? 0) + (d.subscription_credits ?? 0) + (d.bonus_credits ?? 0),
+        });
+        setCycleEndDate(d.cycle_end_date);
+      }
+      if (profileRes.data) {
+        setPlanType(profileRes.data.plan_type);
       }
     } catch (err) {
       console.error('Error in fetchBalance:', err);
@@ -120,6 +133,8 @@ export function useCredits() {
 
   return {
     balance,
+    cycleEndDate,
+    planType,
     isLoading,
     consumeCredits,
     refreshBalance: fetchBalance,
