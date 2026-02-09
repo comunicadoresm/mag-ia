@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { OBJECTIVES, STYLES, FORMATS, UserScript } from '@/types/kanban';
+import { UserScript } from '@/types/kanban';
 import { Agent } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,12 @@ interface NewCardDialogProps {
   agents: Agent[];
 }
 
+interface DynamicOption {
+  value: string;
+  label: string;
+  color?: string;
+}
+
 export function NewCardDialog({ isOpen, onClose, onCreated, agents }: NewCardDialogProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -30,6 +36,27 @@ export function NewCardDialog({ isOpen, onClose, onCreated, agents }: NewCardDia
   const [format, setFormat] = useState('');
   const [objective, setObjective] = useState('');
   const [agentId, setAgentId] = useState('');
+
+  const [dbStyles, setDbStyles] = useState<DynamicOption[]>([]);
+  const [dbFormats, setDbFormats] = useState<DynamicOption[]>([]);
+  const [dbObjectives, setDbObjectives] = useState<DynamicOption[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchOptions();
+    }
+  }, [isOpen]);
+
+  const fetchOptions = async () => {
+    const [stylesRes, formatsRes, objectivesRes] = await Promise.all([
+      supabase.from('script_styles').select('value, label').eq('is_active', true).order('display_order'),
+      supabase.from('script_formats').select('value, label').eq('is_active', true).order('display_order'),
+      supabase.from('script_objectives').select('value, label, color').eq('is_active', true).order('display_order'),
+    ]);
+    if (stylesRes.data) setDbStyles(stylesRes.data);
+    if (formatsRes.data) setDbFormats(formatsRes.data);
+    if (objectivesRes.data) setDbObjectives(objectivesRes.data);
+  };
 
   const resetForm = () => {
     setTitle('');
@@ -103,7 +130,7 @@ export function NewCardDialog({ isOpen, onClose, onCreated, agents }: NewCardDia
               <Select value={style} onValueChange={setStyle}>
                 <SelectTrigger className="bg-input"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
-                  {STYLES.map((s) => (
+                  {dbStyles.map((s) => (
                     <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -114,7 +141,7 @@ export function NewCardDialog({ isOpen, onClose, onCreated, agents }: NewCardDia
               <Select value={format} onValueChange={setFormat}>
                 <SelectTrigger className="bg-input"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
-                  {FORMATS.map((f) => (
+                  {dbFormats.map((f) => (
                     <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
                   ))}
                 </SelectContent>
@@ -128,7 +155,7 @@ export function NewCardDialog({ isOpen, onClose, onCreated, agents }: NewCardDia
               <Select value={objective} onValueChange={setObjective}>
                 <SelectTrigger className="bg-input"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                 <SelectContent>
-                  {OBJECTIVES.map((o) => (
+                  {dbObjectives.map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: o.color }} />
