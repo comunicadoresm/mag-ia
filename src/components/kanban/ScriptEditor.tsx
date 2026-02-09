@@ -22,6 +22,7 @@ interface ScriptEditorProps {
   onSave: (script: UserScript) => void;
   agents: Agent[];
   selectedAgentId?: string;
+  isFromTemplate?: boolean;
 }
 
 export function ScriptEditor({
@@ -32,19 +33,25 @@ export function ScriptEditor({
   onSave,
   agents,
   selectedAgentId,
+  isFromTemplate = false,
 }: ScriptEditorProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [editedScript, setEditedScript] = useState<UserScript | null>(null);
   const [content, setContent] = useState<Record<string, string>>({});
+  const [chosenAgentId, setChosenAgentId] = useState<string | undefined>(selectedAgentId);
 
   useEffect(() => {
     if (script) {
       setEditedScript({ ...script });
       setContent(script.script_content || {});
+      setChosenAgentId(selectedAgentId);
     }
-  }, [script]);
+  }, [script, selectedAgentId]);
+
+  // Whether metadata fields are locked (duplicated from template)
+  const isMetadataLocked = isFromTemplate;
 
   const handleSave = async () => {
     if (!editedScript) return;
@@ -77,7 +84,6 @@ export function ScriptEditor({
       console.error('Error saving script:', error);
       toast({
         title: 'Erro ao salvar',
-        description: 'Não foi possível salvar o roteiro.',
         variant: 'destructive',
       });
     } finally {
@@ -86,14 +92,7 @@ export function ScriptEditor({
   };
 
   const handleWriteWithAI = () => {
-    if (!editedScript) {
-      toast({
-        title: 'Erro',
-        description: 'Nenhum roteiro selecionado.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    if (!editedScript) return;
     setIsAIChatOpen(true);
   };
 
@@ -101,8 +100,8 @@ export function ScriptEditor({
     setContent(generatedContent);
   };
 
-  // Get the selected agent
-  const selectedAgent = agents.find(a => a.id === selectedAgentId) || null;
+  // Use the agent from template OR the one the user picked for custom cards
+  const selectedAgent = agents.find(a => a.id === chosenAgentId) || null;
 
   if (!editedScript) return null;
 
@@ -146,8 +145,9 @@ export function ScriptEditor({
                   <Select
                     value={editedScript.style}
                     onValueChange={(value) => setEditedScript({ ...editedScript, style: value })}
+                    disabled={isMetadataLocked}
                   >
-                    <SelectTrigger className="bg-input">
+                    <SelectTrigger className={`bg-input ${isMetadataLocked ? 'opacity-60' : ''}`}>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -167,8 +167,9 @@ export function ScriptEditor({
                   <Select
                     value={editedScript.format || ''}
                     onValueChange={(value) => setEditedScript({ ...editedScript, format: value })}
+                    disabled={isMetadataLocked}
                   >
-                    <SelectTrigger className="bg-input">
+                    <SelectTrigger className={`bg-input ${isMetadataLocked ? 'opacity-60' : ''}`}>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -186,8 +187,9 @@ export function ScriptEditor({
                   <Select
                     value={editedScript.objective || ''}
                     onValueChange={(value) => setEditedScript({ ...editedScript, objective: value as any })}
+                    disabled={isMetadataLocked}
                   >
-                    <SelectTrigger className="bg-input">
+                    <SelectTrigger className={`bg-input ${isMetadataLocked ? 'opacity-60' : ''}`}>
                       <SelectValue placeholder="Selecione..." />
                     </SelectTrigger>
                     <SelectContent>
@@ -206,6 +208,42 @@ export function ScriptEditor({
                   </Select>
                 </div>
               </div>
+
+              {/* Agent selector - only for custom (non-template) cards */}
+              {!isMetadataLocked && (
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Agente IA</label>
+                  <Select
+                    value={chosenAgentId || ''}
+                    onValueChange={(value) => setChosenAgentId(value)}
+                  >
+                    <SelectTrigger className="bg-input">
+                      <SelectValue placeholder="Selecione um agente..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {agents.map((agent) => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{agent.icon_emoji || '🤖'}</span>
+                            {agent.name}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Show locked agent info for template-based cards */}
+              {isMetadataLocked && selectedAgent && (
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1.5 block">Agente IA</label>
+                  <div className="flex items-center gap-2 bg-input rounded-md px-3 py-2 opacity-60">
+                    <span>{selectedAgent.icon_emoji || '🤖'}</span>
+                    <span className="text-sm">{selectedAgent.name}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
             <Separator className="my-6" />
@@ -228,10 +266,8 @@ export function ScriptEditor({
                 </Button>
               </div>
 
-              {/* IDF Sections */}
               {structure && (
                 <div className="space-y-6">
-                  {/* Início */}
                   <div className="bg-muted/30 rounded-xl p-4">
                     <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                       <Target className="w-4 h-4 text-destructive" />
@@ -253,7 +289,6 @@ export function ScriptEditor({
                     ))}
                   </div>
 
-                  {/* Desenvolvimento */}
                   <div className="bg-muted/30 rounded-xl p-4">
                     <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                       <Palette className="w-4 h-4 text-primary" />
@@ -275,7 +310,6 @@ export function ScriptEditor({
                     ))}
                   </div>
 
-                  {/* Final */}
                   <div className="bg-muted/30 rounded-xl p-4">
                     <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                       <Crosshair className="w-4 h-4 text-success" />

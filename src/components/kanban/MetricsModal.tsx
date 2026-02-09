@@ -7,7 +7,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import { UserScript } from '@/types/kanban';
 import { supabase } from '@/integrations/supabase/client';
@@ -73,7 +72,6 @@ export function MetricsModal({ script, isOpen, onClose, onSave }: MetricsModalPr
       console.error('Error saving metrics:', error);
       toast({
         title: 'Erro ao salvar',
-        description: 'Não foi possível salvar as métricas.',
         variant: 'destructive',
       });
     } finally {
@@ -82,60 +80,67 @@ export function MetricsModal({ script, isOpen, onClose, onSave }: MetricsModalPr
   };
 
   const metricFields = [
-    { key: 'views', label: 'Views', icon: Eye },
-    { key: 'comments', label: 'Comentários', icon: MessageCircle },
-    { key: 'followers', label: 'Novos Seguidores', icon: Users },
-    { key: 'shares', label: 'Compartilhamentos', icon: Share2 },
-    { key: 'saves', label: 'Salvamentos', icon: Bookmark },
+    { key: 'views', label: 'Views', icon: Eye, color: 'text-blue-400' },
+    { key: 'comments', label: 'Comentários', icon: MessageCircle, color: 'text-green-400' },
+    { key: 'followers', label: 'Novos Seguidores', icon: Users, color: 'text-purple-400' },
+    { key: 'shares', label: 'Compartilhamentos', icon: Share2, color: 'text-orange-400' },
+    { key: 'saves', label: 'Salvamentos', icon: Bookmark, color: 'text-primary' },
   ];
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>📊 Métricas do Post</DialogTitle>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-card border-border/50">
+        {/* Header with gradient */}
+        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-foreground">
+              📊 Métricas do Post
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              {script?.title}
+            </p>
+          </DialogHeader>
+        </div>
 
-        <div className="py-4 space-y-4">
-          <p className="text-sm text-muted-foreground mb-4">
-            Preencha as métricas do seu conteúdo postado:
-          </p>
-
+        {/* Metrics grid */}
+        <div className="px-6 py-4 space-y-3">
           {metricFields.map((field) => (
-            <div key={field.key} className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
-                <field.icon className="w-5 h-5 text-muted-foreground" />
+            <div
+              key={field.key}
+              className="flex items-center gap-3 bg-muted/30 rounded-xl p-3 transition-colors hover:bg-muted/50"
+            >
+              <div className={`w-9 h-9 rounded-xl bg-background/50 flex items-center justify-center ${field.color}`}>
+                <field.icon className="w-4 h-4" />
               </div>
-              <div className="flex-1">
-                <label className="text-sm font-medium text-foreground">
-                  {field.label}
-                </label>
-                <Input
-                  type="number"
-                  min={0}
-                  value={metrics[field.key as keyof typeof metrics]}
-                  onChange={(e) =>
-                    setMetrics({
-                      ...metrics,
-                      [field.key]: parseInt(e.target.value) || 0,
-                    })
-                  }
-                  className="mt-1"
-                />
-              </div>
+              <label className="text-sm font-medium text-foreground flex-1">
+                {field.label}
+              </label>
+              <Input
+                type="number"
+                min={0}
+                value={metrics[field.key as keyof typeof metrics]}
+                onChange={(e) =>
+                  setMetrics({
+                    ...metrics,
+                    [field.key]: parseInt(e.target.value) || 0,
+                  })
+                }
+                className="w-24 h-9 text-right bg-background/50 border-border/30 rounded-xl text-sm font-semibold"
+              />
             </div>
           ))}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        {/* Footer */}
+        <div className="flex gap-3 px-6 pb-6">
+          <Button variant="outline" onClick={onClose} className="flex-1 rounded-xl">
             Cancelar
           </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
+          <Button onClick={handleSave} disabled={isLoading} className="flex-1 rounded-xl">
             {isLoading && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-            Salvar Métricas
+            Salvar
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
