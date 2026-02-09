@@ -884,6 +884,7 @@ export type Database = {
           followers: number | null
           format: string | null
           id: string
+          likes: number | null
           objective: string | null
           posted_at: string | null
           saves: number | null
@@ -904,6 +905,7 @@ export type Database = {
           followers?: number | null
           format?: string | null
           id?: string
+          likes?: number | null
           objective?: string | null
           posted_at?: string | null
           saves?: number | null
@@ -924,6 +926,7 @@ export type Database = {
           followers?: number | null
           format?: string | null
           id?: string
+          likes?: number | null
           objective?: string | null
           posted_at?: string | null
           saves?: number | null
