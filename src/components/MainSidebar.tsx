@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Home, MessageSquare, User, LogOut, LayoutGrid, Tag, ShieldCheck, Columns3, Bot } from 'lucide-react';
 import { LucideProps } from 'lucide-react';
