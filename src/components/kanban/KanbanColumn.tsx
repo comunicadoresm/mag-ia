@@ -11,6 +11,7 @@ interface KanbanColumnProps {
   onCardClick?: (item: ScriptTemplate | UserScript) => void;
   onWriteWithAI?: (script: UserScript) => void;
   onOpenMetrics?: (script: UserScript) => void;
+  onDelete?: (script: UserScript) => void;
   onAddCard?: (columnId: string) => void;
   onDrop?: (item: UserScript, targetColumnId: string) => void;
 }
@@ -21,6 +22,7 @@ export function KanbanColumn({
   onCardClick,
   onWriteWithAI,
   onOpenMetrics,
+  onDelete,
   onAddCard,
   onDrop,
 }: KanbanColumnProps) {
@@ -86,6 +88,7 @@ export function KanbanColumn({
                 onClick={onCardClick}
                 onWriteWithAI={onWriteWithAI}
                 onOpenMetrics={onOpenMetrics}
+                onDelete={onDelete}
               />
             </div>
           ))}

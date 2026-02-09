@@ -1,5 +1,5 @@
 import React from 'react';
-import { Copy, Sparkles, BarChart3, ArrowUpRight } from 'lucide-react';
+import { Copy, Sparkles, BarChart3, ArrowUpRight, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScriptTemplate, UserScript } from '@/types/kanban';
 
@@ -11,6 +11,7 @@ interface KanbanCardProps {
   onClick?: (item: ScriptTemplate | UserScript) => void;
   onWriteWithAI?: (item: UserScript) => void;
   onOpenMetrics?: (item: UserScript) => void;
+  onDelete?: (item: UserScript) => void;
 }
 
 const COLUMN_COLORS: Record<string, string> = {
@@ -36,6 +37,7 @@ export function KanbanCard({
   onClick,
   onWriteWithAI,
   onOpenMetrics,
+  onDelete,
 }: KanbanCardProps) {
   const bg = COLUMN_COLORS[columnId] || COLUMN_COLORS.templates;
   const isPosted = columnId === 'posted';
@@ -126,6 +128,16 @@ export function KanbanCard({
           >
             <BarChart3 className="w-3 h-3 mr-1.5" />
             Métricas
+          </Button>
+        )}
+        {!isTemplate && onDelete && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl shrink-0"
+            onClick={(e) => { e.stopPropagation(); onDelete(userScript); }}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
           </Button>
         )}
       </div>
