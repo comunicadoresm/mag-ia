@@ -117,7 +117,7 @@ export function KanbanCard({
             onClick={(e) => { e.stopPropagation(); onDuplicate(item as ScriptTemplate); }}
           >
             <Copy className="w-3 h-3 mr-1.5" />
-            Duplicar
+            Usar Template
           </Button>
         )}
         {(columnId === 'scripting' || columnId === 'editing') && onWriteWithAI && (
