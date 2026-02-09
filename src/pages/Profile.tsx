@@ -105,7 +105,7 @@ export default function Profile() {
           <div className="flex flex-col items-center text-center mb-8">
             <div className="relative cursor-pointer mb-4" onClick={() => fileRef.current?.click()}>
               <Avatar className="w-24 h-24 border-2 border-primary">
-                <AvatarImage src={photoUrl} />
+                <AvatarImage src={photoUrl} className="object-cover" />
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl font-bold">
                   {profile?.name?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
@@ -137,7 +137,7 @@ export default function Profile() {
           </div>
 
           {/* Info Cards */}
-          <div className="space-y-3 mb-8">
+          <div className="space-y-3">
             {/* Instagram Handle */}
             <div className="card-cm p-4 flex items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
@@ -181,20 +181,20 @@ export default function Profile() {
                 <p className="text-sm font-medium text-foreground">{memberSince}</p>
               </div>
             </div>
+
+            <button onClick={() => navigate('/profile/credits')} className="card-cm p-4 flex items-center gap-3 w-full text-left">
+              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Coins className="w-5 h-5 text-primary" /></div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs text-muted-foreground">Créditos</p>
+                <p className="text-sm font-medium text-foreground">Ver meus créditos e consumo</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
+            <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl">
+              <LogOut className="w-5 h-5" />Sair da conta
+            </Button>
           </div>
-
-          <button onClick={() => navigate('/profile/credits')} className="card-cm p-4 flex items-center gap-3 w-full text-left mb-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Coins className="w-5 h-5 text-primary" /></div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground">Créditos</p>
-              <p className="text-sm font-medium text-foreground">Ver meus créditos e consumo</p>
-            </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          </button>
-
-          <Button onClick={handleSignOut} variant="outline" className="w-full h-14 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10">
-            <LogOut className="w-5 h-5" />Sair da conta
-          </Button>
 
           <p className="text-center text-xs text-muted-foreground mt-8">CM Chat v1.0.0</p>
         </div>
