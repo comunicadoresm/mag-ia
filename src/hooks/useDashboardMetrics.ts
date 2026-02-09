@@ -56,7 +56,7 @@ export function useDashboardMetrics() {
       setPostAggregates({
         total_posts: posts.length,
         total_views: posts.reduce((s, p) => s + (p.views || 0), 0),
-        total_likes: posts.reduce((s, p) => s + ((p as any).likes || 0), 0),
+        total_likes: posts.reduce((s, p) => s + (p.likes || 0), 0),
         total_comments: posts.reduce((s, p) => s + (p.comments || 0), 0),
         total_saves: posts.reduce((s, p) => s + (p.saves || 0), 0),
         total_shares: posts.reduce((s, p) => s + (p.shares || 0), 0),
