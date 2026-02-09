@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, MessageSquare, User, LayoutGrid } from 'lucide-react';
+import { Home, MessageSquare, User, LayoutGrid, Bot } from 'lucide-react';
 
 export function BottomNavigation() {
   const location = useLocation();
 
   const navItems = [
     { path: '/home', icon: Home, label: 'Home' },
+    { path: '/agents', icon: Bot, label: 'Agentes' },
     { path: '/kanban', icon: LayoutGrid, label: 'Kanban' },
     { path: '/history', icon: MessageSquare, label: 'Histórico' },
     { path: '/profile', icon: User, label: 'Perfil' },

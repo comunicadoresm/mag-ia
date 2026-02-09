@@ -794,6 +794,68 @@ export type Database = {
           },
         ]
       }
+      user_metrics: {
+        Row: {
+          created_at: string | null
+          current_clients: number | null
+          current_followers: number | null
+          current_revenue: number | null
+          display_name: string | null
+          handle: string | null
+          id: string
+          initial_clients: number | null
+          initial_followers: number | null
+          initial_revenue: number | null
+          initial_setup_done: boolean | null
+          initial_views: number | null
+          profile_photo_url: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          current_clients?: number | null
+          current_followers?: number | null
+          current_revenue?: number | null
+          display_name?: string | null
+          handle?: string | null
+          id?: string
+          initial_clients?: number | null
+          initial_followers?: number | null
+          initial_revenue?: number | null
+          initial_setup_done?: boolean | null
+          initial_views?: number | null
+          profile_photo_url?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          current_clients?: number | null
+          current_followers?: number | null
+          current_revenue?: number | null
+          display_name?: string | null
+          handle?: string | null
+          id?: string
+          initial_clients?: number | null
+          initial_followers?: number | null
+          initial_revenue?: number | null
+          initial_setup_done?: boolean | null
+          initial_views?: number | null
+          profile_photo_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_metrics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
