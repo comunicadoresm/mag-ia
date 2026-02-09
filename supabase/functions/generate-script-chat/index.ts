@@ -406,10 +406,14 @@ Use este formato:
     const systemPrompt = agent.system_prompt + scriptContext;
 
     if (action === "start") {
+      // Let the AI generate the opening message using the full system prompt + template context
+      const provider = getProvider(agent.model);
+      const openingResponse = await callAI(provider, agent.model, agent.api_key, systemPrompt, [
+        { role: "user", content: `O usuário selecionou o template "${script.title}" no Kanban. Faça sua abertura contextualizada ao template seguindo as instruções do modo template.` }
+      ]);
+
       return new Response(
-        JSON.stringify({
-          message: `Olá! 👋 Vou te ajudar a criar o roteiro "${script.title}".\n\nPara criar um conteúdo incrível, preciso entender melhor o que você quer comunicar.\n\n**Qual é a mensagem principal ou ponto-chave que você quer passar nesse vídeo?**`,
-        }),
+        JSON.stringify({ message: openingResponse }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
