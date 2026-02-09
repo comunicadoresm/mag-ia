@@ -1,11 +1,12 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageSquare, User, LogOut, LayoutGrid, Tag, ShieldCheck } from 'lucide-react';
+import { Home, MessageSquare, User, LogOut, LayoutGrid, Tag, ShieldCheck, Columns3 } from 'lucide-react';
 import { LucideProps } from 'lucide-react';
 import dynamicIconImports from 'lucide-react/dynamicIconImports';
 import { Logo } from './Logo';
-import { CreditBadge } from './CreditBadge';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCredits } from '@/hooks/useCredits';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { Tag as TagType } from '@/types';
@@ -16,7 +17,6 @@ interface DynamicIconProps extends Omit<LucideProps, 'ref'> {
 }
 
 const DynamicIcon = ({ name, ...props }: DynamicIconProps) => {
-  // Convert PascalCase to kebab-case for dynamic imports
   const kebabName = name
     .replace(/([a-z])([A-Z])/g, '$1-$2')
     .toLowerCase() as keyof typeof dynamicIconImports;
@@ -30,7 +30,6 @@ const DynamicIcon = ({ name, ...props }: DynamicIconProps) => {
     );
   }
 
-  // Fallback to Tag icon if not found
   return <Tag {...props} />;
 };
 
@@ -46,6 +45,7 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
   const location = useLocation();
   const { signOut, profile, user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
+  const { balance, isLoading: creditsLoading } = useCredits();
 
   useEffect(() => {
     if (!user) return;
@@ -55,6 +55,7 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
 
   const navItems = [
     { path: '/home', icon: Home, label: 'Home' },
+    { path: '/kanban', icon: Columns3, label: 'Kanban' },
     { path: '/history', icon: MessageSquare, label: 'Histórico' },
     { path: '/profile', icon: User, label: 'Perfil' },
   ];
@@ -64,6 +65,14 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
     navigate('/login');
   };
 
+  // Credits card
+  const totalCredits = balance.plan + balance.subscription + balance.bonus;
+  const maxCredits = Math.max(totalCredits, balance.plan + balance.subscription + balance.bonus, 1);
+  // For progress, we estimate max as total + consumed (rough guess from plan)
+  const planMax = balance.plan > 0 ? 30 : (balance.bonus > 0 ? balance.bonus : 10);
+  const estimatedMax = Math.max(planMax, totalCredits);
+  const progressPercent = Math.round((totalCredits / estimatedMax) * 100);
+
   return (
     <aside className="hidden md:flex md:flex-col md:w-64 bg-secondary border-r border-border h-screen fixed left-0 top-0">
       <div className="p-4 border-b border-border">
@@ -71,7 +80,6 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
       </div>
 
       <nav className="flex-1 p-3 overflow-y-auto">
-        {/* Navigation items */}
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
@@ -130,6 +138,26 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
         )}
       </nav>
 
+      {/* Credits card */}
+      {!creditsLoading && (
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => navigate('/profile/credits')}
+            className="w-full bg-muted/50 rounded-xl p-3.5 hover:bg-muted transition-colors text-left"
+          >
+            <p className="text-xs text-muted-foreground mb-1">Créditos IA</p>
+            <p className="text-2xl font-bold text-foreground mb-2">{totalCredits}</p>
+            <Progress
+              value={progressPercent}
+              className="h-2 mb-1.5 [&>div]:bg-primary"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              {totalCredits} de {estimatedMax} restantes
+            </p>
+          </button>
+        </div>
+      )}
+
       {/* User info section */}
       <div className="p-3 border-t border-border">
         <button
@@ -147,7 +175,6 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
               {profile?.email}
             </p>
           </div>
-          <CreditBadge />
         </button>
         
         {isAdmin && (
