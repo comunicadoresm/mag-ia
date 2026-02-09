@@ -105,7 +105,7 @@ export default function Profile() {
           <div className="flex flex-col items-center text-center mb-8">
             <div className="relative cursor-pointer mb-4" onClick={() => fileRef.current?.click()}>
               <Avatar className="w-24 h-24 border-2 border-primary">
-                <AvatarImage src={photoUrl} />
+                <AvatarImage src={photoUrl} className="object-cover" />
                 <AvatarFallback className="bg-primary text-primary-foreground text-3xl font-bold">
                   {profile?.name?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
