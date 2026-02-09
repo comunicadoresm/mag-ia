@@ -1,19 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Loader2, Users, DollarSign, Briefcase, Eye, Heart, MessageCircle,
-  Bookmark, Share2, FileText, RefreshCw, AtSign,
+  Bookmark, Share2, FileText, RefreshCw, AtSign, Camera,
 } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { MainSidebar } from '@/components/MainSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -32,19 +33,8 @@ function CurrencyInput({ value, onChange, ...props }: { value: number; onChange:
     onChange(num);
   };
 
-  const handleFocus = () => {
-    if (!value) setDisplay('');
-  };
-
   return (
-    <Input
-      {...props}
-      type="text"
-      inputMode="numeric"
-      value={display}
-      onChange={handleChange}
-      onFocus={handleFocus}
-    />
+    <Input {...props} type="text" inputMode="numeric" value={display} onChange={handleChange} onFocus={() => { if (!value) setDisplay(''); }} />
   );
 }
 
@@ -59,33 +49,59 @@ function NumericInput({ value, onChange, ...props }: { value: number; onChange: 
     onChange(num);
   };
 
-  const handleFocus = () => {
-    if (!value) setDisplay('');
-  };
-
   return (
-    <Input
-      {...props}
-      type="text"
-      inputMode="numeric"
-      value={display}
-      onChange={handleChange}
-      onFocus={handleFocus}
-    />
+    <Input {...props} type="text" inputMode="numeric" value={display} onChange={handleChange} onFocus={() => { if (!value) setDisplay(''); }} />
   );
 }
 
+// ─── Photo Upload Helper ─────────────────────────────────────
+function usePhotoUpload(userId: string | undefined) {
+  const [uploading, setUploading] = useState(false);
+
+  const upload = async (file: File): Promise<string | null> => {
+    if (!userId) return null;
+    setUploading(true);
+    try {
+      const ext = file.name.split('.').pop() || 'jpg';
+      const path = `${userId}/avatar.${ext}`;
+      const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
+      if (error) throw error;
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+      // Add cache buster
+      return `${data.publicUrl}?t=${Date.now()}`;
+    } catch (err) {
+      console.error('Upload error:', err);
+      toast.error('Erro ao enviar foto');
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return { upload, uploading };
+}
+
 // ─── Initial Setup Modal ─────────────────────────────────────
-function InitialSetupModal({ open, onSubmit }: { open: boolean; onSubmit: (data: any) => void }) {
+function InitialSetupModal({ open, onSubmit, userName, userId }: { open: boolean; onSubmit: (data: any) => void; userName: string; userId: string }) {
   const [form, setForm] = useState({
-    display_name: '', handle: '', profile_photo_url: '',
+    handle: '', profile_photo_url: '',
     current_followers: 0, current_revenue: 0, current_clients: 0,
   });
   const [step, setStep] = useState(0);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const { upload, uploading } = usePhotoUpload(userId);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = await upload(file);
+    if (url) setForm(p => ({ ...p, profile_photo_url: url }));
+  };
 
   const handleSubmit = () => {
     onSubmit({
       ...form,
+      display_name: userName,
       initial_followers: form.current_followers,
       initial_revenue: form.current_revenue,
       initial_clients: form.current_clients,
@@ -106,17 +122,26 @@ function InitialSetupModal({ open, onSubmit }: { open: boolean; onSubmit: (data:
 
         {step === 0 ? (
           <div className="space-y-4 px-6 pb-6 pt-2">
-            <div>
-              <Label className="text-sm text-muted-foreground">Nome de exibição</Label>
-              <Input value={form.display_name} onChange={(e) => setForm(p => ({ ...p, display_name: e.target.value }))} placeholder="Seu nome" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
+            {/* Photo upload */}
+            <div className="flex flex-col items-center gap-2">
+              <div className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
+                <Avatar className="w-20 h-20 border-2 border-primary">
+                  <AvatarImage src={form.profile_photo_url} />
+                  <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+                    {userName?.charAt(0) || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute bottom-0 right-0 w-7 h-7 bg-primary rounded-full flex items-center justify-center">
+                  {uploading ? <Loader2 className="w-3.5 h-3.5 text-primary-foreground animate-spin" /> : <Camera className="w-3.5 h-3.5 text-primary-foreground" />}
+                </div>
+              </div>
+              <input ref={fileRef} type="file" accept="image/jpeg,image/jpg,image/png" className="hidden" onChange={handleFileChange} />
+              <p className="text-xs text-muted-foreground">Toque para enviar uma foto</p>
             </div>
+
             <div>
               <Label className="text-sm text-muted-foreground">@ do Instagram</Label>
               <Input value={form.handle} onChange={(e) => setForm(p => ({ ...p, handle: e.target.value }))} placeholder="@seuarroba" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
-            </div>
-            <div>
-              <Label className="text-sm text-muted-foreground">URL da foto de perfil</Label>
-              <Input value={form.profile_photo_url} onChange={(e) => setForm(p => ({ ...p, profile_photo_url: e.target.value }))} placeholder="https://..." className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
             </div>
             <Button onClick={() => setStep(1)} className="w-full rounded-xl">Próximo</Button>
           </div>
@@ -188,7 +213,7 @@ function UpdateMetricsModal({
 }
 
 // ─── Metric Card ─────────────────────────────────────────────
-function MetricCard({ title, value, icon, suffix }: { title: string; value: number | string; icon: React.ReactNode; suffix?: string }) {
+function MetricCard({ title, value, icon }: { title: string; value: number | string; icon: React.ReactNode }) {
   return (
     <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 hover:border-primary/40 transition-all duration-200">
       <div className="flex items-center gap-3">
@@ -199,7 +224,6 @@ function MetricCard({ title, value, icon, suffix }: { title: string; value: numb
           <p className="text-[11px] text-muted-foreground truncate">{title}</p>
           <p className="text-base font-bold text-foreground leading-tight">
             {typeof value === 'number' ? value.toLocaleString('pt-BR') : value}
-            {suffix && <span className="text-xs font-normal text-muted-foreground ml-1">{suffix}</span>}
           </p>
         </div>
       </div>
@@ -209,11 +233,7 @@ function MetricCard({ title, value, icon, suffix }: { title: string; value: numb
 
 // ─── Comparison Chart ─────────────────────────────────────────
 function ComparisonChart({ data }: { data: { label: string; before: number; current: number }[] }) {
-  const chartData = data.map(d => ({
-    name: d.label,
-    Antes: d.before,
-    Atual: d.current,
-  }));
+  const chartData = data.map(d => ({ name: d.label, Antes: d.before, Atual: d.current }));
 
   return (
     <div className="card-cm p-4">
@@ -224,14 +244,7 @@ function ComparisonChart({ data }: { data: { label: string; before: number; curr
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
             <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-            <Tooltip
-              contentStyle={{
-                background: 'hsl(var(--card))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '12px',
-                fontSize: '12px',
-              }}
-            />
+            <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px' }} />
             <Bar dataKey="Antes" fill="hsl(var(--muted-foreground))" radius={[6, 6, 0, 0]} />
             <Bar dataKey="Atual" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
           </BarChart>
@@ -247,6 +260,8 @@ export default function Home() {
   const { user, profile, loading: authLoading } = useAuth();
   const { metrics, postAggregates, isLoading, refresh, initializeMetrics, updateManualMetrics } = useDashboardMetrics();
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const { upload, uploading } = usePhotoUpload(user?.id);
 
   const needsSetup = !isLoading && !metrics?.initial_setup_done;
 
@@ -259,9 +274,16 @@ export default function Home() {
   const handleUpdateMetrics = async (data: { current_followers: number; current_revenue: number; current_clients: number }) => {
     const error = await updateManualMetrics(data);
     if (error) toast.error('Erro ao atualizar');
-    else {
-      toast.success('Métricas atualizadas!');
-      setUpdateModalOpen(false);
+    else { toast.success('Métricas atualizadas!'); setUpdateModalOpen(false); }
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = await upload(file);
+    if (url) {
+      await updateManualMetrics({ profile_photo_url: url } as any);
+      toast.success('Foto atualizada!');
     }
   };
 
@@ -271,9 +293,8 @@ export default function Home() {
 
   const m = metrics;
   const pa = postAggregates;
-
-  // Update followers: base + posts followers
-  const totalFollowers = (m?.current_followers || 0);
+  const displayName = profile?.name || m?.display_name || 'Usuário';
+  const totalFollowers = m?.current_followers || 0;
 
   const comparisonData = m ? [
     { label: 'Seguidores', before: m.initial_followers, current: totalFollowers },
@@ -291,29 +312,30 @@ export default function Home() {
         </header>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          </div>
+          <div className="flex items-center justify-center py-24"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>
         ) : (
           <div className="px-4 md:px-6 lg:px-8 py-4 md:py-6 space-y-5 animate-fade-in">
 
             {/* ── Profile Header ─────────────────── */}
             <div className="card-cm p-4 md:p-5">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <Avatar className="w-14 h-14 border-2 border-primary shrink-0">
-                  <AvatarImage src={m?.profile_photo_url || ''} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">
-                    {m?.display_name?.charAt(0) || profile?.name?.charAt(0) || 'U'}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative cursor-pointer shrink-0" onClick={() => fileRef.current?.click()}>
+                  <Avatar className="w-14 h-14 border-2 border-primary">
+                    <AvatarImage src={m?.profile_photo_url || ''} />
+                    <AvatarFallback className="bg-primary text-primary-foreground text-lg font-bold">
+                      {displayName.charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                    {uploading ? <Loader2 className="w-3 h-3 text-primary-foreground animate-spin" /> : <Camera className="w-3 h-3 text-primary-foreground" />}
+                  </div>
+                  <input ref={fileRef} type="file" accept="image/jpeg,image/jpg,image/png" className="hidden" onChange={handlePhotoUpload} />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <h1 className="text-lg font-bold text-foreground truncate">
-                    {m?.display_name || profile?.name || 'Usuário'}
-                  </h1>
+                  <h1 className="text-lg font-bold text-foreground truncate">{displayName}</h1>
                   {m?.handle && (
                     <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <AtSign className="w-3.5 h-3.5" />
-                      {m.handle}
+                      <AtSign className="w-3.5 h-3.5" />{m.handle}
                     </p>
                   )}
                 </div>
@@ -332,8 +354,7 @@ export default function Home() {
                   </div>
                 </div>
                 <Button variant="outline" size="sm" className="gap-1.5 rounded-xl border-border/50" onClick={() => setUpdateModalOpen(true)}>
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  Atualizar
+                  <RefreshCw className="w-3.5 h-3.5" />Atualizar
                 </Button>
               </div>
             </div>
@@ -367,17 +388,12 @@ export default function Home() {
 
       <BottomNavigation />
 
-      {/* Modals */}
-      {needsSetup && <InitialSetupModal open onSubmit={handleInitialSetup} />}
+      {needsSetup && <InitialSetupModal open onSubmit={handleInitialSetup} userName={profile?.name || ''} userId={user.id} />}
       {updateModalOpen && m && (
         <UpdateMetricsModal
           open={updateModalOpen}
           onClose={() => setUpdateModalOpen(false)}
-          currentValues={{
-            followers: m.current_followers,
-            revenue: Number(m.current_revenue),
-            clients: m.current_clients,
-          }}
+          currentValues={{ followers: m.current_followers, revenue: Number(m.current_revenue), clients: m.current_clients }}
           onSave={handleUpdateMetrics}
         />
       )}
