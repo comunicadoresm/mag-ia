@@ -91,18 +91,22 @@ export function KanbanCard({
 
       {/* Metrics for posted */}
       {isPosted && userScript.views !== null && (
-        <div className="grid grid-cols-3 gap-2 mb-3 bg-background/30 rounded-xl p-2.5">
+        <div className="grid grid-cols-4 gap-1.5 mb-3 bg-background/30 rounded-xl p-2.5">
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground">Views</p>
-            <p className="text-sm font-bold text-foreground">{(userScript.views || 0).toLocaleString()}</p>
+            <p className="text-xs font-bold text-foreground">{(userScript.views || 0).toLocaleString()}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] text-muted-foreground">Curtidas</p>
+            <p className="text-xs font-bold text-foreground">{(userScript.likes || 0).toLocaleString()}</p>
           </div>
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground">Coments</p>
-            <p className="text-sm font-bold text-foreground">{(userScript.comments || 0).toLocaleString()}</p>
+            <p className="text-xs font-bold text-foreground">{(userScript.comments || 0).toLocaleString()}</p>
           </div>
           <div className="text-center">
             <p className="text-[10px] text-muted-foreground">Saves</p>
-            <p className="text-sm font-bold text-foreground">{(userScript.saves || 0).toLocaleString()}</p>
+            <p className="text-xs font-bold text-foreground">{(userScript.saves || 0).toLocaleString()}</p>
           </div>
         </div>
       )}

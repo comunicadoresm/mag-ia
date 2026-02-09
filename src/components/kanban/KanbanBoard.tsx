@@ -145,6 +145,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
         status: 'scripting',
         script_content: {},
         views: null,
+        likes: null,
         comments: null,
         followers: null,
         shares: null,

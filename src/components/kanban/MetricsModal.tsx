@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, MessageCircle, Users, Share2, Bookmark, Loader2 } from 'lucide-react';
+import { Eye, Heart, MessageCircle, Users, Share2, Bookmark, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -24,6 +24,7 @@ export function MetricsModal({ script, isOpen, onClose, onSave }: MetricsModalPr
   const [isLoading, setIsLoading] = useState(false);
   const [metrics, setMetrics] = useState({
     views: 0,
+    likes: 0,
     comments: 0,
     followers: 0,
     shares: 0,
@@ -34,6 +35,7 @@ export function MetricsModal({ script, isOpen, onClose, onSave }: MetricsModalPr
     if (script) {
       setMetrics({
         views: script.views || 0,
+        likes: script.likes || 0,
         comments: script.comments || 0,
         followers: script.followers || 0,
         shares: script.shares || 0,
@@ -51,6 +53,7 @@ export function MetricsModal({ script, isOpen, onClose, onSave }: MetricsModalPr
         .from('user_scripts')
         .update({
           views: metrics.views,
+          likes: metrics.likes,
           comments: metrics.comments,
           followers: metrics.followers,
           shares: metrics.shares,
@@ -81,6 +84,7 @@ export function MetricsModal({ script, isOpen, onClose, onSave }: MetricsModalPr
 
   const metricFields = [
     { key: 'views', label: 'Views', icon: Eye, color: 'text-blue-400' },
+    { key: 'likes', label: 'Curtidas', icon: Heart, color: 'text-red-400' },
     { key: 'comments', label: 'Comentários', icon: MessageCircle, color: 'text-green-400' },
     { key: 'followers', label: 'Novos Seguidores', icon: Users, color: 'text-purple-400' },
     { key: 'shares', label: 'Compartilhamentos', icon: Share2, color: 'text-orange-400' },
@@ -118,11 +122,11 @@ export function MetricsModal({ script, isOpen, onClose, onSave }: MetricsModalPr
               <Input
                 type="number"
                 min={0}
-                value={metrics[field.key as keyof typeof metrics]}
+                value={metrics[field.key as keyof typeof metrics] || ''}
                 onChange={(e) =>
                   setMetrics({
                     ...metrics,
-                    [field.key]: parseInt(e.target.value) || 0,
+                    [field.key]: e.target.value === '' ? 0 : parseInt(e.target.value) || 0,
                   })
                 }
                 className="w-24 h-9 text-right bg-background/50 border-border/30 rounded-xl text-sm font-semibold"

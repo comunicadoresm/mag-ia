@@ -44,6 +44,7 @@ export interface UserScript {
   status: ScriptStatus;
   script_content: Record<string, string>;
   views: number | null;
+  likes: number | null;
   comments: number | null;
   followers: number | null;
   shares: number | null;
