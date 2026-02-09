@@ -48,6 +48,16 @@ export function KanbanCard({
       className={`relative bg-gradient-to-br ${bg} border border-border/30 rounded-2xl p-4 cursor-pointer hover:scale-[1.02] hover:shadow-lg transition-all duration-200 group overflow-hidden`}
       onClick={() => onClick?.(item)}
     >
+      {/* Delete button - top right, hover only */}
+      {!isTemplate && onDelete && (
+        <button
+          className="absolute top-3 right-3 p-1.5 rounded-lg text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+          onClick={(e) => { e.stopPropagation(); onDelete(userScript); }}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      )}
+
       {/* Title + Arrow */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <h4 className="font-bold text-foreground text-sm leading-tight line-clamp-2 flex-1">
@@ -99,7 +109,7 @@ export function KanbanCard({
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
         {isTemplate && onDuplicate && (
           <Button
             size="sm"
@@ -113,7 +123,8 @@ export function KanbanCard({
         {!isTemplate && !isPosted && onWriteWithAI && (
           <Button
             size="sm"
-            className="flex-1 text-xs h-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90"
+            variant="ghost"
+            className="text-xs h-8 rounded-xl text-muted-foreground opacity-70 hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-all"
             onClick={(e) => { e.stopPropagation(); onWriteWithAI(userScript); }}
           >
             <Sparkles className="w-3 h-3 mr-1.5" />
@@ -128,16 +139,6 @@ export function KanbanCard({
           >
             <BarChart3 className="w-3 h-3 mr-1.5" />
             Métricas
-          </Button>
-        )}
-        {!isTemplate && onDelete && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={(e) => { e.stopPropagation(); onDelete(userScript); }}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
           </Button>
         )}
       </div>
