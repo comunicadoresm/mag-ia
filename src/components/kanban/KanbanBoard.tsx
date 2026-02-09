@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { KanbanColumn } from './KanbanColumn';
 import { ScriptEditor } from './ScriptEditor';
 import { MetricsModal } from './MetricsModal';
+import { NewCardDialog } from './NewCardDialog';
 import { 
   ScriptTemplate, 
   UserScript, 
@@ -31,12 +32,15 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
   const [selectedStructure, setSelectedStructure] = useState<ScriptStructure | null>(null);
   const [selectedAgentId, setSelectedAgentId] = useState<string | undefined>();
   const [isEditorOpen, setIsEditorOpen] = useState(false);
+  const [isFromTemplate, setIsFromTemplate] = useState(false);
   
   // Metrics state
   const [metricsScript, setMetricsScript] = useState<UserScript | null>(null);
   const [isMetricsOpen, setIsMetricsOpen] = useState(false);
 
-  // Fetch data
+  // New card dialog state
+  const [isNewCardOpen, setIsNewCardOpen] = useState(false);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -47,81 +51,52 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch templates
-      const { data: templatesData, error: templatesError } = await supabase
-        .from('script_templates')
-        .select('*')
-        .eq('is_active', true)
-        .order('display_order');
+      const [templatesRes, scriptsRes] = await Promise.all([
+        supabase.from('script_templates').select('*').eq('is_active', true).order('display_order'),
+        supabase.from('user_scripts').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+      ]);
 
-      if (templatesError) throw templatesError;
+      if (templatesRes.error) throw templatesRes.error;
+      if (scriptsRes.error) throw scriptsRes.error;
 
-      // Fetch user scripts
-      const { data: scriptsData, error: scriptsError } = await supabase
-        .from('user_scripts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (scriptsError) throw scriptsError;
-
-      // Parse templates with proper typing
-      const parsedTemplates = (templatesData || []).map(t => ({
+      const parsedTemplates = (templatesRes.data || []).map(t => ({
         ...t,
         script_structure: t.script_structure as unknown as ScriptStructure,
       })) as ScriptTemplate[];
 
       setTemplates(parsedTemplates);
-      setUserScripts((scriptsData || []) as UserScript[]);
+      setUserScripts((scriptsRes.data || []) as UserScript[]);
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast({
-        title: 'Erro ao carregar dados',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao carregar dados', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Build columns
   const columns: KanbanColumnType[] = KANBAN_COLUMNS.map((col) => {
-    if (col.id === 'templates') {
-      return { ...col, items: templates };
-    }
-    return {
-      ...col,
-      items: userScripts.filter((s) => s.status === col.id),
-    };
+    if (col.id === 'templates') return { ...col, items: templates };
+    return { ...col, items: userScripts.filter((s) => s.status === col.id) };
   });
 
-  // Handle duplicate template
   const handleDuplicate = async (template: ScriptTemplate) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({
-          title: 'Faça login para continuar',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const newScript = {
-        user_id: user.id,
-        template_id: template.id,
-        title: template.title,
-        theme: template.theme,
-        style: template.style,
-        format: template.format,
-        objective: template.objective,
-        status: 'scripting' as const,
-        script_content: {},
-      };
+      if (!user) return;
 
       const { data, error } = await supabase
         .from('user_scripts')
-        .insert(newScript)
+        .insert({
+          user_id: user.id,
+          template_id: template.id,
+          title: template.title,
+          theme: template.theme,
+          style: template.style,
+          format: template.format,
+          objective: template.objective,
+          status: 'scripting' as const,
+          script_content: {},
+        })
         .select()
         .single();
 
@@ -130,60 +105,52 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
       setUserScripts((prev) => [data as UserScript, ...prev]);
       toast({ title: 'Template duplicado para "Roterizando"' });
 
-      // Open editor immediately
+      // Open editor with locked metadata
       setSelectedScript(data as UserScript);
       setSelectedStructure(template.script_structure);
       setSelectedAgentId(template.agent_id || undefined);
+      setIsFromTemplate(true);
       setIsEditorOpen(true);
     } catch (error) {
       console.error('Error duplicating template:', error);
-      toast({
-        title: 'Erro ao duplicar',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao duplicar', variant: 'destructive' });
     }
   };
 
-  // Handle card click
   const handleCardClick = (item: ScriptTemplate | UserScript) => {
-    // Only allow editing user scripts
     if ('status' in item) {
       const template = templates.find(t => t.id === item.template_id);
+      const fromTemplate = !!item.template_id;
       setSelectedScript(item);
       setSelectedStructure(template?.script_structure || null);
       setSelectedAgentId(template?.agent_id || undefined);
+      setIsFromTemplate(fromTemplate);
       setIsEditorOpen(true);
     }
   };
 
-  // Handle write with AI
   const handleWriteWithAI = (script: UserScript) => {
     const template = templates.find(t => t.id === script.template_id);
+    const fromTemplate = !!script.template_id;
     setSelectedScript(script);
     setSelectedStructure(template?.script_structure || null);
     setSelectedAgentId(template?.agent_id || undefined);
+    setIsFromTemplate(fromTemplate);
     setIsEditorOpen(true);
   };
 
-  // Handle open metrics
   const handleOpenMetrics = (script: UserScript) => {
     setMetricsScript(script);
     setIsMetricsOpen(true);
   };
 
-  // Handle drop (move between columns)
   const handleDrop = async (script: UserScript, targetColumnId: string) => {
     if (targetColumnId === 'templates') return;
-    
     const newStatus = targetColumnId as ScriptStatus;
     if (script.status === newStatus) return;
 
     try {
-      const updates: Partial<UserScript> = {
-        status: newStatus,
-      };
-
-      // Set posted_at when moving to posted
+      const updates: Partial<UserScript> = { status: newStatus };
       if (newStatus === 'posted' && !script.posted_at) {
         updates.posted_at = new Date().toISOString();
       }
@@ -196,12 +163,9 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
       if (error) throw error;
 
       setUserScripts((prev) =>
-        prev.map((s) =>
-          s.id === script.id ? { ...s, ...updates } : s
-        )
+        prev.map((s) => (s.id === script.id ? { ...s, ...updates } : s))
       );
 
-      // Open metrics modal when moving to posted
       if (newStatus === 'posted') {
         setMetricsScript({ ...script, ...updates } as UserScript);
         setIsMetricsOpen(true);
@@ -210,14 +174,10 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
       toast({ title: 'Roteiro movido com sucesso!' });
     } catch (error) {
       console.error('Error moving script:', error);
-      toast({
-        title: 'Erro ao mover',
-        variant: 'destructive',
-      });
+      toast({ title: 'Erro ao mover', variant: 'destructive' });
     }
   };
 
-  // Handle save from editor
   const handleSaveScript = (updatedScript: UserScript) => {
     setUserScripts((prev) =>
       prev.map((s) => (s.id === updatedScript.id ? updatedScript : s))
@@ -225,11 +185,21 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
     setIsEditorOpen(false);
   };
 
-  // Handle save metrics
   const handleSaveMetrics = (updatedScript: UserScript) => {
     setUserScripts((prev) =>
       prev.map((s) => (s.id === updatedScript.id ? updatedScript : s))
     );
+  };
+
+  const handleNewCardCreated = (newScript: UserScript, agentId?: string) => {
+    setUserScripts((prev) => [newScript, ...prev]);
+    setIsNewCardOpen(false);
+    // Open editor for the new card with free editing
+    setSelectedScript(newScript);
+    setSelectedStructure(null);
+    setSelectedAgentId(agentId);
+    setIsFromTemplate(false);
+    setIsEditorOpen(true);
   };
 
   if (isLoading) {
@@ -253,6 +223,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
               onWriteWithAI={handleWriteWithAI}
               onOpenMetrics={handleOpenMetrics}
               onDrop={handleDrop}
+              onAddCard={column.id === 'scripting' ? () => setIsNewCardOpen(true) : undefined}
             />
           ))}
         </div>
@@ -267,6 +238,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
         onSave={handleSaveScript}
         agents={agents}
         selectedAgentId={selectedAgentId}
+        isFromTemplate={isFromTemplate}
       />
 
       <MetricsModal
@@ -274,6 +246,13 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
         isOpen={isMetricsOpen}
         onClose={() => setIsMetricsOpen(false)}
         onSave={handleSaveMetrics}
+      />
+
+      <NewCardDialog
+        isOpen={isNewCardOpen}
+        onClose={() => setIsNewCardOpen(false)}
+        onCreated={handleNewCardCreated}
+        agents={agents}
       />
     </>
   );

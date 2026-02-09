@@ -90,15 +90,22 @@ export function KanbanColumn({
             </div>
           ))}
 
-          {/* Add button for non-template columns */}
-          {column.canAdd && column.items.length === 0 && (
+          {/* Add button for scripting column */}
+          {column.id === 'scripting' && onAddCard && (
             <button
-              onClick={() => onAddCard?.(column.id)}
-              className="w-full py-8 border-2 border-dashed border-border/50 rounded-xl flex flex-col items-center justify-center gap-2 text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+              onClick={() => onAddCard(column.id)}
+              className="w-full py-4 border-2 border-dashed border-border/50 rounded-2xl flex items-center justify-center gap-2 text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
             >
-              <Plus className="w-6 h-6" />
-              <span className="text-sm">Nenhum roteiro aqui</span>
+              <Plus className="w-5 h-5" />
+              <span className="text-sm font-medium">Novo Roteiro</span>
             </button>
+          )}
+
+          {/* Empty state for other columns */}
+          {column.canAdd && column.id !== 'scripting' && column.items.length === 0 && (
+            <div className="w-full py-8 border-2 border-dashed border-border/30 rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground/50">
+              <span className="text-sm">Nenhum roteiro aqui</span>
+            </div>
           )}
         </div>
       </ScrollArea>
