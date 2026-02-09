@@ -229,9 +229,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // === CREDIT CONSUMPTION (script_adjustment = 1 credit, fixed) ===
+    // === CREDIT CONSUMPTION (uses agent's credit_cost) ===
     if (action !== "start") {
-      const creditCost = 1; // Script adjustment always costs 1 credit
+      const creditCost = agent.credit_cost || 1;
 
       const { data: credits, error: creditsError } = await supabaseClient
         .from("user_credits")
@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
         balance_after: newPlan + newSub + newBonus,
         metadata: { agent_id },
       });
-      console.log(`Credits consumed: ${creditCost}, remaining: ${newPlan + newSub + newBonus}`);
+      console.log(`Credits consumed: ${creditCost} (agent cost), remaining: ${newPlan + newSub + newBonus}`);
     }
     // === END CREDIT CONSUMPTION ===
 
@@ -292,38 +292,128 @@ Deno.serve(async (req) => {
       comparison: "Comparação",
     };
 
+    // Build template structure string from the script structure if available
+    let templateStructureStr = "";
+    if (structure) {
+      const parts: string[] = [];
+      if (structure.inicio) {
+        parts.push(`## ${structure.inicio.title}`);
+        structure.inicio.sections.forEach((s) => {
+          parts.push(`- ${s.label}: ${s.placeholder || "[a preencher]"}`);
+        });
+      }
+      if (structure.desenvolvimento) {
+        parts.push(`## ${structure.desenvolvimento.title}`);
+        structure.desenvolvimento.sections.forEach((s) => {
+          parts.push(`- ${s.label}: ${s.placeholder || "[a preencher]"}`);
+        });
+      }
+      if (structure.final) {
+        parts.push(`## ${structure.final.title}`);
+        structure.final.sections.forEach((s) => {
+          parts.push(`- ${s.label}: ${s.placeholder || "[a preencher]"}`);
+        });
+      }
+      templateStructureStr = parts.join("\n");
+    }
+
     const scriptContext = `
-## CONTEXTO DO ROTEIRO
-- Título: ${script.title}
-- Tema: ${script.theme || "Geral"}
-- Estilo: ${styleMap[script.style] || script.style}
-- Formato: ${script.format || "Falado para câmera"}
-- Objetivo: ${objectiveMap[script.objective || "attraction"] || script.objective}
 
-## SUA TAREFA
-Ajude a criar um roteiro para vídeo de redes sociais (Reels/TikTok).
-Conduza uma conversa natural para coletar informações antes de escrever o roteiro.
+## CONTEXTO DO TEMPLATE SELECIONADO
 
-### PERGUNTAS (uma por vez):
-1. Qual é a mensagem principal?
-2. Quem é seu público-alvo?
-3. Algum gancho ou ideia inicial?
-4. Qual CTA no final?
+Título: ${script.title}
+Tema: ${script.theme || "Geral"}
+Estilo: ${styleMap[script.style] || script.style}
+Formato: ${script.format || "Falado para câmera"}
+Objetivo: ${objectiveMap[script.objective || "attraction"] || script.objective}
 
-### IMPORTANTE:
-- Faça UMA pergunta por vez
-- Quando tiver informações suficientes, gere o roteiro com estrutura IDF:
-  - ## 🎯 INÍCIO (Gancho)
-  - ## 📚 DESENVOLVIMENTO (Conteúdo Principal)
-  - ## 🎬 FINAL (Call-to-Action)`;
+## ESTRUTURA DO TEMPLATE
+
+${templateStructureStr || "Estrutura IDF padrão (INÍCIO, DESENVOLVIMENTO, FINAL)"}
+
+---
+
+## INSTRUÇÕES DE COMPORTAMENTO NO MODO TEMPLATE
+
+### 1. RECONHECIMENTO DO TEMPLATE
+
+Ao receber um template, você deve:
+- **Analisar a estrutura** do template (quantos blocos tem, o que cada bloco pede)
+- **Mapear cada bloco do template** para a estrutura IDF que você já domina
+- **Identificar quais informações são necessárias** para preencher os campos variáveis do template (tudo que estiver entre [COLCHETES] ou que exija input do usuário)
+
+### 2. ABERTURA (ADAPTADA)
+
+Cumprimente com a mesma energia de sempre, mas contextualize o template:
+- Mencione o nome do template selecionado
+- Descreva brevemente o que o template faz
+- Diga que vai precisar de algumas informações para personalizar
+
+### 3. COLETA DE INFORMAÇÕES (ADAPTADA AO TEMPLATE)
+
+Em vez de seguir perguntas fixas, **analise o template e gere perguntas específicas** para preencher os campos variáveis.
+
+**Regras da coleta:**
+- **UMA pergunta por vez**
+- **Pergunte apenas o que o template precisa** — não repita perguntas cujas respostas já estão no contexto
+- **Mínimo de 3, máximo de 5 perguntas** — ajuste conforme a complexidade do template
+- **Mantenha seu tom** — exemplos contextualizados, provocações, energia
+
+### 4. GERAÇÃO DO ROTEIRO
+
+Após coletar as informações:
+- **Siga a estrutura exata do template** como esqueleto (respeite os blocos, a ordem, o tipo de conteúdo que cada bloco pede)
+- **Aplique todas as regras do prompt central**: storytelling looping, linguagem de conversa, tensão antes da revelação, cores de intenção, dicas de gravação
+- **Preencha os campos variáveis** [COLCHETES] com o conteúdo coletado nas respostas do usuário
+- **Mantenha a estrutura IDF** mesmo que o template use nomenclatura diferente:
+  - INÍCIO do template → INÍCIO (Gancho + Suspensão) do IDF
+  - DESENVOLVIMENTO do template → DESENVOLVIMENTO (Contexto + Revelação + Valor) do IDF
+  - FINAL do template → FECHAMENTO (CTA) do IDF
+
+### 5. FORMATO DE ENTREGA
+
+Use este formato:
+
+🎬 ROTEIRO FINAL – PRONTO PARA GRAVAR
+
+📍 Tipo: [objetivo] | Padrão: [conforme template] | Duração: ~XX segundos
+
+---
+
+## 🎯 INÍCIO (Gancho)
+[conteúdo seguindo o template]
+
+## 📚 DESENVOLVIMENTO (Conteúdo Principal)
+[conteúdo seguindo o template]
+
+## 🎬 FINAL (Call-to-Action)
+[conteúdo seguindo o template]
+
+---
+
+💡 DICAS DE GRAVAÇÃO:
+[dicas contextualizadas]
+
+### 6. REGRAS ABSOLUTAS
+
+- Não ignore o template — ele é o esqueleto, respeite
+- Não mude o tom, identidade ou regras do prompt central
+- Não entregue o roteiro sem coletar informações antes
+- Não invente blocos que o template não tem
+- Mantenha cores de intenção e dicas de gravação
+- Pergunte se quer ajustar após entrega`;
 
     const systemPrompt = agent.system_prompt + scriptContext;
 
     if (action === "start") {
+      // Let the AI generate the opening message using the full system prompt + template context
+      const provider = getProvider(agent.model);
+      const openingResponse = await callAI(provider, agent.model, agent.api_key, systemPrompt, [
+        { role: "user", content: `O usuário selecionou o template "${script.title}" no Kanban. Faça sua abertura contextualizada ao template seguindo as instruções do modo template.` }
+      ]);
+
       return new Response(
-        JSON.stringify({
-          message: `Olá! 👋 Vou te ajudar a criar o roteiro "${script.title}".\n\nPara criar um conteúdo incrível, preciso entender melhor o que você quer comunicar.\n\n**Qual é a mensagem principal ou ponto-chave que você quer passar nesse vídeo?**`,
-        }),
+        JSON.stringify({ message: openingResponse }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
