@@ -39,6 +39,7 @@ export default function UserManagement() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
+  const [newUserPlan, setNewUserPlan] = useState<string>('basic');
   const [adding, setAdding] = useState(false);
   const [deleteUser, setDeleteUser] = useState<Profile | null>(null);
   const [deleting, setDeleting] = useState(false);
