@@ -100,6 +100,7 @@ async function callAI(
 
   if (provider === "openai") {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      signal: controller.signal,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
