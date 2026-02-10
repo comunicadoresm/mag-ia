@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { action, script, structure, agent_id, messages }: GenerateScriptChatRequest = await req.json();
+    const { action, script, structure, agent_id, is_from_template, messages }: GenerateScriptChatRequest = await req.json();
     console.log(`Script chat: action=${action}, user=${user.id}, agent=${agent_id}`);
 
     let agent = null;
