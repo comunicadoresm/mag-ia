@@ -155,6 +155,14 @@ async function callAI(
 
   const data = await response.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("A IA demorou demais para responder. Tente novamente com uma mensagem mais curta.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function parseScriptContent(
