@@ -182,6 +182,7 @@ export function AIScriptChat({
             objective: script.objective,
           },
           agent_id: agent?.id,
+          is_from_template: isFromTemplate,
           messages: [],
         },
       });
