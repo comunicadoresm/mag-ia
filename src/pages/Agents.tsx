@@ -58,12 +58,11 @@ export default function Agents() {
   const handleAgentClick = async (agent: Agent) => {
     if (!user) return;
 
-    // Check if user has access based on plan
+    // Check if user has access: magnetic plan OR has remaining credits (trial)
     const userPlan = profile?.plan_type || 'none';
-    const access = (agent as any).plan_access || 'magnetic';
-    const hasAccess = access === 'all' || access === userPlan;
+    const isMagnetic = userPlan === 'magnetic';
 
-    if (!hasAccess && balance.total <= 0) {
+    if (!isMagnetic && balance.total <= 0) {
       showUpsell();
       return;
     }
