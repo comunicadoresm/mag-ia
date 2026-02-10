@@ -227,6 +227,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         display_order: formData.display_order, ice_breakers: filteredIceBreakers,
         billing_type: formData.billing_type, credit_cost: formData.credit_cost,
         message_package_size: formData.message_package_size,
+        plan_access: formData.plan_access,
       };
 
       if (editingAgent) {
