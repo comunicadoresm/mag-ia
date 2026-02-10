@@ -21,6 +21,7 @@ export default function Agents() {
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
+  const { balance } = useCredits();
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/login');
