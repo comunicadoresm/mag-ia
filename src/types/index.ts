@@ -23,6 +23,7 @@ export interface Agent {
   is_active: boolean;
   display_order: number;
   ice_breakers: string[] | null;
+  plan_access: string | null;
   created_at: string;
   updated_at: string;
 }

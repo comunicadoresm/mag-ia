@@ -66,7 +66,11 @@ export default function Agents() {
     const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       agent.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTag = activeTag === null || (agentTags[agent.id] && agentTags[agent.id].includes(activeTag));
-    return matchesSearch && matchesTag;
+    // Filter by plan_access
+    const userPlan = profile?.plan_type || 'none';
+    const access = (agent as any).plan_access || 'magnetic';
+    const matchesPlan = access === 'all' || access === userPlan;
+    return matchesSearch && matchesTag && matchesPlan;
   });
 
   const tagsWithAgents = new Set<string>();
