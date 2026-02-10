@@ -6,6 +6,8 @@ import { BottomNavigation } from '@/components/BottomNavigation';
 import { MainSidebar } from '@/components/MainSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useCreditsModals } from '@/contexts/CreditsModalContext';
+import { useCredits } from '@/hooks/useCredits';
 import { Agent, Tag as TagType } from '@/types';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
