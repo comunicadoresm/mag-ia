@@ -39,6 +39,7 @@ export function AIScriptChat({
   script,
   structure,
   agent,
+  isFromTemplate = false,
   onScriptGenerated,
   onConversationCreated,
 }: AIScriptChatProps) {
