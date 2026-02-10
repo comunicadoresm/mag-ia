@@ -470,10 +470,12 @@ Após entregar, pergunte se quer ajustar algo.`;
     }
 
     if (action === "start") {
-      // Let the AI generate the opening message using the full system prompt + template context
       const provider = getProvider(agent.model);
+      const openingPrompt = is_from_template
+        ? `O usuário selecionou o template "${script.title}" no Kanban. Faça sua abertura contextualizada ao template seguindo as instruções do modo template.`
+        : `O usuário criou um roteiro do zero chamado "${script.title}". Cumprimente-o de forma natural e pergunte sobre o que ele quer comunicar nesse vídeo para você ajudá-lo a criar o roteiro.`;
       const openingResponse = await callAI(provider, agent.model, agent.api_key, systemPrompt, [
-        { role: "user", content: `O usuário selecionou o template "${script.title}" no Kanban. Faça sua abertura contextualizada ao template seguindo as instruções do modo template.` }
+        { role: "user", content: openingPrompt }
       ]);
 
       return new Response(
