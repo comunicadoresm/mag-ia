@@ -18,7 +18,7 @@ export default function Agents() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/login');
