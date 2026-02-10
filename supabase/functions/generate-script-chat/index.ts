@@ -46,6 +46,8 @@ function getProvider(model: string): "anthropic" | "openai" | "google" {
   return "anthropic";
 }
 
+const AI_TIMEOUT_MS = 55_000; // 55 seconds timeout for AI calls
+
 async function callAI(
   provider: string,
   model: string,
@@ -56,8 +58,13 @@ async function callAI(
   // Limit history
   const limitedMessages = messages.slice(-MAX_HISTORY_MESSAGES);
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+  try {
   if (provider === "anthropic") {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
+      signal: controller.signal,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
