@@ -153,6 +153,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
         posted_at: null,
         created_at: tpl.created_at,
         updated_at: tpl.updated_at,
+        conversation_id: null,
       };
       setSelectedScript(viewScript);
       setSelectedStructure(tpl.script_structure);

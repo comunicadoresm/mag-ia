@@ -880,6 +880,7 @@ export type Database = {
       user_scripts: {
         Row: {
           comments: number | null
+          conversation_id: string | null
           created_at: string
           followers: number | null
           format: string | null
@@ -901,6 +902,7 @@ export type Database = {
         }
         Insert: {
           comments?: number | null
+          conversation_id?: string | null
           created_at?: string
           followers?: number | null
           format?: string | null
@@ -922,6 +924,7 @@ export type Database = {
         }
         Update: {
           comments?: number | null
+          conversation_id?: string | null
           created_at?: string
           followers?: number | null
           format?: string | null
@@ -942,6 +945,13 @@ export type Database = {
           views?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "user_scripts_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "user_scripts_template_id_fkey"
             columns: ["template_id"]

@@ -418,6 +418,9 @@ export function ScriptEditor({
           structure={activeStructure}
           agent={selectedAgent}
           onScriptGenerated={handleScriptGenerated}
+          onConversationCreated={(convId) => {
+            setEditedScript(prev => prev ? { ...prev, conversation_id: convId } : prev);
+          }}
         />
       )}
     </Sheet>
