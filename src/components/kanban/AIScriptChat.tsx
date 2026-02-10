@@ -178,9 +178,11 @@ export function AIScriptChat({
       }
     } catch (error) {
       console.error('Error sending message:', error);
+      const errorMsg = error instanceof Error ? error.message : 'Tente novamente.';
+      const isTimeout = errorMsg.includes('demorou') || errorMsg.includes('timeout') || errorMsg.includes('Failed to fetch');
       toast({
-        title: 'Erro ao enviar mensagem',
-        description: error instanceof Error ? error.message : 'Tente novamente.',
+        title: isTimeout ? 'A IA demorou para responder' : 'Erro ao enviar mensagem',
+        description: isTimeout ? 'Tente novamente com uma mensagem mais curta.' : errorMsg,
         variant: 'destructive',
       });
     } finally {

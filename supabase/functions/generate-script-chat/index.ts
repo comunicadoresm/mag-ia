@@ -46,6 +46,8 @@ function getProvider(model: string): "anthropic" | "openai" | "google" {
   return "anthropic";
 }
 
+const AI_TIMEOUT_MS = 55_000; // 55 seconds timeout for AI calls
+
 async function callAI(
   provider: string,
   model: string,
@@ -56,8 +58,13 @@ async function callAI(
   // Limit history
   const limitedMessages = messages.slice(-MAX_HISTORY_MESSAGES);
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+  try {
   if (provider === "anthropic") {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
+      signal: controller.signal,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -93,6 +100,7 @@ async function callAI(
 
   if (provider === "openai") {
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      signal: controller.signal,
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -128,6 +136,7 @@ async function callAI(
   const response = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
     {
+      signal: controller.signal,
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -146,6 +155,14 @@ async function callAI(
 
   const data = await response.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error("A IA demorou demais para responder. Tente novamente com uma mensagem mais curta.");
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function parseScriptContent(
