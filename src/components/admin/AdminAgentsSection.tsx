@@ -148,6 +148,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         display_order: agent.display_order, selectedTags: agentTags[agent.id] || [],
         ice_breakers: paddedIceBreakers, billing_type: (agent as any).billing_type || 'per_generation',
         credit_cost: (agent as any).credit_cost || 1, message_package_size: (agent as any).message_package_size || 5,
+        plan_access: (agent as any).plan_access || 'magnetic',
       });
     } else {
       setEditingAgent(null);
