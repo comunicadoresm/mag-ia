@@ -31,6 +31,9 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 export default function UserManagement() {
   const [users, setUsers] = useState<Profile[]>([]);
