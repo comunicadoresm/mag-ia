@@ -417,6 +417,7 @@ export function ScriptEditor({
           script={editedScript}
           structure={activeStructure}
           agent={selectedAgent}
+          isFromTemplate={isFromTemplate}
           onScriptGenerated={handleScriptGenerated}
           onConversationCreated={(convId) => {
             setEditedScript(prev => prev ? { ...prev, conversation_id: convId } : prev);

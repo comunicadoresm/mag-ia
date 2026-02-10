@@ -28,6 +28,7 @@ interface AIScriptChatProps {
   script: UserScript;
   structure: ScriptStructure | null;
   agent: Agent | null;
+  isFromTemplate?: boolean;
   onScriptGenerated: (content: Record<string, string>) => void;
   onConversationCreated?: (conversationId: string) => void;
 }
@@ -38,6 +39,7 @@ export function AIScriptChat({
   script,
   structure,
   agent,
+  isFromTemplate = false,
   onScriptGenerated,
   onConversationCreated,
 }: AIScriptChatProps) {
@@ -180,6 +182,7 @@ export function AIScriptChat({
             objective: script.objective,
           },
           agent_id: agent?.id,
+          is_from_template: isFromTemplate,
           messages: [],
         },
       });
@@ -259,6 +262,7 @@ export function AIScriptChat({
           },
           structure: structure,
           agent_id: agent?.id,
+          is_from_template: isFromTemplate,
           messages: allMessages.map(m => ({ role: m.role, content: m.content })),
         },
       });
