@@ -46,6 +46,10 @@ export default function UserManagement() {
   const [adding, setAdding] = useState(false);
   const [deleteUser, setDeleteUser] = useState<Profile | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editUser, setEditUser] = useState<Profile | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPlan, setEditPlan] = useState('none');
+  const [saving, setSaving] = useState(false);
 
   const { toast } = useToast();
 
