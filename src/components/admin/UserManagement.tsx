@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2, Plus, Trash2, Search, RefreshCw } from 'lucide-react';
+import { Loader2, Plus, Trash2, Search, RefreshCw, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -46,6 +46,10 @@ export default function UserManagement() {
   const [adding, setAdding] = useState(false);
   const [deleteUser, setDeleteUser] = useState<Profile | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editUser, setEditUser] = useState<Profile | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPlan, setEditPlan] = useState('none');
+  const [saving, setSaving] = useState(false);
 
   const { toast } = useToast();
 
@@ -258,7 +262,19 @@ export default function UserManagement() {
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(user.created_at)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setEditUser(user);
+                        setEditName(user.name || '');
+                        setEditPlan(user.plan_type || 'none');
+                      }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -360,6 +376,63 @@ export default function UserManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={!!editUser} onOpenChange={(open) => { if (!open) setEditUser(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Usuário</DialogTitle>
+            <DialogDescription>
+              Editando <strong>{editUser?.email}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nome</label>
+              <Input
+                placeholder="Nome do usuário"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Plano</label>
+              <Select value={editPlan} onValueChange={setEditPlan}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Nenhum</SelectItem>
+                  <SelectItem value="basic">Básico</SelectItem>
+                  <SelectItem value="magnetic">Magnético</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditUser(null)}>Cancelar</Button>
+            <Button disabled={saving} onClick={async () => {
+              if (!editUser) return;
+              setSaving(true);
+              try {
+                const { error } = await supabase
+                  .from('profiles')
+                  .update({ name: editName.trim() || null, plan_type: editPlan })
+                  .eq('id', editUser.id);
+                if (error) throw error;
+                toast({ title: 'Usuário atualizado', description: `${editUser.email} foi atualizado.` });
+                setEditUser(null);
+                await fetchUsers();
+              } catch (error) {
+                console.error(error);
+                toast({ title: 'Erro ao atualizar', variant: 'destructive' });
+              } finally {
+                setSaving(false);
+              }
+            }}>
+              {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Salvando...</> : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
