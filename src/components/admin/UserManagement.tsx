@@ -111,6 +111,7 @@ export default function UserManagement() {
         body: {
           email: newUserEmail.toLowerCase().trim(),
           name: newUserName.trim() || null,
+          plan_type: newUserPlan,
         },
       });
 
