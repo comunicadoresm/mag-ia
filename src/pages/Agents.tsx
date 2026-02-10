@@ -58,11 +58,11 @@ export default function Agents() {
   const handleAgentClick = async (agent: Agent) => {
     if (!user) return;
 
-    // Only magnetic plan users can use agents
     const userPlan = profile?.plan_type || 'none';
-    const isMagnetic = userPlan === 'magnetic';
+    const agentAccess = (agent as any).plan_access || 'magnetic';
 
-    if (!isMagnetic) {
+    // If agent requires magnetic and user is not magnetic, show upsell
+    if (agentAccess === 'magnetic' && userPlan !== 'magnetic') {
       showUpsell();
       return;
     }
