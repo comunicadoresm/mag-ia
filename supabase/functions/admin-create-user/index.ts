@@ -67,7 +67,8 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const { email, name }: CreateUserRequest = await req.json();
+    const { email, name, plan_type }: CreateUserRequest = await req.json();
+    const selectedPlan = (plan_type === 'basic' || plan_type === 'magnetic') ? plan_type : 'basic';
 
     if (!email) {
       return new Response(
