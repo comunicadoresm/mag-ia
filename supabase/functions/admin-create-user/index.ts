@@ -10,6 +10,7 @@ const corsHeaders = {
 interface CreateUserRequest {
   email: string;
   name?: string;
+  plan_type?: string;
 }
 
 serve(async (req: Request): Promise<Response> => {
