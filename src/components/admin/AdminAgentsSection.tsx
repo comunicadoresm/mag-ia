@@ -54,6 +54,7 @@ interface AgentFormData {
   billing_type: string;
   credit_cost: number;
   message_package_size: number;
+  plan_access: string;
 }
 
 const defaultFormData: AgentFormData = {
