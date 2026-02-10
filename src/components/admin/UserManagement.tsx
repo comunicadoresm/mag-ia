@@ -302,6 +302,16 @@ export default function UserManagement() {
                 onChange={(e) => setNewUserName(e.target.value)}
               />
             </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Plano</label>
+              <Select value={newUserPlan} onValueChange={setNewUserPlan}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="basic">Básico</SelectItem>
+                  <SelectItem value="magnetic">Magnético</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
