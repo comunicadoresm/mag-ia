@@ -36,6 +36,7 @@ interface GenerateScriptChatRequest {
   };
   structure?: ScriptStructure;
   agent_id?: string;
+  is_from_template?: boolean;
   messages: ChatMessage[];
 }
 
