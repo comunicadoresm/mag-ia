@@ -20,10 +20,10 @@ export function FeatureGate({ feature, fallback, children, allowWithCredits = tr
     return <>{children}</>;
   }
 
-  // Basic plan with trial credits for AI features
-  if (allowWithCredits && planType === 'basic' && balance.total > 0) {
-    const trialFeatures: FeatureFlag[] = ['script_ai_write', 'script_ai_adjust', 'ai_chat', 'ai_generation'];
-    if (trialFeatures.includes(feature)) {
+  // Any user with credits can access AI features (basic with trial, or bonus credits)
+  if (allowWithCredits && balance.total > 0) {
+    const creditFeatures: FeatureFlag[] = ['script_ai_write', 'script_ai_adjust', 'ai_chat', 'ai_generation'];
+    if (creditFeatures.includes(feature)) {
       return <>{children}</>;
     }
   }
