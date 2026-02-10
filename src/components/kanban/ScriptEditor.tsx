@@ -125,8 +125,26 @@ export function ScriptEditor({
     setIsAIChatOpen(true);
   };
 
-  const handleScriptGenerated = (generatedContent: Record<string, string>) => {
+  const handleScriptGenerated = async (generatedContent: Record<string, string>) => {
     setContent(generatedContent);
+
+    // Auto-save to DB so the script persists in the card
+    if (editedScript) {
+      try {
+        const { error } = await supabase
+          .from('user_scripts')
+          .update({ script_content: generatedContent, updated_at: new Date().toISOString() })
+          .eq('id', editedScript.id);
+
+        if (error) throw error;
+
+        const updatedScript = { ...editedScript, script_content: generatedContent, updated_at: new Date().toISOString() };
+        onSave(updatedScript);
+      } catch (error) {
+        console.error('Error auto-saving script:', error);
+        toast({ title: 'Roteiro preenchido, mas erro ao salvar automaticamente. Clique em Salvar.', variant: 'destructive' });
+      }
+    }
   };
 
   const selectedAgent = agents.find(a => a.id === chosenAgentId) || null;
