@@ -28,6 +28,7 @@ interface AIScriptChatProps {
   script: UserScript;
   structure: ScriptStructure | null;
   agent: Agent | null;
+  isFromTemplate?: boolean;
   onScriptGenerated: (content: Record<string, string>) => void;
   onConversationCreated?: (conversationId: string) => void;
 }
