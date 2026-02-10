@@ -262,6 +262,7 @@ export function AIScriptChat({
           },
           structure: structure,
           agent_id: agent?.id,
+          is_from_template: isFromTemplate,
           messages: allMessages.map(m => ({ role: m.role, content: m.content })),
         },
       });
