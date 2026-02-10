@@ -6,6 +6,8 @@ import { BottomNavigation } from '@/components/BottomNavigation';
 import { MainSidebar } from '@/components/MainSidebar';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useCreditsModals } from '@/contexts/CreditsModalContext';
+import { useCredits } from '@/hooks/useCredits';
 import { Agent, Tag as TagType } from '@/types';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -19,6 +21,7 @@ export default function Agents() {
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
+  const { balance } = useCredits();
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/login');
@@ -50,8 +53,21 @@ export default function Agents() {
     if (user) fetchData();
   }, [user]);
 
+  const { showUpsell } = useCreditsModals();
+
   const handleAgentClick = async (agent: Agent) => {
     if (!user) return;
+
+    // Check if user has access based on plan
+    const userPlan = profile?.plan_type || 'none';
+    const access = (agent as any).plan_access || 'magnetic';
+    const hasAccess = access === 'all' || access === userPlan;
+
+    if (!hasAccess && balance.total <= 0) {
+      showUpsell();
+      return;
+    }
+
     try {
       const { data: conversation, error } = await supabase
         .from('conversations')
@@ -66,11 +82,7 @@ export default function Agents() {
     const matchesSearch = agent.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       agent.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesTag = activeTag === null || (agentTags[agent.id] && agentTags[agent.id].includes(activeTag));
-    // Filter by plan_access
-    const userPlan = profile?.plan_type || 'none';
-    const access = (agent as any).plan_access || 'magnetic';
-    const matchesPlan = access === 'all' || access === userPlan;
-    return matchesSearch && matchesTag && matchesPlan;
+    return matchesSearch && matchesTag;
   });
 
   const tagsWithAgents = new Set<string>();
