@@ -321,32 +321,35 @@ Deno.serve(async (req) => {
       comparison: "Comparação",
     };
 
-    // Build template structure string from the script structure if available
-    let templateStructureStr = "";
-    if (structure) {
-      const parts: string[] = [];
-      if (structure.inicio) {
-        parts.push(`## ${structure.inicio.title}`);
-        structure.inicio.sections.forEach((s) => {
-          parts.push(`- ${s.label}: ${s.placeholder || "[a preencher]"}`);
-        });
-      }
-      if (structure.desenvolvimento) {
-        parts.push(`## ${structure.desenvolvimento.title}`);
-        structure.desenvolvimento.sections.forEach((s) => {
-          parts.push(`- ${s.label}: ${s.placeholder || "[a preencher]"}`);
-        });
-      }
-      if (structure.final) {
-        parts.push(`## ${structure.final.title}`);
-        structure.final.sections.forEach((s) => {
-          parts.push(`- ${s.label}: ${s.placeholder || "[a preencher]"}`);
-        });
-      }
-      templateStructureStr = parts.join("\n");
-    }
+    let systemPrompt: string;
 
-    const scriptContext = `
+    if (is_from_template) {
+      // === TEMPLATE-BASED CARD: heavy template context ===
+      let templateStructureStr = "";
+      if (structure) {
+        const parts: string[] = [];
+        if (structure.inicio) {
+          parts.push(`## ${structure.inicio.title}`);
+          structure.inicio.sections.forEach((s) => {
+            parts.push(`- ${s.label}: ${s.placeholder || "[a preencher]"}`);
+          });
+        }
+        if (structure.desenvolvimento) {
+          parts.push(`## ${structure.desenvolvimento.title}`);
+          structure.desenvolvimento.sections.forEach((s) => {
+            parts.push(`- ${s.label}: ${s.placeholder || "[a preencher]"}`);
+          });
+        }
+        if (structure.final) {
+          parts.push(`## ${structure.final.title}`);
+          structure.final.sections.forEach((s) => {
+            parts.push(`- ${s.label}: ${s.placeholder || "[a preencher]"}`);
+          });
+        }
+        templateStructureStr = parts.join("\n");
+      }
+
+      const scriptContext = `
 
 ## CONTEXTO DO TEMPLATE SELECIONADO
 
@@ -432,7 +435,39 @@ Use este formato:
 - Mantenha cores de intenção e dicas de gravação
 - Pergunte se quer ajustar após entrega`;
 
-    const systemPrompt = agent.system_prompt + scriptContext;
+      systemPrompt = agent.system_prompt + scriptContext;
+    } else {
+      // === FREE CARD: agent cru + minimal script context ===
+      const freeCardContext = `
+
+## CONTEXTO DO ROTEIRO
+
+O usuário está criando um roteiro do zero com as seguintes informações:
+- Título: ${script.title}
+- Tema: ${script.theme || "Livre"}
+- Estilo: ${styleMap[script.style] || script.style}
+- Formato: ${script.format || "Falado para câmera"}
+- Objetivo: ${objectiveMap[script.objective || "attraction"] || script.objective}
+
+## INSTRUÇÕES
+
+Você está no modo de criação livre. Converse naturalmente com o usuário para entender o que ele quer comunicar. Faça perguntas abertas, uma por vez, para coletar informações.
+
+Quando tiver informações suficientes, gere o roteiro no formato:
+
+## 🎯 INÍCIO (Gancho)
+[gancho que prende atenção]
+
+## 📚 DESENVOLVIMENTO (Conteúdo Principal)
+[desenvolvimento do tema]
+
+## 🎬 FINAL (Call-to-Action)
+[fechamento com CTA]
+
+Após entregar, pergunte se quer ajustar algo.`;
+
+      systemPrompt = agent.system_prompt + freeCardContext;
+    }
 
     if (action === "start") {
       // Let the AI generate the opening message using the full system prompt + template context
