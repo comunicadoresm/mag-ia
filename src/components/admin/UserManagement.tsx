@@ -262,7 +262,19 @@ export default function UserManagement() {
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(user.created_at)}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right flex items-center justify-end gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setEditUser(user);
+                        setEditName(user.name || '');
+                        setEditPlan(user.plan_type || 'none');
+                      }}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
