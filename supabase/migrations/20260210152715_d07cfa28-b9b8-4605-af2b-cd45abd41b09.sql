@@ -1,0 +1,1 @@
+ALTER TABLE public.user_scripts ADD COLUMN conversation_id UUID REFERENCES public.conversations(id) ON DELETE SET NULL;
