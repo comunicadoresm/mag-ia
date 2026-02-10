@@ -124,6 +124,7 @@ export default function UserManagement() {
 
       setNewUserEmail('');
       setNewUserName('');
+      setNewUserPlan('basic');
       setShowAddDialog(false);
       await fetchUsers();
     } catch (error) {

@@ -472,6 +472,17 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
                 <Switch id="is_active" checked={formData.is_active} onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_active: checked }))} />
                 <Label htmlFor="is_active" className="font-normal cursor-pointer">Agente ativo</Label>
               </div>
+              <div className="flex items-center gap-3">
+                <Label htmlFor="plan_access" className="font-normal">Acesso por plano</Label>
+                <Select value={formData.plan_access} onValueChange={(value) => setFormData((prev) => ({ ...prev, plan_access: value }))}>
+                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Básico + Magnético</SelectItem>
+                    <SelectItem value="basic">Apenas Básico</SelectItem>
+                    <SelectItem value="magnetic">Apenas Magnético</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </div>
 
