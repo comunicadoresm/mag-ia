@@ -54,6 +54,7 @@ interface AgentFormData {
   billing_type: string;
   credit_cost: number;
   message_package_size: number;
+  plan_access: string;
 }
 
 const defaultFormData: AgentFormData = {
@@ -72,6 +73,7 @@ const defaultFormData: AgentFormData = {
   billing_type: 'per_generation',
   credit_cost: 1,
   message_package_size: 5,
+  plan_access: 'magnetic',
 };
 
 interface AdminAgentsSectionProps {
@@ -146,6 +148,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         display_order: agent.display_order, selectedTags: agentTags[agent.id] || [],
         ice_breakers: paddedIceBreakers, billing_type: (agent as any).billing_type || 'per_generation',
         credit_cost: (agent as any).credit_cost || 1, message_package_size: (agent as any).message_package_size || 5,
+        plan_access: (agent as any).plan_access || 'magnetic',
       });
     } else {
       setEditingAgent(null);
@@ -224,6 +227,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         display_order: formData.display_order, ice_breakers: filteredIceBreakers,
         billing_type: formData.billing_type, credit_cost: formData.credit_cost,
         message_package_size: formData.message_package_size,
+        plan_access: formData.plan_access,
       };
 
       if (editingAgent) {
@@ -294,6 +298,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         system_prompt: a.system_prompt, welcome_message: a.welcome_message,
         model: a.model, is_active: a.is_active, display_order: a.display_order,
         ice_breakers: (a as any).ice_breakers || [],
+        plan_access: (a as any).plan_access || 'magnetic',
         created_at: a.created_at, updated_at: a.updated_at,
       }))} />
     );
@@ -467,6 +472,17 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
               <div className="flex items-center gap-3">
                 <Switch id="is_active" checked={formData.is_active} onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_active: checked }))} />
                 <Label htmlFor="is_active" className="font-normal cursor-pointer">Agente ativo</Label>
+              </div>
+              <div className="flex items-center gap-3">
+                <Label htmlFor="plan_access" className="font-normal">Acesso por plano</Label>
+                <Select value={formData.plan_access} onValueChange={(value) => setFormData((prev) => ({ ...prev, plan_access: value }))}>
+                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Básico + Magnético</SelectItem>
+                    <SelectItem value="basic">Apenas Básico</SelectItem>
+                    <SelectItem value="magnetic">Apenas Magnético</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>

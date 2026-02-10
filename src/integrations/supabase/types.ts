@@ -162,6 +162,7 @@ export type Database = {
           message_package_size: number | null
           model: string | null
           name: string
+          plan_access: string | null
           slug: string
           system_prompt: string
           updated_at: string | null
@@ -182,6 +183,7 @@ export type Database = {
           message_package_size?: number | null
           model?: string | null
           name: string
+          plan_access?: string | null
           slug: string
           system_prompt: string
           updated_at?: string | null
@@ -202,6 +204,7 @@ export type Database = {
           message_package_size?: number | null
           model?: string | null
           name?: string
+          plan_access?: string | null
           slug?: string
           system_prompt?: string
           updated_at?: string | null
@@ -982,6 +985,7 @@ export type Database = {
           is_active: boolean | null
           model: string | null
           name: string | null
+          plan_access: string | null
           slug: string | null
           system_prompt: string | null
           updated_at: string | null
@@ -998,6 +1002,7 @@ export type Database = {
           is_active?: boolean | null
           model?: string | null
           name?: string | null
+          plan_access?: string | null
           slug?: string | null
           system_prompt?: string | null
           updated_at?: string | null
@@ -1014,6 +1019,7 @@ export type Database = {
           is_active?: boolean | null
           model?: string | null
           name?: string | null
+          plan_access?: string | null
           slug?: string | null
           system_prompt?: string | null
           updated_at?: string | null

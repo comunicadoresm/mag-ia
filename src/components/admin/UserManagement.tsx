@@ -31,6 +31,9 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Profile } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 
 export default function UserManagement() {
   const [users, setUsers] = useState<Profile[]>([]);
@@ -39,6 +42,7 @@ export default function UserManagement() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserName, setNewUserName] = useState('');
+  const [newUserPlan, setNewUserPlan] = useState<string>('basic');
   const [adding, setAdding] = useState(false);
   const [deleteUser, setDeleteUser] = useState<Profile | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -110,6 +114,7 @@ export default function UserManagement() {
         body: {
           email: newUserEmail.toLowerCase().trim(),
           name: newUserName.trim() || null,
+          plan_type: newUserPlan,
         },
       });
 
@@ -122,6 +127,7 @@ export default function UserManagement() {
 
       setNewUserEmail('');
       setNewUserName('');
+      setNewUserPlan('basic');
       setShowAddDialog(false);
       await fetchUsers();
     } catch (error) {
@@ -295,6 +301,16 @@ export default function UserManagement() {
                 value={newUserName}
                 onChange={(e) => setNewUserName(e.target.value)}
               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Plano</label>
+              <Select value={newUserPlan} onValueChange={setNewUserPlan}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="basic">Básico</SelectItem>
+                  <SelectItem value="magnetic">Magnético</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

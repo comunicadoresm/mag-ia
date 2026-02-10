@@ -10,6 +10,7 @@ const corsHeaders = {
 interface CreateUserRequest {
   email: string;
   name?: string;
+  plan_type?: string;
 }
 
 serve(async (req: Request): Promise<Response> => {
@@ -66,7 +67,8 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    const { email, name }: CreateUserRequest = await req.json();
+    const { email, name, plan_type }: CreateUserRequest = await req.json();
+    const selectedPlan = (plan_type === 'basic' || plan_type === 'magnetic') ? plan_type : 'basic';
 
     if (!email) {
       return new Response(
@@ -92,17 +94,31 @@ serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Update profile to mark as verified
     if (authData.user) {
+      // Set plan type and name
       await supabaseAdmin
         .from("profiles")
         .update({
-          is_verified_student: true,
-          verified_at: new Date().toISOString(),
-          verification_source: "admin_manual",
+          plan_type: selectedPlan,
+          plan_activated_at: new Date().toISOString(),
           name: name || null,
         })
         .eq("id", authData.user.id);
+
+      // Create user_credits based on plan
+      const planCredits = selectedPlan === 'magnetic' ? 30 : 10;
+      const cycleStart = new Date();
+      const cycleEnd = new Date();
+      cycleEnd.setDate(cycleEnd.getDate() + 30);
+
+      await supabaseAdmin.from("user_credits").upsert({
+        user_id: authData.user.id,
+        plan_credits: planCredits,
+        bonus_credits: 0,
+        subscription_credits: 0,
+        cycle_start_date: cycleStart.toISOString(),
+        cycle_end_date: cycleEnd.toISOString(),
+      }, { onConflict: 'user_id' });
     }
 
     console.log(`User created: ${normalizedEmail}`);
