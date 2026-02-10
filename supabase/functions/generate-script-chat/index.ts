@@ -246,51 +246,62 @@ Deno.serve(async (req) => {
       );
     }
 
-    // === CREDIT CONSUMPTION (uses agent's credit_cost) ===
+    // === CREDIT CONSUMPTION (uses agent's credit_cost every N messages) ===
     if (action !== "start") {
-      const creditCost = agent.credit_cost || 1;
+      const creditCost = agent.credit_cost || 3;
+      const packageSize = agent.message_package_size || 5;
 
-      const { data: credits, error: creditsError } = await supabaseClient
-        .from("user_credits")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
+      // Count user messages in this conversation to determine billing point
+      const userMessageCount = messages.filter((m: ChatMessage) => m.role === "user").length;
 
-      if (creditsError || !credits) {
-        return new Response(
-          JSON.stringify({ error: "insufficient_credits", message: "Você não tem créditos configurados." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      // Only charge every Nth user message
+      if (userMessageCount > 0 && userMessageCount % packageSize !== 0) {
+        console.log(`Message ${userMessageCount} - not a billing point (every ${packageSize}). Skipping charge.`);
+      } else {
+        console.log(`Message ${userMessageCount} - billing point (every ${packageSize}). Charging ${creditCost} credits.`);
+
+        const { data: credits, error: creditsError } = await supabaseClient
+          .from("user_credits")
+          .select("*")
+          .eq("user_id", user.id)
+          .single();
+
+        if (creditsError || !credits) {
+          return new Response(
+            JSON.stringify({ error: "insufficient_credits", message: "Você não tem créditos configurados." }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        const totalBalance = (credits.plan_credits || 0) + (credits.subscription_credits || 0) + (credits.bonus_credits || 0);
+        if (totalBalance < creditCost) {
+          return new Response(
+            JSON.stringify({
+              error: "insufficient_credits", message: "Seus créditos acabaram!",
+              balance: { plan: credits.plan_credits, subscription: credits.subscription_credits, bonus: credits.bonus_credits, total: totalBalance },
+              required: creditCost,
+            }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        let remaining = creditCost;
+        let newPlan = credits.plan_credits || 0;
+        let newSub = credits.subscription_credits || 0;
+        let newBonus = credits.bonus_credits || 0;
+
+        if (remaining > 0 && newPlan > 0) { const d = Math.min(remaining, newPlan); newPlan -= d; remaining -= d; }
+        if (remaining > 0 && newSub > 0) { const d = Math.min(remaining, newSub); newSub -= d; remaining -= d; }
+        if (remaining > 0 && newBonus > 0) { const d = Math.min(remaining, newBonus); newBonus -= d; remaining -= d; }
+
+        await supabaseClient.from("user_credits").update({ plan_credits: newPlan, subscription_credits: newSub, bonus_credits: newBonus }).eq("user_id", user.id);
+        await supabaseClient.from("credit_transactions").insert({
+          user_id: user.id, type: "consumption", amount: -creditCost, source: "script_generation",
+          balance_after: newPlan + newSub + newBonus,
+          metadata: { agent_id },
+        });
+        console.log(`Credits consumed: ${creditCost} (every ${packageSize} msgs), remaining: ${newPlan + newSub + newBonus}`);
       }
-
-      const totalBalance = (credits.plan_credits || 0) + (credits.subscription_credits || 0) + (credits.bonus_credits || 0);
-      if (totalBalance < creditCost) {
-        return new Response(
-          JSON.stringify({
-            error: "insufficient_credits", message: "Seus créditos acabaram!",
-            balance: { plan: credits.plan_credits, subscription: credits.subscription_credits, bonus: credits.bonus_credits, total: totalBalance },
-            required: creditCost,
-          }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      let remaining = creditCost;
-      let newPlan = credits.plan_credits || 0;
-      let newSub = credits.subscription_credits || 0;
-      let newBonus = credits.bonus_credits || 0;
-
-      if (remaining > 0 && newPlan > 0) { const d = Math.min(remaining, newPlan); newPlan -= d; remaining -= d; }
-      if (remaining > 0 && newSub > 0) { const d = Math.min(remaining, newSub); newSub -= d; remaining -= d; }
-      if (remaining > 0 && newBonus > 0) { const d = Math.min(remaining, newBonus); newBonus -= d; remaining -= d; }
-
-      await supabaseClient.from("user_credits").update({ plan_credits: newPlan, subscription_credits: newSub, bonus_credits: newBonus }).eq("user_id", user.id);
-      await supabaseClient.from("credit_transactions").insert({
-        user_id: user.id, type: "consumption", amount: -creditCost, source: "script_adjustment",
-        balance_after: newPlan + newSub + newBonus,
-        metadata: { agent_id },
-      });
-      console.log(`Credits consumed: ${creditCost} (agent cost), remaining: ${newPlan + newSub + newBonus}`);
     }
     // === END CREDIT CONSUMPTION ===
 
