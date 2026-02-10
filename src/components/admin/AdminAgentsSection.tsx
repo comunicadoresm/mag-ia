@@ -73,6 +73,7 @@ const defaultFormData: AgentFormData = {
   billing_type: 'per_generation',
   credit_cost: 1,
   message_package_size: 5,
+  plan_access: 'magnetic',
 };
 
 interface AdminAgentsSectionProps {
