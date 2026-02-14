@@ -81,9 +81,14 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
   });
 
   const handleDuplicate = async (template: ScriptTemplate) => {
+    console.log('[KanbanBoard] handleDuplicate called', template.id, template.title);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      console.log('[KanbanBoard] auth result', { userId: user?.id, authError });
+      if (!user) {
+        toast({ title: 'Erro de autenticação. Faça login novamente.', variant: 'destructive' });
+        return;
+      }
 
       const { data, error } = await supabase
         .from('user_scripts')
