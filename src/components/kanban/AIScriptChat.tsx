@@ -355,8 +355,8 @@ export function AIScriptChat({
               <div
                 key={message.id}
                 className={cn(
-                  'flex flex-col',
-                  message.role === 'user' ? 'items-end' : 'items-start'
+                  'flex',
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
                 )}
               >
                 <div
@@ -369,21 +369,6 @@ export function AIScriptChat({
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 </div>
-                {message.role === 'assistant' && !isLoading && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="mt-1 text-xs h-7 px-3 text-muted-foreground hover:text-primary hover:bg-primary/10 gap-1.5"
-                    onClick={() => {
-                      onScriptGenerated({ content: message.content });
-                      onClose();
-                      toast({ title: 'Conteúdo inserido no card!' });
-                    }}
-                  >
-                    <Check className="w-3 h-3" />
-                    Inserir no Card
-                  </Button>
-                )}
               </div>
             ))}
 
