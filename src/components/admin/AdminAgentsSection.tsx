@@ -395,27 +395,22 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
                   <Select value={formData.billing_type} onValueChange={(value) => setFormData((prev) => ({ ...prev, billing_type: value }))}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="per_generation">Por Geração (cada chamada)</SelectItem>
                       <SelectItem value="per_messages">Por Mensagens (a cada N msgs)</SelectItem>
                       <SelectItem value="per_output">Por Output/Roteiro Gerado</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    {formData.billing_type === 'per_generation' ? 'Cobra a cada chamada de IA' : 
-                     formData.billing_type === 'per_output' ? 'Cobra apenas quando a IA gera um roteiro/output estruturado' :
+                    {formData.billing_type === 'per_output' ? 'Cobra apenas quando a IA gera um roteiro/output estruturado' :
                      'Cobra a cada N mensagens'}
                   </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="credit_cost">
-                    {formData.billing_type === 'per_generation' ? 'Custo por geração' : 
-                     formData.billing_type === 'per_output' ? 'Custo por output' :
-                     'Créditos cobrados'}
+                    {formData.billing_type === 'per_output' ? 'Custo por output' : 'Créditos cobrados'}
                   </Label>
                   <Input id="credit_cost" type="number" min={1} value={formData.credit_cost} onChange={(e) => setFormData((prev) => ({ ...prev, credit_cost: Math.max(1, parseInt(e.target.value) || 1) }))} />
                   <p className="text-xs text-muted-foreground">
-                    {formData.billing_type === 'per_generation' ? 'Créditos por chamada' : 
-                     formData.billing_type === 'per_output' ? `${formData.credit_cost} crédito(s) por roteiro gerado` :
+                    {formData.billing_type === 'per_output' ? `${formData.credit_cost} crédito(s) por roteiro gerado` :
                      `${formData.credit_cost} crédito(s) a cada ${formData.message_package_size} msg(s)`}
                   </p>
                 </div>
