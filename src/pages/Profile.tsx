@@ -170,16 +170,13 @@ export default function Profile() {
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-muted-foreground">Email</p>
                 <p className="text-sm font-medium text-foreground truncate">{profile?.email || user.email}</p>
+                <button
+                  onClick={() => window.open('https://wa.me/5511999999999?text=Olá! Gostaria de alterar meu e-mail na Magnetic.IA', '_blank')}
+                  className="text-xs text-primary hover:underline mt-1 block"
+                >
+                  Alterar e-mail →
+                </button>
               </div>
-            </div>
-            <div className="px-1">
-              <button
-                onClick={() => window.open('https://wa.me/5511999999999?text=Olá! Gostaria de alterar meu e-mail na Magnetic.IA', '_blank')}
-                className="text-xs text-primary hover:underline"
-              >
-                Alterar e-mail
-              </button>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Para alterar seu e-mail, fale com o time de suporte magnético</p>
             </div>
 
             {/* Plan Info */}
