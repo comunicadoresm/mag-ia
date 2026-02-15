@@ -1,21 +1,29 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCredits } from '@/hooks/useCredits';
+import { AlertTriangle } from 'lucide-react';
 
 export function CreditCompositionChart() {
-  const { balance } = useCredits();
+  const { balance, cycleEndDate } = useCredits();
   const total = balance.plan + balance.subscription + balance.bonus;
 
+  // Check plan_credits expiration
+  let planExpireDays: number | null = null;
+  if (cycleEndDate) {
+    const diff = Math.ceil((new Date(cycleEndDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    planExpireDays = diff > 0 ? diff : 0;
+  }
+
   const segments = [
-    { label: 'Plano Base', value: balance.plan, color: 'bg-primary' },
-    { label: 'Assinatura Extra', value: balance.subscription, color: 'bg-success' },
-    { label: 'Pacote Avulso', value: balance.bonus, color: 'bg-[hsl(270,60%,60%)]' },
+    { label: 'Créditos do plano', value: balance.plan, color: 'bg-primary' },
+    { label: 'Créditos de assinatura', value: balance.subscription, color: 'bg-success' },
+    { label: 'Créditos avulsos', value: balance.bonus, color: 'bg-[hsl(270,60%,60%)]' },
   ];
 
   return (
     <Card className="card-cm">
       <CardHeader className="pb-2 p-4">
-        <CardTitle className="text-sm font-medium text-muted-foreground">Composição do Limite</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">Composição do Saldo</CardTitle>
       </CardHeader>
       <CardContent className="p-4 pt-0 space-y-3">
         {/* Stacked bar */}
@@ -43,6 +51,27 @@ export function CreditCompositionChart() {
             </div>
           ))}
         </div>
+
+        {/* Total */}
+        <div className="flex items-center justify-between text-xs border-t border-border pt-2">
+          <span className="font-medium text-foreground">Total</span>
+          <span className="font-bold text-foreground">{total}</span>
+        </div>
+
+        {/* Low balance alert */}
+        {total > 0 && total <= 5 && (
+          <div className="flex items-center gap-1.5 text-xs text-warning">
+            <AlertTriangle className="w-3.5 h-3.5" />
+            <span>Saldo baixo — considere comprar mais créditos</span>
+          </div>
+        )}
+
+        {/* Expiration indicator for plan credits */}
+        {balance.plan > 0 && planExpireDays !== null && planExpireDays <= 7 && (
+          <p className="text-xs text-warning">
+            Créditos do plano expiram em {planExpireDays} {planExpireDays === 1 ? 'dia' : 'dias'}
+          </p>
+        )}
       </CardContent>
     </Card>
   );

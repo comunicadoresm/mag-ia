@@ -68,7 +68,7 @@ function usePhotoUpload(userId: string | undefined) {
 
 // ─── Initial Setup Modal ─────────────────────────────────────
 function InitialSetupModal({ open, onSubmit, userName, userId }: { open: boolean; onSubmit: (data: any) => void; userName: string; userId: string }) {
-  const [form, setForm] = useState({ handle: '', profile_photo_url: '', current_followers: 0, current_revenue: 0, current_clients: 0 });
+  const [form, setForm] = useState({ name: userName || '', handle: '', profile_photo_url: '', current_followers: 0, current_revenue: 0, current_clients: 0 });
   const [step, setStep] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
   const { upload, uploading } = usePhotoUpload(userId);
@@ -81,7 +81,10 @@ function InitialSetupModal({ open, onSubmit, userName, userId }: { open: boolean
   };
 
   const handleSubmit = () => {
-    onSubmit({ ...form, display_name: userName, initial_followers: form.current_followers, initial_revenue: form.current_revenue, initial_clients: form.current_clients, initial_views: 0 });
+    if (!form.name.trim()) {
+      return; // Name is required
+    }
+    onSubmit({ ...form, display_name: form.name, initial_followers: form.current_followers, initial_revenue: form.current_revenue, initial_clients: form.current_clients, initial_views: 0 });
   };
 
   return (
@@ -100,7 +103,7 @@ function InitialSetupModal({ open, onSubmit, userName, userId }: { open: boolean
               <div className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
                 <Avatar className="w-20 h-20 border-2 border-primary">
                   <AvatarImage src={form.profile_photo_url} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">{userName?.charAt(0) || 'U'}</AvatarFallback>
+                  <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">{(form.name || userName)?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
                 <div className="absolute bottom-0 right-0 w-7 h-7 bg-primary rounded-full flex items-center justify-center">
                   {uploading ? <Loader2 className="w-3.5 h-3.5 text-primary-foreground animate-spin" /> : <Camera className="w-3.5 h-3.5 text-primary-foreground" />}
@@ -110,10 +113,14 @@ function InitialSetupModal({ open, onSubmit, userName, userId }: { open: boolean
               <p className="text-xs text-muted-foreground">Toque para enviar uma foto</p>
             </div>
             <div>
+              <Label className="text-sm text-muted-foreground">Nome *</Label>
+              <Input value={form.name} onChange={(e) => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Seu nome completo" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
+            </div>
+            <div>
               <Label className="text-sm text-muted-foreground">@ do Instagram</Label>
               <Input value={form.handle} onChange={(e) => setForm(p => ({ ...p, handle: e.target.value }))} placeholder="@seuarroba" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
             </div>
-            <Button onClick={() => setStep(1)} className="w-full rounded-xl">Próximo</Button>
+            <Button onClick={() => { if (form.name.trim()) setStep(1); }} disabled={!form.name.trim()} className="w-full rounded-xl">Próximo</Button>
           </div>
         ) : (
           <div className="space-y-4 px-6 pb-6 pt-2">
@@ -214,12 +221,19 @@ export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
   const { upload, uploading } = usePhotoUpload(user?.id);
 
-  const needsSetup = !isLoading && !metrics?.initial_setup_done;
+  const needsSetup = !isLoading && (!metrics?.initial_setup_done || profile?.has_completed_setup === false);
 
   const handleInitialSetup = async (data: any) => {
     const error = await initializeMetrics(data);
-    if (error) toast.error('Erro ao salvar');
-    else toast.success('Perfil configurado!');
+    if (error) {
+      toast.error('Erro ao salvar');
+    } else {
+      // Mark setup as completed in profiles
+      if (user) {
+        await supabase.from('profiles').update({ has_completed_setup: true }).eq('id', user.id);
+      }
+      toast.success('Perfil configurado!');
+    }
   };
 
   const handleUpdateMetrics = async (data: { current_followers: number; current_revenue: number; current_clients: number }) => {

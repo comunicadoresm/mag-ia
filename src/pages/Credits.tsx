@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Coins, TrendingDown, Gift, Wallet, Percent, Loader2, ShoppingCart } from 'lucide-react';
+import { Coins, TrendingDown, Gift, Wallet, Percent, Loader2, ShoppingCart, Crown } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCredits } from '@/hooks/useCredits';
 import { useCycleProgress } from '@/hooks/useCycleProgress';
+import { usePlanPermissions } from '@/hooks/usePlanPermissions';
 import { useCreditsModals } from '@/contexts/CreditsModalContext';
 import { CreditMetricCard } from '@/components/credits/CreditMetricCard';
 import { CreditCompositionChart } from '@/components/credits/CreditCompositionChart';
@@ -19,7 +21,8 @@ export default function Credits() {
   const { user, loading: authLoading } = useAuth();
   const { balance, isLoading: creditsLoading } = useCredits();
   const { totalConsumed, totalMonthly, percentUsed } = useCycleProgress();
-  const { showBuyCredits } = useCreditsModals();
+  const { canBuyCredits, upsellPlans } = usePlanPermissions();
+  const { showBuyCredits, showUpsell } = useCreditsModals();
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/login');
@@ -49,10 +52,17 @@ export default function Credits() {
               <p className="text-xs text-muted-foreground">Acompanhe seu consumo e saldo</p>
             </div>
           </div>
-          <Button onClick={showBuyCredits} className="gap-2 rounded-xl">
-            <ShoppingCart className="w-4 h-4" />
-            Adquirir Créditos
-          </Button>
+          {canBuyCredits ? (
+            <Button onClick={showBuyCredits} className="gap-2 rounded-xl">
+              <ShoppingCart className="w-4 h-4" />
+              Adquirir Créditos
+            </Button>
+          ) : upsellPlans.length > 0 ? (
+            <Button onClick={showUpsell} variant="outline" className="gap-2 rounded-xl border-primary text-primary">
+              <Crown className="w-4 h-4" />
+              Fazer Upgrade
+            </Button>
+          ) : null}
         </div>
       </header>
 
@@ -70,6 +80,21 @@ export default function Credits() {
                 <CreditMetricCard title="Restantes" value={balance.total} icon={<Wallet className="w-5 h-5" />} variant={balance.total === 0 ? 'danger' : 'default'} />
                 <CreditMetricCard title="% de Uso" value={`${percentUsed}%`} icon={<Percent className="w-5 h-5" />} variant={getUsageVariant()} />
               </div>
+
+              {/* Upgrade card for plans that can't buy credits */}
+              {!canBuyCredits && upsellPlans.length > 0 && (
+                <Card className="border-primary/30 bg-primary/5">
+                  <CardContent className="p-4 flex items-center gap-4">
+                    <Crown className="w-8 h-8 text-primary shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-foreground">Faça upgrade para comprar créditos extras</p>
+                      <p className="text-xs text-muted-foreground">Planos superiores permitem adquirir créditos adicionais quando precisar.</p>
+                    </div>
+                    <Button onClick={showUpsell} size="sm" className="shrink-0">Upgrade</Button>
+                  </CardContent>
+                </Card>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
                 <PlanInfoCard />
                 <CreditCompositionChart />
