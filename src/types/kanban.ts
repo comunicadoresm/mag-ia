@@ -50,6 +50,7 @@ export interface UserScript {
   shares: number | null;
   saves: number | null;
   posted_at: string | null;
+  post_url: string | null;
   conversation_id: string | null;
   created_at: string;
   updated_at: string;

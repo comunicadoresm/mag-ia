@@ -164,6 +164,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
         posted_at: null,
         created_at: tpl.created_at,
         updated_at: tpl.updated_at,
+        post_url: null,
         conversation_id: null,
       };
       setSelectedScript(viewScript);
