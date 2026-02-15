@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Search, LayoutGrid, BookOpen, Users, Tag } from 'lucide-react';
+import { Loader2, Search, LayoutGrid, BookOpen, Users, Tag, Lock } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { BottomNavigation } from '@/components/BottomNavigation';
 import { MainSidebar } from '@/components/MainSidebar';
@@ -132,6 +132,17 @@ export default function Agents() {
                   onClick={() => handleAgentClick(agent)}
                   className="relative bg-gradient-to-br from-muted/80 to-muted/30 border border-border/30 rounded-2xl p-4 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:border-primary/40 transition-all duration-200 group overflow-hidden text-left"
                 >
+                  {/* Lock icon for restricted agents */}
+                  {(() => {
+                    const agentAccess = (agent as any).plan_access || 'magnetic';
+                    const userPlan = profile?.plan_type || 'none';
+                    const isLocked = agentAccess === 'magnetic' && userPlan !== 'magnetic';
+                    return isLocked ? (
+                      <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-muted flex items-center justify-center">
+                        <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                      </div>
+                    ) : null;
+                  })()}
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-2xl shrink-0">
                       {agent.icon_emoji || '🤖'}
