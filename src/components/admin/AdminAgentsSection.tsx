@@ -91,6 +91,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
   const [formData, setFormData] = useState<AgentFormData>(defaultFormData);
   const [newTagName, setNewTagName] = useState('');
   const [newTagIcon, setNewTagIcon] = useState('Tag');
+  const [newTagColor, setNewTagColor] = useState('#6B7280');
   const [saving, setSaving] = useState(false);
   const [deleteAgent, setDeleteAgent] = useState<AdminAgent | null>(null);
   const [deleteTag, setDeleteTag] = useState<Tag | null>(null);
@@ -174,21 +175,21 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
     if (!newTagName.trim()) return;
     try {
       const slug = generateSlug(newTagName);
-      const { data, error } = await supabase.from('tags').insert({ name: newTagName.trim(), slug, icon: newTagIcon, display_order: tags.length }).select().single();
+      const { data, error } = await supabase.from('tags').insert({ name: newTagName.trim(), slug, icon: newTagIcon, color: newTagColor, display_order: tags.length }).select().single();
       if (error) throw error;
       setTags((prev) => [...prev, data as Tag]);
-      setNewTagName(''); setNewTagIcon('Tag'); setShowTagForm(false);
+      setNewTagName(''); setNewTagIcon('Tag'); setNewTagColor('#6B7280'); setShowTagForm(false);
       toast({ title: 'Tag criada', description: `A tag "${newTagName}" foi criada.` });
     } catch (error) {
       toast({ title: 'Erro ao criar tag', description: 'Não foi possível criar a tag.', variant: 'destructive' });
     }
   };
 
-  const handleUpdateTag = async (tag: Tag, newIcon: string) => {
+  const handleUpdateTag = async (tag: Tag, updates: Partial<{ icon: string; color: string }>) => {
     try {
-      const { error } = await supabase.from('tags').update({ icon: newIcon }).eq('id', tag.id);
+      const { error } = await supabase.from('tags').update(updates).eq('id', tag.id);
       if (error) throw error;
-      setTags((prev) => prev.map((t) => (t.id === tag.id ? { ...t, icon: newIcon } : t)));
+      setTags((prev) => prev.map((t) => (t.id === tag.id ? { ...t, ...updates } : t)));
       toast({ title: 'Tag atualizada' });
     } catch (error) {
       toast({ title: 'Erro ao atualizar tag', variant: 'destructive' });
@@ -451,15 +452,17 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
               {showTagForm && (
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <IconPicker value={newTagIcon} onChange={setNewTagIcon} className="w-auto shrink-0" />
+                  <input type="color" value={newTagColor} onChange={(e) => setNewTagColor(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 p-0 shrink-0" title="Cor da tag" />
                   <Input value={newTagName} onChange={(e) => setNewTagName(e.target.value)} placeholder="Nome da tag..." className="flex-1" />
                   <Button size="sm" onClick={handleCreateTag}>Criar</Button>
-                  <Button size="sm" variant="ghost" onClick={() => { setShowTagForm(false); setNewTagName(''); setNewTagIcon('Tag'); }}><X className="w-4 h-4" /></Button>
+                  <Button size="sm" variant="ghost" onClick={() => { setShowTagForm(false); setNewTagName(''); setNewTagIcon('Tag'); setNewTagColor('#6B7280'); }}><X className="w-4 h-4" /></Button>
                 </div>
               )}
               <div className="space-y-2">
                 {tags.map((tag) => (
                   <div key={tag.id} className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
-                    <IconPicker value={tag.icon || 'Tag'} onChange={(newIcon) => handleUpdateTag(tag, newIcon)} className="w-auto shrink-0" />
+                    <IconPicker value={tag.icon || 'Tag'} onChange={(newIcon) => handleUpdateTag(tag, { icon: newIcon })} className="w-auto shrink-0" />
+                    <input type="color" value={tag.color || '#6B7280'} onChange={(e) => handleUpdateTag(tag, { color: e.target.value })} className="w-8 h-8 rounded cursor-pointer border-0 p-0 shrink-0" title="Cor da tag" />
                     <button type="button" onClick={() => handleToggleTag(tag.id)} className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium text-left transition-all ${formData.selectedTags.includes(tag.id) ? 'bg-primary text-primary-foreground' : 'bg-background text-foreground hover:bg-muted'}`}>{tag.name}</button>
                     <button type="button" onClick={() => setDeleteTag(tag)} className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="w-4 h-4" /></button>
                   </div>

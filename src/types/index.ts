@@ -67,6 +67,7 @@ export interface Tag {
   name: string;
   slug: string;
   icon: string | null;
+  color: string;
   display_order: number;
   created_at: string;
 }
