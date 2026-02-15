@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useCreditsModals } from '@/contexts/CreditsModalContext';
 import { useCredits } from '@/hooks/useCredits';
+import { usePlanPermissions } from '@/hooks/usePlanPermissions';
 import { Agent, Tag as TagType } from '@/types';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -14,12 +15,14 @@ export default function Agents() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [tags, setTags] = useState<TagType[]>([]);
   const [agentTags, setAgentTags] = useState<Record<string, string[]>>({});
+  const [agentPlanAccess, setAgentPlanAccess] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTag, setActiveTag] = useState<string | null>(null);
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuth();
   const { balance } = useCredits();
+  const { userPlan } = usePlanPermissions();
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/login');
@@ -28,10 +31,11 @@ export default function Agents() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [agentsRes, tagsRes, agentTagsRes] = await Promise.all([
+        const [agentsRes, tagsRes, agentTagsRes, planAccessRes] = await Promise.all([
           supabase.from('agents_public').select('*').order('display_order'),
           supabase.from('tags').select('*').order('display_order'),
           supabase.from('agent_tags').select('*'),
+          supabase.from('agent_plan_access').select('agent_id, plan_type_id'),
         ]);
         if (agentsRes.error) { console.error(agentsRes.error); return; }
         setAgents(agentsRes.data as Agent[]);
@@ -42,6 +46,13 @@ export default function Agents() {
           tagsMap[at.agent_id].push(at.tag_id);
         });
         setAgentTags(tagsMap);
+        // Store plan access map
+        const accessMap: Record<string, string[]> = {};
+        (planAccessRes.data || []).forEach((pa: any) => {
+          if (!accessMap[pa.agent_id]) accessMap[pa.agent_id] = [];
+          accessMap[pa.agent_id].push(pa.plan_type_id);
+        });
+        setAgentPlanAccess(accessMap);
       } catch (error) { console.error(error); }
       finally { setLoading(false); }
     };
@@ -52,9 +63,12 @@ export default function Agents() {
 
   const handleAgentClick = async (agent: Agent) => {
     if (!user) return;
-    const userPlan = profile?.plan_type || 'none';
-    const agentAccess = (agent as any).plan_access || 'magnetic';
-    if (agentAccess === 'magnetic' && userPlan !== 'magnetic') { showUpsell(); return; }
+    // Check plan access using agent_plan_access table
+    const accessList = agentPlanAccess[agent.id];
+    if (accessList && accessList.length > 0 && userPlan) {
+      if (!accessList.includes(userPlan.id)) { showUpsell(); return; }
+    }
+    if (accessList && accessList.length > 0 && !userPlan) { showUpsell(); return; }
     try {
       const { data: conversation, error } = await supabase
         .from('conversations')
@@ -139,9 +153,8 @@ export default function Agents() {
                   className="relative bg-gradient-to-br from-muted/80 to-muted/30 border border-border/30 rounded-2xl p-4 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:border-primary/40 transition-all duration-200 group overflow-hidden text-left"
                 >
                   {(() => {
-                    const agentAccess = (agent as any).plan_access || 'magnetic';
-                    const userPlan = profile?.plan_type || 'none';
-                    const isLocked = agentAccess === 'magnetic' && userPlan !== 'magnetic';
+                    const accessList = agentPlanAccess[agent.id];
+                    const isLocked = accessList && accessList.length > 0 && (!userPlan || !accessList.includes(userPlan.id));
                     return isLocked ? (
                       <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-muted flex items-center justify-center">
                         <Lock className="w-3.5 h-3.5 text-muted-foreground" />

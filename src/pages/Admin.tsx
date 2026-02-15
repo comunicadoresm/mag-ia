@@ -18,6 +18,9 @@ import { AdminCreditsOverview } from '@/components/admin/AdminCreditsOverview';
 import { AdminUserCredits } from '@/components/admin/AdminUserCredits';
 import { AdminUpsellPlans } from '@/components/admin/AdminUpsellPlans';
 import { AdminMetricsDashboard } from '@/components/admin/AdminMetricsDashboard';
+import { AdminPlanTypes } from '@/components/admin/AdminPlanTypes';
+import { AdminCreditPackages } from '@/components/admin/AdminCreditPackages';
+import { Crown, Package } from 'lucide-react';
 
 const ADMIN_SECTIONS = [
   { id: 'dashboard', label: 'Dashboard', icon: BarChart3, group: 'Geral' },
@@ -25,9 +28,11 @@ const ADMIN_SECTIONS = [
   { id: 'templates', label: 'Templates', icon: LayoutGrid, group: 'Conteúdo' },
   { id: 'options', label: 'Opções de Roteiro', icon: Settings2, group: 'Conteúdo' },
   { id: 'users', label: 'Usuários', icon: Users, group: 'Gestão' },
+  { id: 'plan-types', label: 'Planos Principais', icon: Crown, group: 'Créditos' },
+  { id: 'credit-packages', label: 'Pacotes de Créditos', icon: Package, group: 'Créditos' },
   { id: 'credits-overview', label: 'Visão Geral', icon: Coins, group: 'Créditos' },
   { id: 'credits-users', label: 'Por Usuário', icon: Coins, group: 'Créditos' },
-  { id: 'plans', label: 'Planos & Upsell', icon: Settings, group: 'Créditos' },
+  { id: 'plans', label: 'Upsell (legado)', icon: Settings, group: 'Créditos' },
 ];
 
 const GROUPS = ['Geral', 'Conteúdo', 'Gestão', 'Créditos'];
@@ -175,6 +180,8 @@ export default function Admin() {
           {activeSection === 'templates' && <AdminAgentsSection section="templates" />}
           {activeSection === 'options' && <ScriptOptionsManagement />}
           {activeSection === 'users' && <UserManagement />}
+          {activeSection === 'plan-types' && <AdminPlanTypes />}
+          {activeSection === 'credit-packages' && <AdminCreditPackages />}
           {activeSection === 'credits-overview' && <AdminCreditsOverview />}
           {activeSection === 'credits-users' && <AdminUserCredits />}
           {activeSection === 'plans' && <AdminUpsellPlans />}

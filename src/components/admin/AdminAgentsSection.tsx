@@ -38,6 +38,13 @@ const AI_MODELS = [
   { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Rápido)', category: 'Gemini', provider: 'google' },
 ];
 
+interface PlanTypeOption {
+  id: string;
+  slug: string;
+  name: string;
+  display_order: number;
+}
+
 interface AgentFormData {
   name: string;
   slug: string;
@@ -55,25 +62,17 @@ interface AgentFormData {
   credit_cost: number;
   message_package_size: number;
   plan_access: string;
+  plan_access_all: boolean;
+  selectedPlanIds: string[];
 }
 
 const defaultFormData: AgentFormData = {
-  name: '',
-  slug: '',
-  description: '',
-  icon_emoji: '🤖',
-  system_prompt: '',
-  welcome_message: '',
-  model: 'claude-sonnet-4-20250514',
-  api_key: '',
-  is_active: true,
-  display_order: 0,
-  selectedTags: [],
-  ice_breakers: ['', '', ''],
-  billing_type: 'per_generation',
-  credit_cost: 1,
-  message_package_size: 5,
-  plan_access: 'magnetic',
+  name: '', slug: '', description: '', icon_emoji: '🤖',
+  system_prompt: '', welcome_message: '', model: 'claude-sonnet-4-20250514',
+  api_key: '', is_active: true, display_order: 0, selectedTags: [],
+  ice_breakers: ['', '', ''], billing_type: 'per_generation',
+  credit_cost: 1, message_package_size: 5, plan_access: 'magnetic',
+  plan_access_all: true, selectedPlanIds: [],
 };
 
 interface AdminAgentsSectionProps {
@@ -84,6 +83,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
   const [agents, setAgents] = useState<AdminAgent[]>([]);
   const [tags, setTags] = useState<Tag[]>([]);
   const [agentTags, setAgentTags] = useState<Record<string, string[]>>({});
+  const [planTypes, setPlanTypes] = useState<{ id: string; name: string; slug: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [showTagForm, setShowTagForm] = useState(false);
@@ -103,10 +103,11 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
     const fetchData = async () => {
       if (!user) return;
       try {
-        const [agentsRes, tagsRes, agentTagsRes] = await Promise.all([
+        const [agentsRes, tagsRes, agentTagsRes, planTypesRes] = await Promise.all([
           supabase.from('agents').select('*').order('display_order'),
           supabase.from('tags').select('*').order('display_order'),
           supabase.from('agent_tags').select('*'),
+          supabase.from('plan_types').select('id, name, slug').order('display_order'),
         ]);
 
         if (agentsRes.error) {
@@ -116,6 +117,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
 
         setAgents(agentsRes.data as AdminAgent[]);
         setTags((tagsRes.data || []) as Tag[]);
+        setPlanTypes((planTypesRes.data || []) as { id: string; name: string; slug: string }[]);
 
         const tagsMap: Record<string, string[]> = {};
         (agentTagsRes.data || []).forEach((at: any) => {
@@ -150,6 +152,13 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         ice_breakers: paddedIceBreakers, billing_type: (agent as any).billing_type || 'per_generation',
         credit_cost: (agent as any).credit_cost || 1, message_package_size: (agent as any).message_package_size || 5,
         plan_access: (agent as any).plan_access || 'magnetic',
+        plan_access_all: true, selectedPlanIds: [],
+      });
+      // Load agent_plan_access
+      supabase.from('agent_plan_access').select('plan_type_id').eq('agent_id', agent.id).then(({ data }) => {
+        if (data && data.length > 0) {
+          setFormData(prev => ({ ...prev, plan_access_all: false, selectedPlanIds: data.map(d => d.plan_type_id) }));
+        }
       });
     } else {
       setEditingAgent(null);
@@ -250,6 +259,15 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         await supabase.from('agent_tags').insert(formData.selectedTags.map((tagId) => ({ agent_id: agentId, tag_id: tagId })));
       }
       setAgentTags((prev) => ({ ...prev, [agentId]: formData.selectedTags }));
+
+      // Sync agent_plan_access
+      await supabase.from('agent_plan_access').delete().eq('agent_id', agentId);
+      if (!formData.plan_access_all && formData.selectedPlanIds.length > 0) {
+        await supabase.from('agent_plan_access').insert(
+          formData.selectedPlanIds.map(planId => ({ agent_id: agentId, plan_type_id: planId }))
+        );
+      }
+
       handleCloseForm();
     } catch (error) {
       toast({ title: 'Erro ao salvar', description: 'Não foi possível salvar o agente.', variant: 'destructive' });
@@ -476,16 +494,29 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
                 <Switch id="is_active" checked={formData.is_active} onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_active: checked }))} />
                 <Label htmlFor="is_active" className="font-normal cursor-pointer">Agente ativo</Label>
               </div>
-              <div className="flex items-center gap-3">
-                <Label htmlFor="plan_access" className="font-normal">Acesso por plano</Label>
-                <Select value={formData.plan_access} onValueChange={(value) => setFormData((prev) => ({ ...prev, plan_access: value }))}>
-                  <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Básico + Magnético</SelectItem>
-                    <SelectItem value="basic">Apenas Básico</SelectItem>
-                    <SelectItem value="magnetic">Apenas Magnético</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2">
+                <Label className="font-normal text-sm">Acesso por plano</Label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={formData.plan_access_all}
+                      onChange={e => setFormData(prev => ({ ...prev, plan_access_all: e.target.checked, selectedPlanIds: [] }))}
+                      className="rounded" />
+                    <span className="text-sm">Todos os planos (padrão)</span>
+                  </label>
+                  {!formData.plan_access_all && planTypes.map(pt => (
+                    <label key={pt.id} className="flex items-center gap-2 cursor-pointer ml-4">
+                      <input type="checkbox" checked={formData.selectedPlanIds.includes(pt.id)}
+                        onChange={() => setFormData(prev => ({
+                          ...prev,
+                          selectedPlanIds: prev.selectedPlanIds.includes(pt.id)
+                            ? prev.selectedPlanIds.filter(id => id !== pt.id)
+                            : [...prev.selectedPlanIds, pt.id],
+                        }))}
+                        className="rounded" />
+                      <span className="text-sm">{pt.name}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
