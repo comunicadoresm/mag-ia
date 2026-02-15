@@ -438,9 +438,12 @@ Deno.serve(async (req) => {
     // === DEFERRED per_output BILLING ===
     let creditsConsumed = 0;
     if (deferCharge) {
+      // Detect structured output - check for script markers with or without markdown formatting
+      const normalizedText = result.text.replace(/\*\*/g, "").replace(/##\s*/g, "");
       const hasOutputStructure =
-        result.text.includes("## 🎯 INÍCIO") || result.text.includes("## 📚 DESENVOLVIMENTO") ||
-        result.text.includes("🎬 ROTEIRO FINAL");
+        normalizedText.includes("🎯 INÍCIO") || normalizedText.includes("📚 DESENVOLVIMENTO") ||
+        normalizedText.includes("🎬 ROTEIRO FINAL") || normalizedText.includes("📍 DESENVOLVIMENTO") ||
+        normalizedText.includes("✅ FECHAMENTO");
 
       if (hasOutputStructure) {
         console.log(`Output detected in per_output mode. Charging ${creditCost} credits.`);
