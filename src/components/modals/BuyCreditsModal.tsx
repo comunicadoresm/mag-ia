@@ -1,11 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Coins, Star, Zap, Check, Loader2 } from 'lucide-react';
+import { Coins, Star, Zap, Check, Loader2, Crown } from 'lucide-react';
 import { useHotmartCheckout } from '@/hooks/useHotmartCheckout';
-import { useUpsellPlans } from '@/hooks/useUpsellPlans';
+import { usePlanPermissions } from '@/hooks/usePlanPermissions';
+import { supabase } from '@/integrations/supabase/client';
+
+interface CreditPackageData {
+  id: string;
+  name: string;
+  description: string | null;
+  credits_amount: number;
+  package_type: string;
+  price_brl: number;
+  price_label: string | null;
+  per_credit_label: string | null;
+  hotmart_url: string | null;
+  badge_text: string | null;
+}
 
 interface BuyCreditsModalProps {
   open: boolean;
@@ -16,7 +30,29 @@ interface BuyCreditsModalProps {
 export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: BuyCreditsModalProps) {
   const [selectedTab, setSelectedTab] = useState('subscriptions');
   const { openCheckout } = useHotmartCheckout();
-  const { subscriptions, packages, loading } = useUpsellPlans();
+  const { userPlan, upsellPlans } = usePlanPermissions();
+  const [packages, setPackages] = useState<CreditPackageData[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!open) return;
+    const fetchPackages = async () => {
+      setLoading(true);
+      const userOrder = userPlan?.display_order ?? 0;
+      const { data } = await supabase
+        .from('credit_packages')
+        .select('id, name, description, credits_amount, package_type, price_brl, price_label, per_credit_label, hotmart_url, badge_text')
+        .eq('is_active', true)
+        .lte('min_plan_order', userOrder)
+        .order('display_order');
+      if (data) setPackages(data as CreditPackageData[]);
+      setLoading(false);
+    };
+    fetchPackages();
+  }, [open, userPlan]);
+
+  const subscriptions = packages.filter(p => p.package_type === 'recurring');
+  const oneTime = packages.filter(p => p.package_type === 'one_time');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -25,12 +61,8 @@ export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: B
           <div className="mx-auto w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Coins className="w-7 h-7 text-primary" />
           </div>
-          <DialogTitle className="text-xl font-bold text-foreground">
-            Comprar Créditos
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground">
-            Escolha a melhor opção para você
-          </DialogDescription>
+          <DialogTitle className="text-xl font-bold text-foreground">Comprar Créditos</DialogTitle>
+          <DialogDescription className="text-muted-foreground">Escolha a melhor opção para você</DialogDescription>
         </DialogHeader>
 
         {loading ? (
@@ -43,11 +75,8 @@ export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: B
             </TabsList>
 
             <TabsContent value="subscriptions" className="space-y-3 mt-4">
-              {subscriptions.map((sub, idx) => (
-                <div
-                  key={sub.id}
-                  className={`card-cm p-4 relative ${sub.badge_text ? 'border-primary/60' : ''}`}
-                >
+              {subscriptions.map(sub => (
+                <div key={sub.id} className={`card-cm p-4 relative ${sub.badge_text ? 'border-primary/60' : ''}`}>
                   {sub.badge_text && (
                     <Badge className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-[10px]">
                       <Star className="w-3 h-3 mr-1" /> {sub.badge_text}
@@ -59,44 +88,27 @@ export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: B
                         <Zap className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <h4 className="font-semibold text-foreground">
-                          {sub.name}
-                          {sub.credits_label && <span className="text-muted-foreground font-normal">{sub.credits_label}</span>}
-                        </h4>
-                        {sub.per_credit_label && (
-                          <p className="text-xs text-muted-foreground">{sub.per_credit_label}</p>
-                        )}
+                        <h4 className="font-semibold text-foreground">{sub.name}</h4>
+                        {sub.per_credit_label && <p className="text-xs text-muted-foreground">{sub.per_credit_label}</p>}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-foreground">
-                        R${Number(sub.price_brl).toFixed(0)}
-                      </div>
-                      {sub.price_label && (
-                        <div className="text-xs text-muted-foreground">{sub.price_label}</div>
-                      )}
+                      <div className="text-lg font-bold text-foreground">R${Number(sub.price_brl).toFixed(0)}</div>
+                      {sub.price_label && <div className="text-xs text-muted-foreground">{sub.price_label}</div>}
                     </div>
                   </div>
-                  <Button
-                    className="w-full mt-3 btn-cm-primary"
-                    variant={sub.badge_text ? 'default' : 'outline'}
-                    onClick={() => openCheckout(sub.hotmart_url)}
-                  >
-                    {hasActiveSubscription ? 'Fazer Upgrade' : sub.button_text}
+                  <Button className="w-full mt-3 btn-cm-primary" variant={sub.badge_text ? 'default' : 'outline'}
+                    onClick={() => sub.hotmart_url && openCheckout(sub.hotmart_url)}>
+                    {hasActiveSubscription ? 'Fazer Upgrade' : 'Assinar'}
                   </Button>
                 </div>
               ))}
-              {subscriptions.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhuma assinatura disponível.</p>
-              )}
+              {subscriptions.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhuma assinatura disponível.</p>}
             </TabsContent>
 
             <TabsContent value="packages" className="space-y-3 mt-4">
-              {packages.map((pkg) => (
-                <div
-                  key={pkg.id}
-                  className={`card-cm p-4 relative ${pkg.badge_text ? 'border-primary/60' : ''}`}
-                >
+              {oneTime.map(pkg => (
+                <div key={pkg.id} className={`card-cm p-4 relative ${pkg.badge_text ? 'border-primary/60' : ''}`}>
                   {pkg.badge_text && (
                     <Badge className="absolute -top-2.5 right-4 bg-primary text-primary-foreground text-[10px]">
                       <Star className="w-3 h-3 mr-1" /> {pkg.badge_text}
@@ -109,33 +121,21 @@ export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: B
                       </div>
                       <div>
                         <h4 className="font-semibold text-foreground">{pkg.name}</h4>
-                        <p className="text-xs text-muted-foreground">
-                          {pkg.per_credit_label && `${pkg.per_credit_label} • `}Não expiram
-                        </p>
+                        <p className="text-xs text-muted-foreground">{pkg.per_credit_label && `${pkg.per_credit_label} • `}Não expiram</p>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-foreground">
-                        R${Number(pkg.price_brl).toFixed(2).replace('.', ',')}
-                      </div>
-                      {pkg.price_label && (
-                        <div className="text-xs text-muted-foreground">{pkg.price_label}</div>
-                      )}
+                      <div className="text-lg font-bold text-foreground">R${Number(pkg.price_brl).toFixed(2).replace('.', ',')}</div>
+                      {pkg.price_label && <div className="text-xs text-muted-foreground">{pkg.price_label}</div>}
                     </div>
                   </div>
-                  <Button
-                    className="w-full mt-3"
-                    variant={pkg.badge_text ? 'default' : 'outline'}
-                    onClick={() => openCheckout(pkg.hotmart_url)}
-                  >
-                    {pkg.button_text}
+                  <Button className="w-full mt-3" variant={pkg.badge_text ? 'default' : 'outline'}
+                    onClick={() => pkg.hotmart_url && openCheckout(pkg.hotmart_url)}>
+                    Comprar
                   </Button>
                 </div>
               ))}
-              {packages.length === 0 && (
-                <p className="text-sm text-muted-foreground text-center py-4">Nenhum pacote disponível.</p>
-              )}
-
+              {oneTime.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum pacote disponível.</p>}
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-2 px-1">
                 <Check className="w-3.5 h-3.5 text-primary" />
                 Créditos avulsos nunca expiram

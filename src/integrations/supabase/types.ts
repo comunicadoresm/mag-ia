@@ -103,6 +103,49 @@ export type Database = {
           },
         ]
       }
+      agent_plan_access: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          id: string
+          plan_type_id: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          id?: string
+          plan_type_id: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          id?: string
+          plan_type_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_plan_access_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_plan_access_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_plan_access_plan_type_id_fkey"
+            columns: ["plan_type_id"]
+            isOneToOne: false
+            referencedRelation: "plan_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_tags: {
         Row: {
           agent_id: string
@@ -263,6 +306,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      credit_packages: {
+        Row: {
+          badge_text: string | null
+          created_at: string | null
+          credits_amount: number
+          credits_expire_days: number | null
+          description: string | null
+          display_order: number | null
+          hotmart_product_id: string | null
+          hotmart_url: string | null
+          id: string
+          is_active: boolean | null
+          min_plan_order: number | null
+          name: string
+          package_type: string
+          per_credit_label: string | null
+          price_brl: number
+          price_label: string | null
+        }
+        Insert: {
+          badge_text?: string | null
+          created_at?: string | null
+          credits_amount: number
+          credits_expire_days?: number | null
+          description?: string | null
+          display_order?: number | null
+          hotmart_product_id?: string | null
+          hotmart_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_plan_order?: number | null
+          name: string
+          package_type: string
+          per_credit_label?: string | null
+          price_brl: number
+          price_label?: string | null
+        }
+        Update: {
+          badge_text?: string | null
+          created_at?: string | null
+          credits_amount?: number
+          credits_expire_days?: number | null
+          description?: string | null
+          display_order?: number | null
+          hotmart_product_id?: string | null
+          hotmart_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          min_plan_order?: number | null
+          name?: string
+          package_type?: string
+          per_credit_label?: string | null
+          price_brl?: number
+          price_label?: string | null
+        }
+        Relationships: []
       }
       credit_purchases: {
         Row: {
@@ -477,6 +577,116 @@ export type Database = {
           },
         ]
       }
+      plan_features: {
+        Row: {
+          created_at: string | null
+          feature_slug: string
+          id: string
+          is_enabled: boolean | null
+          plan_type_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          feature_slug: string
+          id?: string
+          is_enabled?: boolean | null
+          plan_type_id: string
+        }
+        Update: {
+          created_at?: string | null
+          feature_slug?: string
+          id?: string
+          is_enabled?: boolean | null
+          plan_type_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "plan_features_plan_type_id_fkey"
+            columns: ["plan_type_id"]
+            isOneToOne: false
+            referencedRelation: "plan_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plan_types: {
+        Row: {
+          ac_tag: string
+          can_buy_extra_credits: boolean | null
+          color: string | null
+          created_at: string | null
+          credits_expire_days: number | null
+          description: string | null
+          display_order: number | null
+          has_monthly_renewal: boolean | null
+          hotmart_product_id: string | null
+          icon: string | null
+          id: string
+          initial_credits: number | null
+          is_active: boolean | null
+          monthly_credits: number | null
+          name: string
+          show_as_upsell: boolean | null
+          slug: string
+          updated_at: string | null
+          upsell_badge_text: string | null
+          upsell_button_text: string | null
+          upsell_features: Json | null
+          upsell_hotmart_url: string | null
+          upsell_price_label: string | null
+        }
+        Insert: {
+          ac_tag: string
+          can_buy_extra_credits?: boolean | null
+          color?: string | null
+          created_at?: string | null
+          credits_expire_days?: number | null
+          description?: string | null
+          display_order?: number | null
+          has_monthly_renewal?: boolean | null
+          hotmart_product_id?: string | null
+          icon?: string | null
+          id?: string
+          initial_credits?: number | null
+          is_active?: boolean | null
+          monthly_credits?: number | null
+          name: string
+          show_as_upsell?: boolean | null
+          slug: string
+          updated_at?: string | null
+          upsell_badge_text?: string | null
+          upsell_button_text?: string | null
+          upsell_features?: Json | null
+          upsell_hotmart_url?: string | null
+          upsell_price_label?: string | null
+        }
+        Update: {
+          ac_tag?: string
+          can_buy_extra_credits?: boolean | null
+          color?: string | null
+          created_at?: string | null
+          credits_expire_days?: number | null
+          description?: string | null
+          display_order?: number | null
+          has_monthly_renewal?: boolean | null
+          hotmart_product_id?: string | null
+          icon?: string | null
+          id?: string
+          initial_credits?: number | null
+          is_active?: boolean | null
+          monthly_credits?: number | null
+          name?: string
+          show_as_upsell?: boolean | null
+          slug?: string
+          updated_at?: string | null
+          upsell_badge_text?: string | null
+          upsell_button_text?: string | null
+          upsell_features?: Json | null
+          upsell_hotmart_url?: string | null
+          upsell_price_label?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ac_tags: string[] | null
@@ -487,6 +697,7 @@ export type Database = {
           name: string | null
           plan_activated_at: string | null
           plan_type: string | null
+          plan_type_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -498,6 +709,7 @@ export type Database = {
           name?: string | null
           plan_activated_at?: string | null
           plan_type?: string | null
+          plan_type_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -509,9 +721,18 @@ export type Database = {
           name?: string | null
           plan_activated_at?: string | null
           plan_type?: string | null
+          plan_type_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_plan_type_id_fkey"
+            columns: ["plan_type_id"]
+            isOneToOne: false
+            referencedRelation: "plan_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       script_formats: {
         Row: {
@@ -764,6 +985,7 @@ export type Database = {
           cycle_start_date: string | null
           id: string
           plan_credits: number | null
+          plan_credits_expire_at: string | null
           subscription_credits: number | null
           updated_at: string | null
           user_id: string
@@ -775,6 +997,7 @@ export type Database = {
           cycle_start_date?: string | null
           id?: string
           plan_credits?: number | null
+          plan_credits_expire_at?: string | null
           subscription_credits?: number | null
           updated_at?: string | null
           user_id: string
@@ -786,6 +1009,7 @@ export type Database = {
           cycle_start_date?: string | null
           id?: string
           plan_credits?: number | null
+          plan_credits_expire_at?: string | null
           subscription_credits?: number | null
           updated_at?: string | null
           user_id?: string
@@ -973,6 +1197,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      webhook_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string | null
+          id: string
+          payload: Json | null
+          source: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json | null
+          source?: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string | null
+          id?: string
+          payload?: Json | null
+          source?: string
+          status?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {

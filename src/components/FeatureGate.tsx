@@ -8,24 +8,43 @@ interface FeatureGateProps {
   feature: FeatureFlag;
   fallback?: React.ReactNode;
   children: React.ReactNode;
-  /** If true, allows basic plan users with remaining credits */
   allowWithCredits?: boolean;
 }
 
 export function FeatureGate({ feature, fallback, children, allowWithCredits = true }: FeatureGateProps) {
-  const { hasFeature } = usePlanPermissions();
+  const { hasFeature, canBuyCredits, hasMonthlyRenewal } = usePlanPermissions();
   const { balance } = useCredits();
-  const { showUpsell } = useCreditsModals();
+  const { showUpsell, showBuyCredits } = useCreditsModals();
 
-  const hasAccess = hasFeature(feature) || (allowWithCredits && balance.total > 0);
+  const featureEnabled = hasFeature(feature);
+  const hasCredits = balance.total > 0;
 
-  if (hasAccess) {
+  // Feature enabled + (has monthly renewal OR has credits)
+  const hasAccess = featureEnabled && (hasMonthlyRenewal || hasCredits || !allowWithCredits);
+
+  if (hasAccess || (featureEnabled && allowWithCredits && hasCredits)) {
     return <>{children}</>;
   }
 
-  // Show everything but intercept click with upgrade modal
+  // Intercept click
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!featureEnabled) {
+      // Feature not in plan → show upgrade
+      showUpsell();
+    } else if (!hasCredits) {
+      // Feature in plan but no credits
+      if (canBuyCredits) {
+        showBuyCredits();
+      } else {
+        showUpsell();
+      }
+    }
+  };
+
   return (
-    <div onClick={(e) => { e.preventDefault(); e.stopPropagation(); showUpsell(); }} className="cursor-pointer">
+    <div onClick={handleClick} className="cursor-pointer">
       {children}
     </div>
   );
