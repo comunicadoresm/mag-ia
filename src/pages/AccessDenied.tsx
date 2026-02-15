@@ -1,15 +1,40 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, MessageCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, MessageCircle, Sparkles } from 'lucide-react';
 import { Logo } from '@/components/Logo';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function AccessDenied() {
   const navigate = useNavigate();
+  const [memberUrl, setMemberUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Fetch the lowest plan's upsell_hotmart_url to use as "Se Torne Membro" link
+    const fetchMemberUrl = async () => {
+      const { data } = await supabase
+        .from('plan_types')
+        .select('upsell_hotmart_url')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      if (data?.upsell_hotmart_url) {
+        setMemberUrl(data.upsell_hotmart_url);
+      }
+    };
+    fetchMemberUrl();
+  }, []);
 
   const handleSupport = () => {
-    // Abre WhatsApp ou link de suporte
     window.open('https://wa.me/5511999999999?text=Olá! Preciso de ajuda para acessar o CM Chat.', '_blank');
+  };
+
+  const handleBecomeMember = () => {
+    if (memberUrl) {
+      window.open(memberUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   return (
@@ -37,9 +62,20 @@ export default function AccessDenied() {
 
         {/* Actions */}
         <div className="space-y-3">
+          {memberUrl && (
+            <Button
+              onClick={handleBecomeMember}
+              className="w-full h-14 gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+            >
+              <Sparkles className="w-5 h-5" />
+              Se Torne Membro
+            </Button>
+          )}
+
           <Button
             onClick={() => navigate('/login')}
-            className="w-full btn-cm-primary h-14 gap-2"
+            variant={memberUrl ? 'outline' : 'default'}
+            className={`w-full h-14 gap-2 ${!memberUrl ? 'btn-cm-primary' : 'border-accent/20 text-foreground hover:bg-muted'}`}
           >
             <ArrowLeft className="w-5 h-5" />
             Tentar outro email
