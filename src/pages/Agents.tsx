@@ -127,18 +127,34 @@ export default function Agents() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {filteredAgents.map((agent) => (
-                <button key={agent.id} onClick={() => handleAgentClick(agent)} className="card-cm-interactive p-5 text-left group">
-                  <div className="flex items-start gap-4 mb-4">
-                    <div className="icon-circle text-2xl shrink-0">{agent.icon_emoji || '🤖'}</div>
-                    <div className="min-w-0 flex-1"><h3 className="font-bold text-foreground text-lg group-hover:text-primary transition-colors">{agent.name}</h3></div>
+                <button
+                  key={agent.id}
+                  onClick={() => handleAgentClick(agent)}
+                  className="relative bg-gradient-to-br from-primary/20 to-primary/5 border border-border/30 rounded-2xl p-4 cursor-pointer hover:scale-[1.02] hover:shadow-lg transition-all duration-200 group overflow-hidden text-left"
+                >
+                  <div className="flex items-start gap-3 mb-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-2xl shrink-0">
+                      {agent.icon_emoji || '🤖'}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-bold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                        {agent.name}
+                      </h4>
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-4">{agent.description || 'Sem descrição'}</p>
-                  <div className="flex flex-wrap gap-2">
+                  <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{agent.description || 'Sem descrição'}</p>
+                  <div className="flex flex-wrap gap-1.5">
                     {agentTags[agent.id]?.map((tagId) => {
                       const tag = tags.find((t) => t.id === tagId);
-                      return tag ? <span key={tagId} className="text-xs px-3 py-1 rounded-full border border-primary/40 text-primary font-medium">{tag.name}</span> : null;
+                      return tag ? (
+                        <span key={tagId} className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide bg-primary text-primary-foreground">
+                          {tag.name}
+                        </span>
+                      ) : null;
                     })}
-                    {(!agentTags[agent.id] || agentTags[agent.id].length === 0) && <span className="text-xs px-3 py-1 rounded-full border border-primary/40 text-primary font-medium">IA</span>}
+                    {(!agentTags[agent.id] || agentTags[agent.id].length === 0) && (
+                      <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide bg-primary text-primary-foreground">IA</span>
+                    )}
                   </div>
                 </button>
               ))}
