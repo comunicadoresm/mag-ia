@@ -48,6 +48,7 @@ export default function UserManagement() {
   const [deleting, setDeleting] = useState(false);
   const [editUser, setEditUser] = useState<Profile | null>(null);
   const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editPlan, setEditPlan] = useState('none');
   const [saving, setSaving] = useState(false);
 
@@ -269,6 +270,7 @@ export default function UserManagement() {
                       onClick={() => {
                         setEditUser(user);
                         setEditName(user.name || '');
+                        setEditEmail(user.email || '');
                         setEditPlan(user.plan_type || 'none');
                       }}
                       className="text-muted-foreground hover:text-foreground"
@@ -396,6 +398,15 @@ export default function UserManagement() {
               />
             </div>
             <div className="space-y-2">
+              <label className="text-sm font-medium">E-mail</label>
+              <Input
+                type="email"
+                placeholder="usuario@email.com"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
               <label className="text-sm font-medium">Plano</label>
               <Select value={editPlan} onValueChange={setEditPlan}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -413,17 +424,27 @@ export default function UserManagement() {
               if (!editUser) return;
               setSaving(true);
               try {
+                // Check if email changed
+                const emailChanged = editEmail.toLowerCase().trim() !== editUser.email?.toLowerCase();
+                if (emailChanged) {
+                  const { data, error } = await supabase.functions.invoke('admin-update-email', {
+                    body: { userId: editUser.id, newEmail: editEmail.toLowerCase().trim() },
+                  });
+                  if (error) throw error;
+                  if (data?.error) throw new Error(data.error);
+                }
+                // Update name and plan
                 const { error } = await supabase
                   .from('profiles')
                   .update({ name: editName.trim() || null, plan_type: editPlan })
                   .eq('id', editUser.id);
                 if (error) throw error;
-                toast({ title: 'Usuário atualizado', description: `${editUser.email} foi atualizado.` });
+                toast({ title: 'Usuário atualizado', description: `${editEmail} foi atualizado.` });
                 setEditUser(null);
                 await fetchUsers();
               } catch (error) {
                 console.error(error);
-                toast({ title: 'Erro ao atualizar', variant: 'destructive' });
+                toast({ title: 'Erro ao atualizar', description: error instanceof Error ? error.message : 'Erro desconhecido', variant: 'destructive' });
               } finally {
                 setSaving(false);
               }

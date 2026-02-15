@@ -314,14 +314,15 @@ Deno.serve(async (req) => {
         .eq("conversation_id", conversation_id)
         .eq("role", "user");
 
-      // messageCount = messages already saved. Current message adds +1, so effective = count + 1
-      const effectiveCount = (count || 0) + 1;
-      // Charge on every Nth message (1st charge at message N, then 2N, etc.)
-      if (effectiveCount % packageSize !== 0) {
+      // messageIndex = current message number (1-based)
+      const messageIndex = (count || 0) + 1;
+      // Charge on 1st message, then every packageSize messages after that (1, 6, 11, 16... for packageSize=5)
+      const shouldChargeMessage = (messageIndex === 1) || ((messageIndex - 1) % packageSize === 0);
+      if (!shouldChargeMessage) {
         shouldCharge = false;
-        console.log(`Message ${effectiveCount}/${packageSize} - not a billing point. Skipping charge.`);
+        console.log(`Message ${messageIndex} - not a billing point (next at ${messageIndex + (packageSize - ((messageIndex - 1) % packageSize))}). Skipping charge.`);
       } else {
-        console.log(`Message ${effectiveCount}/${packageSize} - billing point! Charging ${creditCost} credits.`);
+        console.log(`Message ${messageIndex} - billing point! Charging ${creditCost} credits.`);
       }
     }
     // per_messages (default): charge based on message count above

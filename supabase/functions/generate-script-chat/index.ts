@@ -247,10 +247,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // === CREDIT CONSUMPTION: only when script is generated (detected AFTER AI response) ===
-    // Credits are NOT charged per message. They are charged below, after AI responds, 
-    // only if the response contains a generated script (## 🎯 INÍCIO markers).
-    console.log(`Script chat: per-output billing. Credits charged only when script is generated.`);
+    // === CREDIT CONSUMPTION: moved to frontend (AIScriptChat) ===
+    // Credits are NOT charged here. The frontend calls consume-credits separately
+    // when the user clicks "Aplicar Roteiro" or "Aplicar Ajuste".
+    console.log(`Script chat: credits handled by frontend on approval.`);
 
     const objectiveMap: Record<string, string> = {
       attraction: "Atração",
@@ -443,53 +443,10 @@ Após entregar, pergunte se quer ajustar algo.`;
       scriptContent = parseScriptContent(aiResponse, structure);
     }
 
-    // === CHARGE CREDITS ONLY WHEN SCRIPT IS GENERATED ===
-    let creditsConsumed = 0;
-    let balanceAfter = null;
-    if (hasScriptStructure && action !== "start") {
-      // Determine cost: check if this is a first generation or adjustment
-      // We pass this info from the frontend via the request, or default to agent credit_cost
-      const creditCost = agent.credit_cost || 3;
-
-      const { data: credits } = await supabaseClient
-        .from("user_credits")
-        .select("*")
-        .eq("user_id", user.id)
-        .single();
-
-      if (credits) {
-        const totalBalance = (credits.plan_credits || 0) + (credits.subscription_credits || 0) + (credits.bonus_credits || 0);
-        
-        if (totalBalance < creditCost) {
-          // Return the script but warn about insufficient credits
-          console.log(`Script generated but insufficient credits (${totalBalance} < ${creditCost}). Returning script without charging.`);
-        } else {
-          // Debit in priority order: plan → subscription → bonus
-          let remaining = creditCost;
-          let newPlan = credits.plan_credits || 0;
-          let newSub = credits.subscription_credits || 0;
-          let newBonus = credits.bonus_credits || 0;
-
-          if (remaining > 0 && newPlan > 0) { const d = Math.min(remaining, newPlan); newPlan -= d; remaining -= d; }
-          if (remaining > 0 && newSub > 0) { const d = Math.min(remaining, newSub); newSub -= d; remaining -= d; }
-          if (remaining > 0 && newBonus > 0) { const d = Math.min(remaining, newBonus); newBonus -= d; remaining -= d; }
-
-          await supabaseClient.from("user_credits").update({ plan_credits: newPlan, subscription_credits: newSub, bonus_credits: newBonus }).eq("user_id", user.id);
-          await supabaseClient.from("credit_transactions").insert({
-            user_id: user.id, type: "consumption", amount: -creditCost, source: "script_generation",
-            balance_after: newPlan + newSub + newBonus,
-            metadata: { agent_id },
-          });
-          creditsConsumed = creditCost;
-          balanceAfter = { plan: newPlan, subscription: newSub, bonus: newBonus, total: newPlan + newSub + newBonus };
-          console.log(`Script generated! Credits consumed: ${creditCost}, remaining: ${newPlan + newSub + newBonus}`);
-        }
-      }
-    }
-    // === END CREDIT CONSUMPTION ===
+    // === CREDITS NOT CHARGED HERE — handled by frontend on approval ===
 
     return new Response(
-      JSON.stringify({ message: aiResponse, script_content: scriptContent, credits_consumed: creditsConsumed, balance: balanceAfter }),
+      JSON.stringify({ message: aiResponse, script_content: scriptContent }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

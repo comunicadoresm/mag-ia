@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Coins, Star, Zap, Check, Loader2, Crown } from 'lucide-react';
+import { Coins, Star, Zap, Check, Loader2, CreditCard } from 'lucide-react';
 import { useHotmartCheckout } from '@/hooks/useHotmartCheckout';
 import { usePlanPermissions } from '@/hooks/usePlanPermissions';
+import { useCreditsModals } from '@/contexts/CreditsModalContext';
 import { supabase } from '@/integrations/supabase/client';
 
 interface CreditPackageData {
@@ -30,7 +31,8 @@ interface BuyCreditsModalProps {
 export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: BuyCreditsModalProps) {
   const [selectedTab, setSelectedTab] = useState('subscriptions');
   const { openCheckout } = useHotmartCheckout();
-  const { userPlan, upsellPlans } = usePlanPermissions();
+  const { userPlan, canBuyCredits, upsellPlans } = usePlanPermissions();
+  const { showUpsell } = useCreditsModals();
   const [packages, setPackages] = useState<CreditPackageData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,6 +52,39 @@ export function BuyCreditsModal({ open, onOpenChange, hasActiveSubscription }: B
     };
     fetchPackages();
   }, [open, userPlan]);
+
+  // If plan doesn't allow buying credits, show upgrade message
+  if (!canBuyCredits) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md bg-card border-border">
+          <DialogHeader className="text-center space-y-2">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-muted flex items-center justify-center">
+              <CreditCard className="w-7 h-7 text-muted-foreground" />
+            </div>
+            <DialogTitle className="text-xl font-bold text-foreground">Créditos Extras</DialogTitle>
+          </DialogHeader>
+          <div className="text-center py-6 space-y-4">
+            <p className="text-muted-foreground">
+              Seu plano atual não inclui a compra de créditos extras.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Faça upgrade para desbloquear a compra de créditos adicionais.
+            </p>
+            <Button
+              className="w-full"
+              onClick={() => {
+                onOpenChange(false);
+                showUpsell();
+              }}
+            >
+              Ver opções de upgrade
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   const subscriptions = packages.filter(p => p.package_type === 'recurring');
   const oneTime = packages.filter(p => p.package_type === 'one_time');

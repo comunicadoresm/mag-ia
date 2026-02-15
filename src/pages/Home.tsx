@@ -67,7 +67,7 @@ function usePhotoUpload(userId: string | undefined) {
 }
 
 // ─── Initial Setup Modal ─────────────────────────────────────
-function InitialSetupModal({ open, onSubmit, userName, userId }: { open: boolean; onSubmit: (data: any) => void; userName: string; userId: string }) {
+function InitialSetupModal({ open, onSubmit, onSkip, userName, userId }: { open: boolean; onSubmit: (data: any) => void; onSkip: () => void; userName: string; userId: string }) {
   const [form, setForm] = useState({ name: userName || '', handle: '', profile_photo_url: '', current_followers: 0, current_revenue: 0, current_clients: 0 });
   const [step, setStep] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -121,6 +121,7 @@ function InitialSetupModal({ open, onSubmit, userName, userId }: { open: boolean
               <Input value={form.handle} onChange={(e) => setForm(p => ({ ...p, handle: e.target.value }))} placeholder="@seuarroba" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
             </div>
             <Button onClick={() => { if (form.name.trim()) setStep(1); }} disabled={!form.name.trim()} className="w-full rounded-xl">Próximo</Button>
+            <Button variant="ghost" onClick={onSkip} className="w-full rounded-xl text-muted-foreground">Configurar Depois</Button>
           </div>
         ) : (
           <div className="space-y-4 px-6 pb-6 pt-2">
@@ -137,9 +138,12 @@ function InitialSetupModal({ open, onSubmit, userName, userId }: { open: boolean
               <Label className="text-sm text-muted-foreground">Clientes atuais</Label>
               <NumericInput value={form.current_clients} onChange={(v) => setForm(p => ({ ...p, current_clients: v }))} placeholder="0" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
             </div>
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep(0)} className="flex-1 rounded-xl">Voltar</Button>
-              <Button onClick={handleSubmit} className="flex-1 rounded-xl">Salvar e começar</Button>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-3">
+                <Button variant="outline" onClick={() => setStep(0)} className="flex-1 rounded-xl">Voltar</Button>
+                <Button onClick={handleSubmit} className="flex-1 rounded-xl">Salvar e começar</Button>
+              </div>
+              <Button variant="ghost" onClick={onSkip} className="w-full rounded-xl text-muted-foreground">Configurar Depois</Button>
             </div>
           </div>
         )}
@@ -222,6 +226,12 @@ export default function Home() {
   const { upload, uploading } = usePhotoUpload(user?.id);
 
   const needsSetup = !isLoading && (!metrics?.initial_setup_done || profile?.has_completed_setup === false);
+  const [showSetupModal, setShowSetupModal] = useState(true);
+
+  const handleSkipSetup = () => {
+    setShowSetupModal(false);
+    toast.info("Você pode configurar seu perfil a qualquer momento no menu Perfil.");
+  };
 
   const handleInitialSetup = async (data: any) => {
     // Remove fields that don't exist in user_metrics table
@@ -354,7 +364,7 @@ export default function Home() {
         )}
       </div>
 
-      {needsSetup && <InitialSetupModal open onSubmit={handleInitialSetup} userName={profile?.name || ''} userId={user.id} />}
+      {needsSetup && showSetupModal && <InitialSetupModal open onSubmit={handleInitialSetup} onSkip={handleSkipSetup} userName={profile?.name || ''} userId={user.id} />}
       {updateModalOpen && m && (
         <UpdateMetricsModal open={updateModalOpen} onClose={() => setUpdateModalOpen(false)}
           currentValues={{ followers: m.current_followers, revenue: Number(m.current_revenue), clients: m.current_clients }}

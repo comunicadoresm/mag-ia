@@ -13,6 +13,7 @@ import { Agent } from '@/types';
 import { UserScript, ScriptStructure } from '@/types/kanban';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCredits } from '@/hooks/useCredits';
 import { useCreditsModals } from '@/contexts/CreditsModalContext';
 import { cn } from '@/lib/utils';
 
@@ -44,7 +45,8 @@ export function AIScriptChat({
   onConversationCreated,
 }: AIScriptChatProps) {
   const { toast } = useToast();
-  const { showUpsell } = useCreditsModals();
+  const { balance, refreshBalance } = useCredits();
+  const { showBuyCredits } = useCreditsModals();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +55,11 @@ export function AIScriptChat({
   const [hasLoaded, setHasLoaded] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Determine mode: generation (empty script_content) vs adjustment (has content)
+  const isAdjustment = script.script_content && Object.keys(script.script_content as Record<string, unknown>).length > 0;
+  const creditCost = isAdjustment ? 1 : 3;
+  const mode = isAdjustment ? 'adjustment' : 'generation';
 
   // Load existing conversation messages when opened
   useEffect(() => {
@@ -89,7 +96,6 @@ export function AIScriptChat({
       const existingConvId = script.conversation_id;
 
       if (existingConvId) {
-        // Load existing messages
         const { data: dbMessages, error } = await supabase
           .from('messages')
           .select('id, role, content')
@@ -109,7 +115,6 @@ export function AIScriptChat({
         }
       }
 
-      // No existing conversation — initialize with AI
       await initializeChat();
     } catch (error) {
       console.error('Error loading conversation:', error);
@@ -139,7 +144,6 @@ export function AIScriptChat({
 
       const convId = data.id;
 
-      // Link conversation to script
       await supabase
         .from('user_scripts')
         .update({ conversation_id: convId })
@@ -197,7 +201,6 @@ export function AIScriptChat({
         };
         setMessages([assistantMsg]);
 
-        // Create conversation and save the first message
         const convId = await createConversation();
         if (convId) {
           await saveMessage(convId, 'assistant', data.message);
@@ -235,7 +238,6 @@ export function AIScriptChat({
     setInput('');
     setIsLoading(true);
 
-    // Save user message
     let activeConvId = conversationId;
     if (!activeConvId) {
       activeConvId = await createConversation();
@@ -267,17 +269,7 @@ export function AIScriptChat({
         },
       });
 
-      if (error) {
-        const errorBody = typeof error === 'object' && error !== null ? (error as any) : null;
-        const errorMessage = errorBody?.context?.body ? (() => { try { return JSON.parse(errorBody.context.body); } catch { return null; } })() : null;
-        if (errorMessage?.error === 'insufficient_credits') {
-          showUpsell();
-          toast({ title: 'Créditos insuficientes', description: errorMessage.message || 'Seus créditos acabaram!', variant: 'destructive' });
-          setIsLoading(false);
-          return;
-        }
-        throw error;
-      }
+      if (error) throw error;
 
       if (data?.message) {
         const assistantMsg: Message = {
@@ -287,7 +279,6 @@ export function AIScriptChat({
         };
         setMessages(prev => [...prev, assistantMsg]);
 
-        // Save assistant message
         if (activeConvId) {
           await saveMessage(activeConvId, 'assistant', data.message);
         }
@@ -320,11 +311,47 @@ export function AIScriptChat({
   const handleApplyScript = async () => {
     if (!generatedContent) return;
 
-    // Credits are already consumed by the edge function when the script was generated
-    // Just apply the content to the card
+    // Check credits before applying
+    if (balance.total < creditCost) {
+      showBuyCredits();
+      toast({
+        title: 'Créditos insuficientes',
+        description: `Você precisa de ${creditCost} crédito(s) para ${isAdjustment ? 'aplicar o ajuste' : 'aplicar o roteiro'}.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Consume credits via edge function
+    try {
+      const { data, error } = await supabase.functions.invoke('consume-credits', {
+        body: {
+          action: isAdjustment ? 'script_adjustment' : 'script_generation',
+          metadata: { script_id: script.id, mode },
+        },
+      });
+
+      if (error || !data?.success) {
+        showBuyCredits();
+        toast({
+          title: 'Créditos insuficientes',
+          description: data?.message || 'Seus créditos acabaram!',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Refresh balance after consumption
+      refreshBalance();
+    } catch (err) {
+      console.error('Error consuming credits:', err);
+      toast({ title: 'Erro ao debitar créditos', variant: 'destructive' });
+      return;
+    }
+
     onScriptGenerated(generatedContent);
     onClose();
-    toast({ title: 'Roteiro aplicado com sucesso!' });
+    toast({ title: isAdjustment ? 'Ajuste aplicado com sucesso!' : 'Roteiro aplicado com sucesso!' });
   };
 
   return (
@@ -344,7 +371,7 @@ export function AIScriptChat({
                 {agent?.name || 'Assistente de Roteiros'}
               </span>
               <p className="text-xs text-muted-foreground font-normal">
-                Gerando: {script.title}
+                {isAdjustment ? 'Ajustando' : 'Gerando'}: {script.title}
               </p>
             </div>
           </DialogTitle>
@@ -387,14 +414,21 @@ export function AIScriptChat({
               <div className="bg-success/10 border border-success/30 rounded-xl p-4 mt-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Check className="w-5 h-5 text-success" />
-                  <span className="font-semibold text-success">Roteiro Gerado!</span>
+                  <span className="font-semibold text-success">
+                    {isAdjustment ? 'Ajuste Gerado!' : 'Roteiro Gerado!'}
+                  </span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-4">
-                  O roteiro foi criado com base na nossa conversa. Clique em "Aplicar" para preencher os campos automaticamente.
+                <p className="text-sm text-muted-foreground mb-1">
+                  {isAdjustment
+                    ? 'O ajuste foi criado. Clique em "Aplicar Ajuste" para atualizar o roteiro.'
+                    : 'O roteiro foi criado com base na nossa conversa. Clique em "Aplicar Roteiro" para preencher os campos automaticamente.'}
+                </p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  Custo: {creditCost} crédito{creditCost > 1 ? 's' : ''}
                 </p>
                 <Button onClick={handleApplyScript} className="w-full gap-2">
                   <Check className="w-4 h-4" />
-                  Aplicar Roteiro
+                  {isAdjustment ? 'Aplicar Ajuste' : 'Aplicar Roteiro'}
                 </Button>
               </div>
             )}
@@ -426,7 +460,9 @@ export function AIScriptChat({
             </Button>
           </div>
           <p className="text-xs text-muted-foreground mt-2 text-center">
-            Responda as perguntas para gerar seu roteiro personalizado
+            {isAdjustment
+              ? 'Descreva os ajustes que deseja no roteiro'
+              : 'Responda as perguntas para gerar seu roteiro personalizado'}
           </p>
         </div>
       </DialogContent>
