@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Search, LayoutGrid, BookOpen, Users, Tag, Lock } from 'lucide-react';
-import { Logo } from '@/components/Logo';
-import { BottomNavigation } from '@/components/BottomNavigation';
-import { MainSidebar } from '@/components/MainSidebar';
+import { Loader2, Search, Bot, Lock } from 'lucide-react';
+import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useCreditsModals } from '@/contexts/CreditsModalContext';
@@ -44,11 +42,8 @@ export default function Agents() {
           tagsMap[at.agent_id].push(at.tag_id);
         });
         setAgentTags(tagsMap);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
+      } catch (error) { console.error(error); }
+      finally { setLoading(false); }
     };
     if (user) fetchData();
   }, [user]);
@@ -57,16 +52,9 @@ export default function Agents() {
 
   const handleAgentClick = async (agent: Agent) => {
     if (!user) return;
-
     const userPlan = profile?.plan_type || 'none';
     const agentAccess = (agent as any).plan_access || 'magnetic';
-
-    // If agent requires magnetic and user is not magnetic, show upsell
-    if (agentAccess === 'magnetic' && userPlan !== 'magnetic') {
-      showUpsell();
-      return;
-    }
-
+    if (agentAccess === 'magnetic' && userPlan !== 'magnetic') { showUpsell(); return; }
     try {
       const { data: conversation, error } = await supabase
         .from('conversations')
@@ -99,27 +87,45 @@ export default function Agents() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <MainSidebar tags={visibleTags} activeTag={activeTag} onTagChange={setActiveTag} showTagFilter={true} />
-      <main className="md:ml-64 min-h-screen pb-24 md:pb-8">
-        <header className="md:hidden p-4 border-b border-border"><Logo size="sm" /></header>
-        <div className="md:hidden px-4 py-3 border-b border-border overflow-x-auto">
-          <div className="flex gap-2">
-            <button onClick={() => setActiveTag(null)} className={cn("px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors", activeTag === null ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>Todos</button>
-            {visibleTags.map((tag) => (
-              <button key={tag.id} onClick={() => setActiveTag(tag.id)} className={cn("px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors", activeTag === tag.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{tag.name}</button>
-            ))}
+    <AppLayout tags={visibleTags} activeTag={activeTag} onTagChange={setActiveTag} showTagFilter>
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border/50">
+        <div className="flex items-center gap-4 px-4 py-4 max-w-[1600px] mx-auto">
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+              <Bot className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-foreground">I.A's Magnéticas</h1>
+              <p className="text-xs text-muted-foreground">Escolha um agente para conversar</p>
+            </div>
           </div>
         </div>
-        <div className="p-4 md:p-8">
-          <div className="mb-8">
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground mb-6">I.A's Magnéticas</h1>
+      </header>
+
+      {/* Mobile tag filter */}
+      <div className="md:hidden px-4 py-3 border-b border-border overflow-x-auto">
+        <div className="flex gap-2">
+          <button onClick={() => setActiveTag(null)} className={cn("px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors", activeTag === null ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>Todos</button>
+          {visibleTags.map((tag) => (
+            <button key={tag.id} onClick={() => setActiveTag(tag.id)} className={cn("px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors", activeTag === tag.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground")}>{tag.name}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
+        <div className="max-w-[1600px] mx-auto">
+          {/* Search */}
+          <div className="mb-6">
             <div className="relative max-w-2xl">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input placeholder="Buscar por nome ou descrição do agente..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-10 bg-muted border-border" />
             </div>
           </div>
+
           <h2 className="text-lg font-semibold text-foreground mb-4">{getTitle()}</h2>
+
           {loading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>
           ) : filteredAgents.length === 0 ? (
@@ -132,7 +138,6 @@ export default function Agents() {
                   onClick={() => handleAgentClick(agent)}
                   className="relative bg-gradient-to-br from-muted/80 to-muted/30 border border-border/30 rounded-2xl p-4 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:border-primary/40 transition-all duration-200 group overflow-hidden text-left"
                 >
-                  {/* Lock icon for restricted agents */}
                   {(() => {
                     const agentAccess = (agent as any).plan_access || 'magnetic';
                     const userPlan = profile?.plan_type || 'none';
@@ -157,11 +162,7 @@ export default function Agents() {
                       const tag = tags.find((t) => t.id === tagId);
                       if (!tag) return null;
                       return (
-                        <span
-                          key={tagId}
-                          className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide text-white"
-                          style={{ backgroundColor: tag.color || '#6B7280' }}
-                        >
+                        <span key={tagId} className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide text-white" style={{ backgroundColor: tag.color || '#6B7280' }}>
                           {tag.name}
                         </span>
                       );
@@ -175,8 +176,7 @@ export default function Agents() {
             </div>
           )}
         </div>
-      </main>
-      <BottomNavigation />
-    </div>
+      </div>
+    </AppLayout>
   );
 }

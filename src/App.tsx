@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { CreditsModalProvider } from "./contexts/CreditsModalContext";
+import { SidebarProvider } from "./contexts/SidebarContext";
 
 // Pages
 import Login from "./pages/Login";
@@ -53,7 +54,9 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <CreditsModalProvider>
-            <AppRoutes />
+            <SidebarProvider>
+              <AppRoutes />
+            </SidebarProvider>
           </CreditsModalProvider>
         </AuthProvider>
       </BrowserRouter>
