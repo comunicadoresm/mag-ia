@@ -17,7 +17,6 @@ interface ConsumeRequest {
   };
 }
 
-// Default costs per action
 const DEFAULT_COSTS: Record<string, number> = {
   script_generation: 3,
   script_adjustment: 1,
@@ -43,7 +42,6 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify user
     const { data: { user }, error: authError } = await supabase.auth.getUser(
       authHeader.replace("Bearer ", "")
     );
@@ -58,49 +56,39 @@ Deno.serve(async (req) => {
     const { action, metadata }: ConsumeRequest = await req.json();
     console.log(`Consume credits: user=${user.id}, action=${action}`);
 
-    // Determine cost - use agent-specific cost if provided, otherwise default
     const cost = metadata?.credit_cost || DEFAULT_COSTS[action] || 1;
 
     // For chat_messages, check if we need to bill based on message count
     if (action === "chat_messages" && metadata?.conversation_id) {
       const packageSize = metadata?.message_package_size || 5;
-
-      // Count user messages in this conversation
-      const { count, error: countError } = await supabase
+      const { count } = await supabase
         .from("messages")
         .select("*", { count: "exact", head: true })
         .eq("conversation_id", metadata.conversation_id)
         .eq("role", "user");
 
-      if (countError) {
-        console.error("Error counting messages:", countError);
-      } else {
-        const messageCount = count || 0;
-        // Only charge on every Nth message (package size)
-        if (messageCount > 0 && messageCount % packageSize !== 0) {
-          console.log(`Message ${messageCount} - not a billing point (every ${packageSize}). Skipping charge.`);
+      const messageCount = count || 0;
+      if (messageCount > 0 && messageCount % packageSize !== 0) {
+        console.log(`Message ${messageCount} - not a billing point (every ${packageSize}). Skipping charge.`);
+        const { data: credits } = await supabase
+          .from("user_credits")
+          .select("plan_credits, subscription_credits, bonus_credits")
+          .eq("user_id", user.id)
+          .single();
 
-          // Get current balance to return
-          const { data: credits } = await supabase
-            .from("user_credits")
-            .select("plan_credits, subscription_credits, bonus_credits")
-            .eq("user_id", user.id)
-            .single();
+        const balance = credits
+          ? {
+              plan: credits.plan_credits,
+              subscription: credits.subscription_credits,
+              bonus: credits.bonus_credits,
+              total: credits.plan_credits + credits.subscription_credits + credits.bonus_credits,
+            }
+          : { plan: 0, subscription: 0, bonus: 0, total: 0 };
 
-          const balance = credits
-            ? {
-                plan: credits.plan_credits,
-                subscription: credits.subscription_credits,
-                bonus: credits.bonus_credits,
-                total: credits.plan_credits + credits.subscription_credits + credits.bonus_credits,
-              }
-            : { plan: 0, subscription: 0, bonus: 0, total: 0 };
-
-          return new Response(
-            JSON.stringify({ success: true, credits_consumed: 0, balance }),
-            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
+        return new Response(
+          JSON.stringify({ success: true, credits_consumed: 0, balance }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
     }
 
@@ -112,7 +100,6 @@ Deno.serve(async (req) => {
       .single();
 
     if (creditsError || !credits) {
-      console.error("Credits not found for user:", user.id);
       return new Response(
         JSON.stringify({
           error: "no_credits",
@@ -122,7 +109,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    const totalBalance = credits.plan_credits + credits.subscription_credits + credits.bonus_credits;
+    // ** NEW: Check plan_credits expiration **
+    let planCredits = credits.plan_credits || 0;
+    if (credits.plan_credits_expire_at) {
+      const expireDate = new Date(credits.plan_credits_expire_at);
+      if (expireDate <= new Date()) {
+        console.log(`Plan credits expired at ${credits.plan_credits_expire_at}, zeroing out.`);
+        planCredits = 0;
+        // Zero out in DB immediately
+        await supabase
+          .from("user_credits")
+          .update({ plan_credits: 0, plan_credits_expire_at: null })
+          .eq("user_id", user.id);
+      }
+    }
+
+    const totalBalance = planCredits + (credits.subscription_credits || 0) + (credits.bonus_credits || 0);
 
     if (totalBalance < cost) {
       return new Response(
@@ -130,9 +132,9 @@ Deno.serve(async (req) => {
           error: "insufficient_credits",
           message: "Seus créditos acabaram!",
           balance: {
-            plan: credits.plan_credits,
-            subscription: credits.subscription_credits,
-            bonus: credits.bonus_credits,
+            plan: planCredits,
+            subscription: credits.subscription_credits || 0,
+            bonus: credits.bonus_credits || 0,
             total: totalBalance,
           },
           required: cost,
@@ -143,25 +145,20 @@ Deno.serve(async (req) => {
 
     // Debit in priority order: plan → subscription → bonus
     let remaining = cost;
-    let newPlan = credits.plan_credits;
-    let newSubscription = credits.subscription_credits;
-    let newBonus = credits.bonus_credits;
+    let newPlan = planCredits;
+    let newSubscription = credits.subscription_credits || 0;
+    let newBonus = credits.bonus_credits || 0;
 
-    // 1. Debit from plan_credits first
     if (remaining > 0 && newPlan > 0) {
       const debit = Math.min(remaining, newPlan);
       newPlan -= debit;
       remaining -= debit;
     }
-
-    // 2. Then subscription_credits
     if (remaining > 0 && newSubscription > 0) {
       const debit = Math.min(remaining, newSubscription);
       newSubscription -= debit;
       remaining -= debit;
     }
-
-    // 3. Finally bonus_credits
     if (remaining > 0 && newBonus > 0) {
       const debit = Math.min(remaining, newBonus);
       newBonus -= debit;
@@ -170,7 +167,6 @@ Deno.serve(async (req) => {
 
     const newTotal = newPlan + newSubscription + newBonus;
 
-    // Update credits
     const { error: updateError } = await supabase
       .from("user_credits")
       .update({
@@ -181,7 +177,6 @@ Deno.serve(async (req) => {
       .eq("user_id", user.id);
 
     if (updateError) {
-      console.error("Error updating credits:", updateError);
       return new Response(
         JSON.stringify({ error: "Failed to update credits" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -189,21 +184,14 @@ Deno.serve(async (req) => {
     }
 
     // Log transaction
-    const { error: txError } = await supabase
-      .from("credit_transactions")
-      .insert({
-        user_id: user.id,
-        type: "consumption",
-        amount: -cost,
-        source: action,
-        balance_after: newTotal,
-        metadata: metadata || {},
-      });
-
-    if (txError) {
-      console.error("Error logging transaction:", txError);
-      // Non-blocking - credits were already deducted
-    }
+    await supabase.from("credit_transactions").insert({
+      user_id: user.id,
+      type: "consumption",
+      amount: -cost,
+      source: action,
+      balance_after: newTotal,
+      metadata: metadata || {},
+    });
 
     console.log(`Credits consumed: ${cost}, remaining: ${newTotal}`);
 
@@ -211,12 +199,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         credits_consumed: cost,
-        balance: {
-          plan: newPlan,
-          subscription: newSubscription,
-          bonus: newBonus,
-          total: newTotal,
-        },
+        balance: { plan: newPlan, subscription: newSubscription, bonus: newBonus, total: newTotal },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

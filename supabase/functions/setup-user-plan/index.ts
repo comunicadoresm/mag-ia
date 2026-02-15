@@ -8,14 +8,9 @@ const corsHeaders = {
 
 /**
  * setup-user-plan: Called after login to set up the user's plan and credits.
- * 
- * POST body: { planType: 'basic' | 'magnetic' }
- * 
- * Logic:
- * - Updates profiles.plan_type if different
- * - Creates user_credits row if it doesn't exist
- * - For magnetic: 30 plan_credits/month with cycle
- * - For basic: 10 trial credits (one-time, stored as bonus)
+ * Now reads config from plan_types table instead of hardcoded values.
+ *
+ * POST body: { planType: string, planId?: string }
  */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -48,136 +43,177 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { planType } = await req.json();
-    
-    if (!planType || !["basic", "magnetic"].includes(planType)) {
+    const body = await req.json();
+    const planSlug: string = body.planType;
+    const planId: string | undefined = body.planId;
+
+    if (!planSlug) {
       return new Response(
-        JSON.stringify({ error: "Invalid planType" }),
+        JSON.stringify({ error: "planType is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    console.log(`Setting up plan for user ${user.id}: ${planType}`);
+    console.log(`Setting up plan for user ${user.id}: slug=${planSlug}, planId=${planId}`);
+
+    // Fetch plan config from plan_types table
+    let planConfig: any = null;
+    if (planId) {
+      const { data } = await supabase
+        .from("plan_types")
+        .select("*")
+        .eq("id", planId)
+        .single();
+      planConfig = data;
+    }
+    if (!planConfig) {
+      const { data } = await supabase
+        .from("plan_types")
+        .select("*")
+        .eq("slug", planSlug)
+        .eq("is_active", true)
+        .single();
+      planConfig = data;
+    }
+
+    if (!planConfig) {
+      console.log(`Plan "${planSlug}" not found in plan_types table`);
+      return new Response(
+        JSON.stringify({ error: "Plan not found", planType: planSlug }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    console.log(`Plan config: ${planConfig.name}, initial=${planConfig.initial_credits}, monthly=${planConfig.monthly_credits}, renewal=${planConfig.has_monthly_renewal}`);
 
     // Get current profile
     const { data: profile } = await supabase
       .from("profiles")
-      .select("plan_type, plan_activated_at")
+      .select("plan_type, plan_type_id, plan_activated_at")
       .eq("id", user.id)
       .single();
 
-    const currentPlan = profile?.plan_type || "none";
+    const currentPlanTypeId = profile?.plan_type_id || null;
     const now = new Date().toISOString();
 
-    // Update plan_type if different
-    if (currentPlan !== planType) {
-      console.log(`Updating plan: ${currentPlan} -> ${planType}`);
-      
-      const updateData: Record<string, any> = { plan_type: planType };
-      
-      // Set activation date only on first activation or plan change
-      if (currentPlan === "none" || currentPlan !== planType) {
-        updateData.plan_activated_at = now;
-      }
+    // Determine if plan changed
+    const planChanged = currentPlanTypeId !== planConfig.id;
 
+    // Update profile with plan_type and plan_type_id
+    if (planChanged || !currentPlanTypeId) {
+      console.log(`Updating plan: ${profile?.plan_type || 'none'} -> ${planConfig.slug}`);
       await supabase
         .from("profiles")
-        .update(updateData)
+        .update({
+          plan_type: planConfig.slug,
+          plan_type_id: planConfig.id,
+          plan_activated_at: now,
+        })
         .eq("id", user.id);
     }
 
     // Check if user_credits exists
     const { data: existingCredits } = await supabase
       .from("user_credits")
-      .select("id, plan_credits, bonus_credits")
+      .select("id, plan_credits, bonus_credits, subscription_credits")
       .eq("user_id", user.id)
       .maybeSingle();
 
+    const initialCredits = planConfig.initial_credits || 0;
+
     if (!existingCredits) {
-      // Create credits row
+      // Create new credits row
       const cycleStart = new Date();
       const cycleEnd = new Date();
       cycleEnd.setDate(cycleEnd.getDate() + 30);
 
-      if (planType === "magnetic") {
-        // Magnetic: 30 plan credits per month
-        console.log("Creating magnetic credits: 30 plan_credits");
-        await supabase.from("user_credits").insert({
-          user_id: user.id,
-          plan_credits: 30,
-          subscription_credits: 0,
-          bonus_credits: 0,
-          cycle_start_date: cycleStart.toISOString(),
-          cycle_end_date: cycleEnd.toISOString(),
-        });
+      // Calculate expiration for trial credits
+      let expireAt: string | null = null;
+      if (planConfig.credits_expire_days && !planConfig.has_monthly_renewal) {
+        const expDate = new Date();
+        expDate.setDate(expDate.getDate() + planConfig.credits_expire_days);
+        expireAt = expDate.toISOString();
+      }
 
-        // Log transaction
+      console.log(`Creating credits: ${initialCredits} plan_credits, renewal=${planConfig.has_monthly_renewal}, expire=${expireAt}`);
+
+      await supabase.from("user_credits").insert({
+        user_id: user.id,
+        plan_credits: initialCredits,
+        subscription_credits: 0,
+        bonus_credits: 0,
+        cycle_start_date: planConfig.has_monthly_renewal ? cycleStart.toISOString() : null,
+        cycle_end_date: planConfig.has_monthly_renewal ? cycleEnd.toISOString() : (expireAt || null),
+        plan_credits_expire_at: expireAt,
+      });
+
+      // Log transaction
+      await supabase.from("credit_transactions").insert({
+        user_id: user.id,
+        type: planConfig.has_monthly_renewal ? "plan_renewal" : "bonus_purchase",
+        amount: initialCredits,
+        source: planConfig.has_monthly_renewal ? "plan_renewal" : "trial_credits",
+        balance_after: initialCredits,
+        metadata: {
+          plan_slug: planConfig.slug,
+          plan_id: planConfig.id,
+          initial: true,
+          ...(expireAt ? { expires_at: expireAt } : {}),
+        },
+      });
+    } else if (planChanged && currentPlanTypeId) {
+      // Upgrading plan — check if new plan is higher
+      let currentPlanOrder = 0;
+      if (currentPlanTypeId) {
+        const { data: oldPlan } = await supabase
+          .from("plan_types")
+          .select("display_order")
+          .eq("id", currentPlanTypeId)
+          .single();
+        currentPlanOrder = oldPlan?.display_order || 0;
+      }
+
+      if (planConfig.display_order > currentPlanOrder) {
+        // Upgrading to higher plan
+        console.log(`Upgrading plan: adding ${initialCredits} plan_credits`);
+        const cycleStart = new Date();
+        const cycleEnd = new Date();
+        cycleEnd.setDate(cycleEnd.getDate() + 30);
+
+        const updateData: Record<string, any> = {
+          plan_credits: initialCredits,
+          plan_credits_expire_at: null, // Clear expiration on upgrade
+        };
+
+        if (planConfig.has_monthly_renewal) {
+          updateData.cycle_start_date = cycleStart.toISOString();
+          updateData.cycle_end_date = cycleEnd.toISOString();
+        }
+
+        await supabase
+          .from("user_credits")
+          .update(updateData)
+          .eq("user_id", user.id);
+
+        const newTotal = initialCredits + (existingCredits.subscription_credits || 0) + (existingCredits.bonus_credits || 0);
+
         await supabase.from("credit_transactions").insert({
           user_id: user.id,
           type: "plan_renewal",
-          amount: 30,
+          amount: initialCredits,
           source: "plan_renewal",
-          balance_after: 30,
-          metadata: { plan: "magnetic", initial: true },
-        });
-      } else {
-        // Basic: 10 one-time trial credits that expire 30 days after signup (NOT a cycle)
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 30);
-        
-        console.log("Creating basic credits: 10 plan_credits (one-time trial, expires " + expiresAt.toISOString() + ")");
-        await supabase.from("user_credits").insert({
-          user_id: user.id,
-          plan_credits: 10,
-          subscription_credits: 0,
-          bonus_credits: 0,
-          cycle_start_date: null,          // No cycle for basic
-          cycle_end_date: expiresAt.toISOString(), // Expiration date only
-        });
-
-        // Log transaction
-        await supabase.from("credit_transactions").insert({
-          user_id: user.id,
-          type: "bonus_purchase",
-          amount: 10,
-          source: "trial_credits",
-          balance_after: 10,
-          metadata: { plan: "basic", trial: true, one_time: true, expires_at: expiresAt.toISOString() },
+          balance_after: newTotal,
+          metadata: { plan_slug: planConfig.slug, plan_id: planConfig.id, upgrade: true },
         });
       }
-    } else if (currentPlan !== planType && planType === "magnetic" && currentPlan === "basic") {
-      // Upgrading from basic to magnetic
-      console.log("Upgrading basic -> magnetic: setting 30 plan_credits");
-      const cycleStart = new Date();
-      const cycleEnd = new Date();
-      cycleEnd.setDate(cycleEnd.getDate() + 30);
-
-      await supabase
-        .from("user_credits")
-        .update({
-          plan_credits: 30,
-          cycle_start_date: cycleStart.toISOString(),
-          cycle_end_date: cycleEnd.toISOString(),
-        })
-        .eq("user_id", user.id);
-
-      const newTotal = 30 + (existingCredits.bonus_credits || 0);
-
-      await supabase.from("credit_transactions").insert({
-        user_id: user.id,
-        type: "plan_renewal",
-        amount: 30,
-        source: "plan_renewal",
-        balance_after: newTotal,
-        metadata: { plan: "magnetic", upgrade: true },
-      });
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        planType,
-        message: `Plan set to ${planType}` 
+      JSON.stringify({
+        success: true,
+        planType: planConfig.slug,
+        planId: planConfig.id,
+        message: `Plan set to ${planConfig.name}`,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
