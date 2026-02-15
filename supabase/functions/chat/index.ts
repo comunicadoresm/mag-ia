@@ -299,8 +299,14 @@ Deno.serve(async (req) => {
     const packageSize = agent.message_package_size || 5;
 
     let shouldCharge = true;
+    // per_output: defer charging until after AI responds (handled below)
+    let deferCharge = false;
 
-    if (billingType === "per_messages") {
+    if (billingType === "per_output") {
+      shouldCharge = false;
+      deferCharge = true;
+      console.log(`Billing type: per_output. Will charge after AI response if output is detected.`);
+    } else if (billingType === "per_messages") {
       // Count user messages already in this conversation (BEFORE current one is inserted)
       const { count } = await supabaseClient
         .from("messages")
@@ -429,6 +435,47 @@ Deno.serve(async (req) => {
 
     console.log(`AI response: ${result.tokens} tokens`);
 
+    // === DEFERRED per_output BILLING ===
+    let creditsConsumed = 0;
+    if (deferCharge) {
+      const hasOutputStructure =
+        result.text.includes("## 🎯 INÍCIO") || result.text.includes("## 📚 DESENVOLVIMENTO") ||
+        result.text.includes("🎬 ROTEIRO FINAL");
+
+      if (hasOutputStructure) {
+        console.log(`Output detected in per_output mode. Charging ${creditCost} credits.`);
+        const { data: deferCredits } = await supabaseClient
+          .from("user_credits")
+          .select("*")
+          .eq("user_id", user.id)
+          .single();
+
+        if (deferCredits) {
+          const deferTotal = (deferCredits.plan_credits || 0) + (deferCredits.subscription_credits || 0) + (deferCredits.bonus_credits || 0);
+          if (deferTotal >= creditCost) {
+            let rem = creditCost;
+            let nP = deferCredits.plan_credits || 0;
+            let nS = deferCredits.subscription_credits || 0;
+            let nB = deferCredits.bonus_credits || 0;
+            if (rem > 0 && nP > 0) { const d = Math.min(rem, nP); nP -= d; rem -= d; }
+            if (rem > 0 && nS > 0) { const d = Math.min(rem, nS); nS -= d; rem -= d; }
+            if (rem > 0 && nB > 0) { const d = Math.min(rem, nB); nB -= d; rem -= d; }
+            await supabaseClient.from("user_credits").update({ plan_credits: nP, subscription_credits: nS, bonus_credits: nB }).eq("user_id", user.id);
+            await supabaseClient.from("credit_transactions").insert({
+              user_id: user.id, type: "consumption", amount: -creditCost, source: "chat_output",
+              balance_after: nP + nS + nB,
+              metadata: { agent_id, conversation_id },
+            });
+            creditsConsumed = creditCost;
+            console.log(`per_output credits consumed: ${creditCost}, remaining: ${nP + nS + nB}`);
+          }
+        }
+      } else {
+        console.log(`No output structure detected in per_output mode. No charge.`);
+      }
+    }
+    // === END DEFERRED BILLING ===
+
     // Save assistant message
     await supabaseClient.from("messages").insert({
       conversation_id,
@@ -451,6 +498,7 @@ Deno.serve(async (req) => {
         success: true,
         message: result.text,
         tokens_used: result.tokens,
+        credits_consumed: creditsConsumed,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
