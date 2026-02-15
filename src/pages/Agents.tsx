@@ -130,10 +130,10 @@ export default function Agents() {
                 <button
                   key={agent.id}
                   onClick={() => handleAgentClick(agent)}
-                  className="relative bg-gradient-to-br from-primary/20 to-primary/5 border border-border/30 rounded-2xl p-4 cursor-pointer hover:scale-[1.02] hover:shadow-lg transition-all duration-200 group overflow-hidden text-left"
+                  className="relative bg-gradient-to-br from-muted/80 to-muted/30 border border-border/30 rounded-2xl p-4 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:border-primary/40 transition-all duration-200 group overflow-hidden text-left"
                 >
                   <div className="flex items-start gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-2xl shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-2xl shrink-0">
                       {agent.icon_emoji || '🤖'}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -146,14 +146,19 @@ export default function Agents() {
                   <div className="flex flex-wrap gap-1.5">
                     {agentTags[agent.id]?.map((tagId) => {
                       const tag = tags.find((t) => t.id === tagId);
-                      return tag ? (
-                        <span key={tagId} className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide bg-primary text-primary-foreground">
+                      if (!tag) return null;
+                      return (
+                        <span
+                          key={tagId}
+                          className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide text-white"
+                          style={{ backgroundColor: tag.color || '#6B7280' }}
+                        >
                           {tag.name}
                         </span>
-                      ) : null;
+                      );
                     })}
                     {(!agentTags[agent.id] || agentTags[agent.id].length === 0) && (
-                      <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide bg-primary text-primary-foreground">IA</span>
+                      <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide bg-muted-foreground/30 text-foreground">IA</span>
                     )}
                   </div>
                 </button>

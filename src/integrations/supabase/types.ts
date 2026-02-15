@@ -668,6 +668,7 @@ export type Database = {
       }
       tags: {
         Row: {
+          color: string
           created_at: string | null
           display_order: number | null
           icon: string | null
@@ -676,6 +677,7 @@ export type Database = {
           slug: string
         }
         Insert: {
+          color?: string
           created_at?: string | null
           display_order?: number | null
           icon?: string | null
@@ -684,6 +686,7 @@ export type Database = {
           slug: string
         }
         Update: {
+          color?: string
           created_at?: string | null
           display_order?: number | null
           icon?: string | null
