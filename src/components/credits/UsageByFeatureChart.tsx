@@ -3,12 +3,18 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useCreditHistory } from '@/hooks/useCreditHistory';
 import { supabase } from '@/integrations/supabase/client';
 
+const SOURCE_LABELS: Record<string, string> = {
+  script_generation: 'Geração de roteiros',
+  script_adjustment: 'Ajustes de roteiros',
+  chat_messages: 'Chat com agentes',
+};
+
 export function UsageByFeatureChart() {
   const { transactions } = useCreditHistory(100);
   const [agentNames, setAgentNames] = useState<Record<string, string>>({});
 
-  // Group consumption by agent_id from metadata
-  const consumptionTxs = transactions.filter(t => t.type === 'consumption');
+  // Filter consumption only, exclude admin_adjustment
+  const consumptionTxs = transactions.filter(t => t.type === 'consumption' && t.source !== 'admin_adjustment');
 
   // Collect unique agent IDs
   const agentIds = [...new Set(
@@ -33,33 +39,35 @@ export function UsageByFeatureChart() {
     fetchAgentNames();
   }, [agentIds.join(',')]);
 
+  // Group by source (feature)
+  const usageBySource: Record<string, number> = {};
+  consumptionTxs.forEach(t => {
+    const key = t.source || 'other';
+    usageBySource[key] = (usageBySource[key] || 0) + Math.abs(t.amount);
+  });
+
   // Group by agent
   const usageByAgent: Record<string, number> = {};
-  let unknownUsage = 0;
-
   consumptionTxs.forEach(t => {
     const agentId = (t.metadata as any)?.agent_id;
     if (agentId) {
       usageByAgent[agentId] = (usageByAgent[agentId] || 0) + Math.abs(t.amount);
-    } else {
-      unknownUsage += Math.abs(t.amount);
     }
   });
 
   const totalConsumed = consumptionTxs.reduce((s, t) => s + Math.abs(t.amount), 0);
 
-  const entries = Object.entries(usageByAgent).sort((a, b) => b[1] - a[1]);
+  const sourceEntries = Object.entries(usageBySource).sort((a, b) => b[1] - a[1]);
+  const agentEntries = Object.entries(usageByAgent).sort((a, b) => b[1] - a[1]);
 
-  const colors = [
-    'bg-primary', 'bg-success', 'bg-warning', 'bg-[hsl(270,60%,60%)]', 
-    'bg-[hsl(200,70%,50%)]', 'bg-destructive',
-  ];
+  const sourceColors = ['bg-primary', 'bg-success', 'bg-warning', 'bg-destructive'];
+  const agentColors = ['bg-[hsl(270,60%,60%)]', 'bg-[hsl(200,70%,50%)]', 'bg-primary', 'bg-success', 'bg-warning'];
 
-  if (entries.length === 0 && unknownUsage === 0) {
+  if (totalConsumed === 0) {
     return (
       <Card className="card-cm">
         <CardHeader className="pb-2 p-4">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Uso por Agente</CardTitle>
+          <CardTitle className="text-sm font-medium text-muted-foreground">Uso por Funcionalidade</CardTitle>
         </CardHeader>
         <CardContent className="p-4 pt-0">
           <p className="text-sm text-muted-foreground text-center py-4">Nenhum consumo registrado ainda.</p>
@@ -71,39 +79,54 @@ export function UsageByFeatureChart() {
   return (
     <Card className="card-cm">
       <CardHeader className="pb-2 p-4">
-        <CardTitle className="text-sm font-medium text-muted-foreground">Uso por Agente</CardTitle>
+        <CardTitle className="text-sm font-medium text-muted-foreground">Uso por Funcionalidade</CardTitle>
       </CardHeader>
-      <CardContent className="p-4 pt-0 space-y-3">
-        {entries.map(([agentId, value], i) => {
-          const pct = totalConsumed > 0 ? Math.round((value / totalConsumed) * 100) : 0;
-          const name = agentNames[agentId] || 'Carregando...';
-          return (
-            <div key={agentId} className="space-y-1">
-              <div className="flex justify-between text-xs">
-                <span className="text-foreground truncate">{name}</span>
-                <span className="text-muted-foreground shrink-0 ml-2">{value} créd. ({pct}%)</span>
+      <CardContent className="p-4 pt-0 space-y-4">
+        {/* By feature/source */}
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground font-medium">Por tipo de ação</p>
+          {sourceEntries.map(([source, value], i) => {
+            const pct = totalConsumed > 0 ? Math.round((value / totalConsumed) * 100) : 0;
+            const label = SOURCE_LABELS[source] || source;
+            return (
+              <div key={source} className="space-y-1">
+                <div className="flex justify-between text-xs">
+                  <span className="text-foreground truncate">{label}</span>
+                  <span className="text-muted-foreground shrink-0 ml-2">{value} créd. ({pct}%)</span>
+                </div>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${sourceColors[i % sourceColors.length]}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
               </div>
-              <div className="h-2 rounded-full bg-muted overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all ${colors[i % colors.length]}`}
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
-        {unknownUsage > 0 && (
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs">
-              <span className="text-foreground">Outros</span>
-              <span className="text-muted-foreground">
-                {unknownUsage} créd. ({totalConsumed > 0 ? Math.round((unknownUsage / totalConsumed) * 100) : 0}%)
-              </span>
-            </div>
-            <div className="h-2 rounded-full bg-muted overflow-hidden">
-              <div className="h-full rounded-full bg-muted-foreground/40 transition-all"
-                style={{ width: `${totalConsumed > 0 ? Math.round((unknownUsage / totalConsumed) * 100) : 0}%` }} />
-            </div>
+            );
+          })}
+        </div>
+
+        {/* By agent */}
+        {agentEntries.length > 0 && (
+          <div className="space-y-2 border-t border-border pt-3">
+            <p className="text-xs text-muted-foreground font-medium">Por agente</p>
+            {agentEntries.slice(0, 5).map(([agentId, value], i) => {
+              const pct = totalConsumed > 0 ? Math.round((value / totalConsumed) * 100) : 0;
+              const name = agentNames[agentId] || 'Carregando...';
+              return (
+                <div key={agentId} className="space-y-1">
+                  <div className="flex justify-between text-xs">
+                    <span className="text-foreground truncate">{name}</span>
+                    <span className="text-muted-foreground shrink-0 ml-2">{value} créd. ({pct}%)</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${agentColors[i % agentColors.length]}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>

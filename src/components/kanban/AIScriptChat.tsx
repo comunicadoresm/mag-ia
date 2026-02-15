@@ -317,11 +317,53 @@ export function AIScriptChat({
     }
   };
 
-  const handleApplyScript = () => {
-    if (generatedContent) {
+  const handleApplyScript = async () => {
+    if (!generatedContent) return;
+
+    // Determine if this is generation (empty script) or adjustment
+    const scriptContent = script.script_content as Record<string, any>;
+    const hasExistingContent = scriptContent && Object.keys(scriptContent).length > 0 && 
+      Object.values(scriptContent).some(v => typeof v === 'string' && v.trim().length > 0);
+    const action = hasExistingContent ? 'script_adjustment' : 'script_generation';
+    const creditCost = hasExistingContent ? 1 : 3;
+
+    try {
+      // Consume credits before applying
+      const { data, error } = await supabase.functions.invoke('consume-credits', {
+        body: {
+          action,
+          metadata: {
+            script_id: script.id,
+            agent_id: agent?.id,
+            credit_cost: creditCost,
+          },
+        },
+      });
+
+      if (error) {
+        // Parse the error to check for insufficient credits
+        const errorBody = typeof error === 'object' && error !== null ? (error as any) : null;
+        const errorMessage = errorBody?.context?.body ? (() => { try { return JSON.parse(errorBody.context.body); } catch { return null; } })() : null;
+        if (errorMessage?.error === 'insufficient_credits') {
+          showUpsell();
+          toast({ title: 'Créditos insuficientes', description: `Você precisa de ${creditCost} crédito(s) para aplicar este roteiro.`, variant: 'destructive' });
+          return;
+        }
+        throw error;
+      }
+
+      if (data && !data.success) {
+        showUpsell();
+        toast({ title: 'Créditos insuficientes', description: data.message || `Você precisa de ${creditCost} crédito(s).`, variant: 'destructive' });
+        return;
+      }
+
       onScriptGenerated(generatedContent);
-      onClose(); // Don't reset messages — they persist in DB
-      toast({ title: 'Roteiro aplicado com sucesso!' });
+      onClose();
+      toast({ title: `Roteiro aplicado! (${creditCost} crédito${creditCost > 1 ? 's' : ''} consumido${creditCost > 1 ? 's' : ''})` });
+    } catch (err) {
+      console.error('Error consuming credits on apply:', err);
+      toast({ title: 'Erro ao aplicar roteiro', description: 'Tente novamente.', variant: 'destructive' });
     }
   };
 
