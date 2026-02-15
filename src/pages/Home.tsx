@@ -2,11 +2,10 @@ import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Loader2, Users, DollarSign, Briefcase, Eye, Heart, MessageCircle,
-  Bookmark, Share2, FileText, RefreshCw, AtSign, Camera,
+  Bookmark, Share2, FileText, RefreshCw, AtSign, Camera, ArrowLeft, BarChart3,
 } from 'lucide-react';
-import { Logo } from '@/components/Logo';
 import { BottomNavigation } from '@/components/BottomNavigation';
-import { MainSidebar } from '@/components/MainSidebar';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,7 +66,6 @@ function usePhotoUpload(userId: string | undefined) {
       const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
       if (error) throw error;
       const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-      // Add cache buster
       return `${data.publicUrl}?t=${Date.now()}`;
     } catch (err) {
       console.error('Upload error:', err);
@@ -122,7 +120,6 @@ function InitialSetupModal({ open, onSubmit, userName, userId }: { open: boolean
 
         {step === 0 ? (
           <div className="space-y-4 px-6 pb-6 pt-2">
-            {/* Photo upload */}
             <div className="flex flex-col items-center gap-2">
               <div className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
                 <Avatar className="w-20 h-20 border-2 border-primary">
@@ -236,7 +233,7 @@ function ComparisonChart({ data }: { data: { label: string; before: number; curr
   const chartData = data.map(d => ({ name: d.label, Antes: d.before, Atual: d.current }));
 
   return (
-    <div className="card-cm p-4">
+    <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4">
       <h3 className="text-sm font-medium text-muted-foreground mb-3">Antes vs Atual</h3>
       <div className="h-64">
         <ResponsiveContainer width="100%" height="100%">
@@ -257,8 +254,9 @@ function ComparisonChart({ data }: { data: { label: string; before: number; curr
 // ─── Main Home Dashboard ──────────────────────────────────────
 export default function Home() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { user, profile, loading: authLoading } = useAuth();
-  const { metrics, postAggregates, isLoading, refresh, initializeMetrics, updateManualMetrics } = useDashboardMetrics();
+  const { metrics, postAggregates, isLoading, initializeMetrics, updateManualMetrics } = useDashboardMetrics();
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const { upload, uploading } = usePhotoUpload(user?.id);
@@ -304,20 +302,44 @@ export default function Home() {
   ] : [];
 
   return (
-    <div className="min-h-screen bg-background">
-      <MainSidebar />
-      <main className="md:ml-64 min-h-screen pb-24 md:pb-8">
-        <header className="md:hidden p-4 border-b border-border">
-          <Logo size="sm" />
-        </header>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header — same style as Kanban */}
+      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border/50">
+        <div className="flex items-center gap-4 px-4 py-4 max-w-[1600px] mx-auto">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/home')}
+            className="shrink-0"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
 
+          <div className="flex items-center gap-3 flex-1">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+              <BarChart3 className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-foreground">Dashboard</h1>
+              <p className="text-xs text-muted-foreground">Métricas de performance</p>
+            </div>
+          </div>
+
+          <Button variant="outline" size="sm" className="gap-1.5 rounded-xl border-border/50" onClick={() => setUpdateModalOpen(true)}>
+            <RefreshCw className="w-3.5 h-3.5" />Atualizar
+          </Button>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className={`flex-1 overflow-auto px-4 py-6 ${isMobile ? 'pb-24' : ''}`}>
         {isLoading ? (
           <div className="flex items-center justify-center py-24"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>
         ) : (
-          <div className="px-4 md:px-6 lg:px-8 py-4 md:py-6 space-y-5 animate-fade-in">
+          <div className="max-w-[1600px] mx-auto space-y-5 animate-fade-in">
 
             {/* ── Profile Header ─────────────────── */}
-            <div className="card-cm p-4 md:p-5">
+            <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 md:p-5">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 <div className="relative cursor-pointer shrink-0" onClick={() => fileRef.current?.click()}>
                   <Avatar className="w-12 h-12 border-2 border-primary">
@@ -353,9 +375,6 @@ export default function Home() {
                     <p className="text-[11px] text-muted-foreground">Clientes</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="gap-1.5 rounded-xl border-border/50" onClick={() => setUpdateModalOpen(true)}>
-                  <RefreshCw className="w-3.5 h-3.5" />Atualizar
-                </Button>
               </div>
             </div>
 
@@ -386,7 +405,8 @@ export default function Home() {
         )}
       </main>
 
-      <BottomNavigation />
+      {/* Bottom Navigation for Mobile */}
+      {isMobile && <BottomNavigation />}
 
       {needsSetup && <InitialSetupModal open onSubmit={handleInitialSetup} userName={profile?.name || ''} userId={user.id} />}
       {updateModalOpen && m && (
