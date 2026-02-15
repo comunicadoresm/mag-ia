@@ -68,8 +68,11 @@ Deno.serve(async (req) => {
         .eq("role", "user");
 
       const messageCount = count || 0;
-      if (messageCount > 0 && messageCount % packageSize !== 0) {
-        console.log(`Message ${messageCount} - not a billing point (every ${packageSize}). Skipping charge.`);
+      // AJUSTE 6: Charge on 1st message AND every packageSize messages after that
+      // Message 1 → charge, 2-5 → skip, 6 → charge, 7-10 → skip, 11 → charge...
+      const shouldCharge = messageCount === 0 || (messageCount > 0 && messageCount % packageSize === 0);
+      if (!shouldCharge) {
+        console.log(`Message ${messageCount + 1} - not a billing point (every ${packageSize}). Skipping charge.`);
         const { data: credits } = await supabase
           .from("user_credits")
           .select("plan_credits, subscription_credits, bonus_credits")

@@ -14,6 +14,7 @@ interface KanbanColumnProps {
   onDelete?: (script: UserScript) => void;
   onAddCard?: (columnId: string) => void;
   onDrop?: (item: UserScript, targetColumnId: string) => void;
+  onDuplicateCard?: (script: UserScript) => void;
 }
 
 export function KanbanColumn({
@@ -25,6 +26,7 @@ export function KanbanColumn({
   onDelete,
   onAddCard,
   onDrop,
+  onDuplicateCard,
 }: KanbanColumnProps) {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -89,6 +91,7 @@ export function KanbanColumn({
                 onWriteWithAI={onWriteWithAI}
                 onOpenMetrics={onOpenMetrics}
                 onDelete={onDelete}
+                onDuplicateCard={onDuplicateCard}
               />
             </div>
           ))}
