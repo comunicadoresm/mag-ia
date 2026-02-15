@@ -65,11 +65,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             // After sign-in, set up user plan if pending
             if (event === 'SIGNED_IN') {
               const pendingPlan = localStorage.getItem('pending_plan_type');
-              if (pendingPlan && (pendingPlan === 'basic' || pendingPlan === 'magnetic')) {
+              const pendingPlanId = localStorage.getItem('pending_plan_id');
+              if (pendingPlan) {
                 localStorage.removeItem('pending_plan_type');
+                localStorage.removeItem('pending_plan_id');
                 try {
                   await supabase.functions.invoke('setup-user-plan', {
-                    body: { planType: pendingPlan },
+                    body: { planType: pendingPlan, planId: pendingPlanId },
                   });
                   // Refresh profile to get updated plan_type
                   const updatedProfile = await fetchProfile(currentSession.user.id);
