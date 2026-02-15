@@ -281,7 +281,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
           format: script.format,
           objective: script.objective,
           status: 'scripting' as const,
-          script_content: script.script_content,
+          script_content: {},
         })
         .select()
         .single();
