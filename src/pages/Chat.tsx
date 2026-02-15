@@ -10,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Agent, Message } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useCreditsModals } from '@/contexts/CreditsModalContext';
+import { useCredits } from '@/hooks/useCredits';
 import {
   Sheet,
   SheetContent,
@@ -37,7 +38,8 @@ export default function Chat() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const { showUpsell } = useCreditsModals();
+  const { showUpsell, showBuyCredits } = useCreditsModals();
+  const { balance } = useCredits();
 
   const initialMessage = (location.state as { initialMessage?: string })?.initialMessage;
 
@@ -143,6 +145,12 @@ export default function Chat() {
 
   const handleSend = async (content: string) => {
     if (!conversationId || !agent || sending || (!content.trim() && attachedFiles.length === 0)) return;
+
+    // Pre-check credits before sending
+    if (balance.total <= 0) {
+      showBuyCredits();
+      return;
+    }
 
     setSending(true);
     setInputValue('');
