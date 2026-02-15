@@ -59,7 +59,7 @@ export default function Agents() {
     if (user) fetchData();
   }, [user]);
 
-  const { showUpsell } = useCreditsModals();
+  const { showUpsell, showBuyCredits } = useCreditsModals();
 
   const handleAgentClick = async (agent: Agent) => {
     if (!user) return;
@@ -69,6 +69,11 @@ export default function Agents() {
       if (!accessList.includes(userPlan.id)) { showUpsell(); return; }
     }
     if (accessList && accessList.length > 0 && !userPlan) { showUpsell(); return; }
+    // Check credits before starting conversation
+    if (balance.total <= 0) {
+      showBuyCredits();
+      return;
+    }
     try {
       const { data: conversation, error } = await supabase
         .from('conversations')
