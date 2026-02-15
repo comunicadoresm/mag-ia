@@ -294,7 +294,7 @@ Deno.serve(async (req) => {
     }
 
     // === CREDIT CONSUMPTION ===
-    const billingType = agent.billing_type || "per_generation";
+    const billingType = agent.billing_type || "per_messages";
     const creditCost = agent.credit_cost || 1;
     const packageSize = agent.message_package_size || 5;
 
@@ -324,7 +324,7 @@ Deno.serve(async (req) => {
         console.log(`Message ${effectiveCount}/${packageSize} - billing point! Charging ${creditCost} credits.`);
       }
     }
-    // per_generation: always charge (shouldCharge stays true)
+    // per_messages (default): charge based on message count above
 
     if (shouldCharge) {
       const { data: credits, error: creditsError } = await supabaseClient

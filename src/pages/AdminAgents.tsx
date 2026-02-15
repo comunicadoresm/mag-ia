@@ -103,7 +103,7 @@ const defaultFormData: AgentFormData = {
   display_order: 0,
   selectedTags: [],
   ice_breakers: ['', '', ''],
-  billing_type: 'per_generation',
+  billing_type: 'per_messages',
   credit_cost: 1,
   message_package_size: 5,
 };
@@ -215,7 +215,7 @@ export default function AdminAgents() {
         display_order: agent.display_order,
         selectedTags: agentTags[agent.id] || [],
         ice_breakers: paddedIceBreakers,
-        billing_type: (agent as any).billing_type || 'per_generation',
+        billing_type: (agent as any).billing_type || 'per_messages',
         credit_cost: (agent as any).credit_cost || 1,
         message_package_size: (agent as any).message_package_size || 5,
       });
@@ -756,20 +756,20 @@ export default function AdminAgents() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="per_generation">Por Geração</SelectItem>
-                      <SelectItem value="per_messages">Por Mensagens</SelectItem>
+                      <SelectItem value="per_messages">Por Mensagens (a cada N msgs)</SelectItem>
+                      <SelectItem value="per_output">Por Output/Roteiro Gerado</SelectItem>
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    {formData.billing_type === 'per_generation'
-                      ? 'Cobra a cada chamada de IA'
+                    {formData.billing_type === 'per_output'
+                      ? 'Cobra apenas quando a IA gera um roteiro/output estruturado'
                       : 'Cobra a cada N mensagens do usuário'}
                   </p>
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="credit_cost">
-                    {formData.billing_type === 'per_generation' ? 'Custo por geração (créditos)' : 'Créditos cobrados'}
+                    {formData.billing_type === 'per_output' ? 'Custo por output (créditos)' : 'Créditos cobrados'}
                   </Label>
                   <Input
                     id="credit_cost"
@@ -781,8 +781,8 @@ export default function AdminAgents() {
                     }
                   />
                   <p className="text-xs text-muted-foreground">
-                    {formData.billing_type === 'per_generation'
-                      ? 'Créditos debitados a cada chamada'
+                    {formData.billing_type === 'per_output'
+                      ? `${formData.credit_cost} crédito(s) por roteiro gerado`
                       : `Cobra ${formData.credit_cost} crédito(s) a cada ${formData.message_package_size} msg(s)`}
                   </p>
                 </div>
