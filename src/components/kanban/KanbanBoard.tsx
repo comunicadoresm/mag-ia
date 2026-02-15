@@ -17,6 +17,8 @@ import {
 import { Agent } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCredits } from '@/hooks/useCredits';
+import { useCreditsModals } from '@/contexts/CreditsModalContext';
 
 interface KanbanBoardProps {
   agents: Agent[];
@@ -24,6 +26,8 @@ interface KanbanBoardProps {
 
 export function KanbanBoard({ agents }: KanbanBoardProps) {
   const { toast } = useToast();
+  const { balance } = useCredits();
+  const { showBuyCredits } = useCreditsModals();
   const [isLoading, setIsLoading] = useState(true);
   const [templates, setTemplates] = useState<ScriptTemplate[]>([]);
   const [userScripts, setUserScripts] = useState<UserScript[]>([]);
@@ -177,6 +181,10 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
   };
 
   const handleWriteWithAI = (script: UserScript) => {
+    if (balance.total <= 0) {
+      showBuyCredits();
+      return;
+    }
     const template = templates.find(t => t.id === script.template_id);
     const fromTemplate = !!script.template_id;
     setSelectedScript(script);

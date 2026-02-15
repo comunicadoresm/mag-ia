@@ -12,6 +12,8 @@ import { UserScript, ScriptStructure, DEFAULT_SCRIPT_STRUCTURE } from '@/types/k
 import { Agent } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCredits } from '@/hooks/useCredits';
+import { useCreditsModals } from '@/contexts/CreditsModalContext';
 import { AIScriptChat } from './AIScriptChat';
 
 interface ScriptEditorProps {
@@ -44,6 +46,8 @@ export function ScriptEditor({
   isReadOnly = false,
 }: ScriptEditorProps) {
   const { toast } = useToast();
+  const { balance } = useCredits();
+  const { showBuyCredits } = useCreditsModals();
   const [isLoading, setIsLoading] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [editedScript, setEditedScript] = useState<UserScript | null>(null);
@@ -122,6 +126,10 @@ export function ScriptEditor({
 
   const handleWriteWithAI = () => {
     if (!editedScript) return;
+    if (balance.total <= 0) {
+      showBuyCredits();
+      return;
+    }
     setIsAIChatOpen(true);
   };
 
