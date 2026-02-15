@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Mail, Calendar, Pencil, Check, X, Loader2, Coins, ChevronRight, AtSign, Camera, User } from 'lucide-react';
+import { LogOut, Mail, Calendar, Pencil, Check, X, Loader2, Coins, ChevronRight, AtSign, Camera, User, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -22,6 +23,7 @@ export default function Profile() {
   const [photoUrl, setPhotoUrl] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [planInfo, setPlanInfo] = useState<{ name: string; color: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (!authLoading && !user) navigate('/login'); }, [user, authLoading, navigate]);
@@ -33,6 +35,14 @@ export default function Profile() {
       if (data?.profile_photo_url) setPhotoUrl(data.profile_photo_url);
     });
   }, [user]);
+
+  // Fetch plan info
+  useEffect(() => {
+    if (!profile?.plan_type_id) return;
+    supabase.from('plan_types').select('name, color').eq('id', profile.plan_type_id).single().then(({ data }) => {
+      if (data) setPlanInfo(data);
+    });
+  }, [profile?.plan_type_id]);
 
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
 
@@ -162,6 +172,35 @@ export default function Profile() {
                 <p className="text-sm font-medium text-foreground truncate">{profile?.email || user.email}</p>
               </div>
             </div>
+            <div className="px-1">
+              <button
+                onClick={() => window.open('https://wa.me/5511999999999?text=Olá! Gostaria de alterar meu e-mail na Magnetic.IA', '_blank')}
+                className="text-xs text-primary hover:underline"
+              >
+                Alterar e-mail
+              </button>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Para alterar seu e-mail, fale com o time de suporte magnético</p>
+            </div>
+
+            {/* Plan Info */}
+            {planInfo && (
+              <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${planInfo.color}20` }}>
+                  <Crown className="w-5 h-5" style={{ color: planInfo.color }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Seu Plano</p>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="text-xs font-semibold" style={{ backgroundColor: `${planInfo.color}20`, color: planInfo.color }}>
+                      {planInfo.name}
+                    </Badge>
+                  </div>
+                </div>
+                <Button size="sm" variant="ghost" onClick={() => navigate('/profile/credits')} className="text-xs text-primary shrink-0">
+                  Ver planos <ChevronRight className="w-3 h-3 ml-1" />
+                </Button>
+              </div>
+            )}
 
             <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
               <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Calendar className="w-5 h-5 text-primary" /></div>

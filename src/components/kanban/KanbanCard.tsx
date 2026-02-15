@@ -12,6 +12,7 @@ interface KanbanCardProps {
   onWriteWithAI?: (item: UserScript) => void;
   onOpenMetrics?: (item: UserScript) => void;
   onDelete?: (item: UserScript) => void;
+  onDuplicateCard?: (item: UserScript) => void;
 }
 
 const COLUMN_COLORS: Record<string, string> = {
@@ -38,6 +39,7 @@ export function KanbanCard({
   onWriteWithAI,
   onOpenMetrics,
   onDelete,
+  onDuplicateCard,
 }: KanbanCardProps) {
   const bg = COLUMN_COLORS[columnId] || COLUMN_COLORS.templates;
   const isPosted = columnId === 'posted';
@@ -124,7 +126,7 @@ export function KanbanCard({
             Usar Template
           </Button>
         )}
-        {(columnId === 'scripting' || columnId === 'editing') && onWriteWithAI && (
+        {!isTemplate && (columnId === 'scripting' || columnId === 'recording' || columnId === 'editing') && onWriteWithAI && (
           <Button
             size="sm"
             variant="ghost"
@@ -132,7 +134,20 @@ export function KanbanCard({
             onClick={(e) => { e.stopPropagation(); onWriteWithAI(userScript); }}
           >
             <Sparkles className="w-3 h-3 mr-1.5" />
-            Escrever com IA
+            {/* AJUSTE 5: Show "Ajustar com IA" if script already has content */}
+            {Object.keys(userScript.script_content || {}).length > 0 ? 'Ajustar com IA' : 'Escrever com IA'}
+          </Button>
+        )}
+        {/* AJUSTE 16: Duplicate button for user cards */}
+        {!isTemplate && (columnId === 'scripting' || columnId === 'recording' || columnId === 'editing') && onDuplicateCard && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-xs h-8 rounded-xl text-muted-foreground opacity-50 hover:opacity-100 hover:bg-primary/10 hover:text-primary transition-all"
+            onClick={(e) => { e.stopPropagation(); onDuplicateCard(userScript); }}
+          >
+            <Copy className="w-3 h-3 mr-1.5" />
+            Duplicar
           </Button>
         )}
         {isPosted && onOpenMetrics && (

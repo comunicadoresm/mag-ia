@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, MessageSquare } from 'lucide-react';
+import { Loader2, MessageSquare, Search } from 'lucide-react';
 import { isToday, isYesterday, isThisWeek } from 'date-fns';
 import { AppLayout } from '@/components/AppLayout';
 import { ConversationItem } from '@/components/ConversationItem';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Conversation, Agent } from '@/types';
@@ -18,6 +20,9 @@ interface GroupedConversations {
 export default function History() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [agentFilter, setAgentFilter] = useState('all');
+  const [agents, setAgents] = useState<Agent[]>([]);
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
 
@@ -35,6 +40,8 @@ export default function History() {
         const agentIds = [...new Set(convData.map((c) => c.agent_id))];
         const { data: agentsData } = await supabase.from('agents_public').select('*').in('id', agentIds);
         const agentsMap = new Map(agentsData?.map((a) => [a.id, a as Agent]));
+        const uniqueAgents = Array.from(agentsMap.values());
+        setAgents(uniqueAgents);
         setConversations(convData.map((conv) => ({ ...conv, agent: agentsMap.get(conv.agent_id) })) as Conversation[]);
       } catch (error) { console.error(error); }
       finally { setLoading(false); }
@@ -43,6 +50,22 @@ export default function History() {
   }, [user]);
 
   const handleConversationClick = (conversation: Conversation) => navigate(`/chat/${conversation.id}`);
+
+  // AJUSTE 11: Filter conversations by search and agent
+  const filteredConversations = useMemo(() => {
+    let filtered = conversations;
+    if (agentFilter !== 'all') {
+      filtered = filtered.filter(c => c.agent_id === agentFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(c =>
+        (c.title?.toLowerCase().includes(q)) ||
+        (c.agent?.name?.toLowerCase().includes(q))
+      );
+    }
+    return filtered;
+  }, [conversations, searchQuery, agentFilter]);
 
   const groupConversations = (convs: Conversation[]): GroupedConversations => {
     const groups: GroupedConversations = { today: [], yesterday: [], thisWeek: [], older: [] };
@@ -60,7 +83,7 @@ export default function History() {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
   }
 
-  const grouped = groupConversations(conversations);
+  const grouped = groupConversations(filteredConversations);
 
   const renderGroup = (title: string, items: Conversation[]) => {
     if (items.length === 0) return null;
@@ -94,6 +117,36 @@ export default function History() {
       {/* Content */}
       <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
         <div className="max-w-[1600px] mx-auto">
+          {/* AJUSTE 11: Search and filter */}
+          {conversations.length > 0 && (
+            <div className="flex gap-3 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar conversa..."
+                  className="pl-9 bg-muted/30 border-border/30 rounded-xl"
+                />
+              </div>
+              {agents.length > 1 && (
+                <Select value={agentFilter} onValueChange={setAgentFilter}>
+                  <SelectTrigger className="w-48 bg-muted/30 border-border/30 rounded-xl">
+                    <SelectValue placeholder="Todos os agentes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os agentes</SelectItem>
+                    {agents.map(a => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.icon_emoji || '🤖'} {a.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-12"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>
           ) : conversations.length === 0 ? (
@@ -103,6 +156,10 @@ export default function History() {
               </div>
               <h3 className="text-lg font-medium text-foreground mb-2">Nenhuma conversa ainda</h3>
               <p className="text-muted-foreground">Comece uma conversa com um dos agentes na página de agentes.</p>
+            </div>
+          ) : filteredConversations.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Nenhuma conversa encontrada para essa busca.</p>
             </div>
           ) : (
             <>

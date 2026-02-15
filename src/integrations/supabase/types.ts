@@ -307,6 +307,36 @@ export type Database = {
           },
         ]
       }
+      credit_cost_config: {
+        Row: {
+          action_label: string
+          action_slug: string
+          created_at: string | null
+          credit_cost: number
+          description: string | null
+          id: string
+          updated_at: string | null
+        }
+        Insert: {
+          action_label: string
+          action_slug: string
+          created_at?: string | null
+          credit_cost?: number
+          description?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Update: {
+          action_label?: string
+          action_slug?: string
+          created_at?: string | null
+          credit_cost?: number
+          description?: string | null
+          id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       credit_packages: {
         Row: {
           badge_text: string | null
@@ -692,6 +722,7 @@ export type Database = {
           ac_tags: string[] | null
           created_at: string | null
           email: string
+          has_completed_setup: boolean | null
           id: string
           last_ac_verification: string | null
           name: string | null
@@ -704,6 +735,7 @@ export type Database = {
           ac_tags?: string[] | null
           created_at?: string | null
           email: string
+          has_completed_setup?: boolean | null
           id: string
           last_ac_verification?: string | null
           name?: string | null
@@ -716,6 +748,7 @@ export type Database = {
           ac_tags?: string[] | null
           created_at?: string | null
           email?: string
+          has_completed_setup?: boolean | null
           id?: string
           last_ac_verification?: string | null
           name?: string | null
@@ -1117,6 +1150,7 @@ export type Database = {
           id: string
           likes: number | null
           objective: string | null
+          post_url: string | null
           posted_at: string | null
           saves: number | null
           script_content: Json
@@ -1139,6 +1173,7 @@ export type Database = {
           id?: string
           likes?: number | null
           objective?: string | null
+          post_url?: string | null
           posted_at?: string | null
           saves?: number | null
           script_content?: Json
@@ -1161,6 +1196,7 @@ export type Database = {
           id?: string
           likes?: number | null
           objective?: string | null
+          post_url?: string | null
           posted_at?: string | null
           saves?: number | null
           script_content?: Json

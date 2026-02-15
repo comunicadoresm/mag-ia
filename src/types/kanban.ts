@@ -64,8 +64,8 @@ export interface KanbanColumn {
 }
 
 export const KANBAN_COLUMNS: Omit<KanbanColumn, 'items'>[] = [
-  { id: 'templates', title: 'Ideia Magnética', color: '#FAFC59', canAdd: false },
-  { id: 'scripting', title: 'Roterizando', color: '#F97316', canAdd: true },
+  { id: 'templates', title: 'Ideias Magnéticas', color: '#FAFC59', canAdd: false },
+  { id: 'scripting', title: 'Roteirizando', color: '#F97316', canAdd: true },
   { id: 'recording', title: 'Gravando', color: '#3B82F6', canAdd: true },
   { id: 'editing', title: 'Editando', color: '#A855F7', canAdd: true },
   { id: 'posted', title: 'Postado', color: '#22C55E', canAdd: false },

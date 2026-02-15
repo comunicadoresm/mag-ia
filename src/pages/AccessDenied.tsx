@@ -50,10 +50,10 @@ export default function AccessDenied() {
         {/* Message */}
         <div className="space-y-3">
           <h1 className="text-2xl font-bold text-foreground">
-            Acesso Negado
+            Acesso não autorizado
           </h1>
           <p className="text-muted-foreground">
-            O email informado não está na nossa lista de alunos ativos.
+            Você ainda não possui acesso à plataforma Magnetic.IA
           </p>
           <p className="text-sm text-muted-foreground">
             Se você é aluno e está vendo esta mensagem, entre em contato com nosso suporte.

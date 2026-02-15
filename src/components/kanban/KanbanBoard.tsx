@@ -4,6 +4,7 @@ import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { KanbanColumn } from './KanbanColumn';
 import { ScriptEditor } from './ScriptEditor';
 import { MetricsModal } from './MetricsModal';
+import { PostedModal } from './PostedModal';
 import { NewCardDialog } from './NewCardDialog';
 import { 
   ScriptTemplate, 
@@ -38,6 +39,11 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
   // Metrics state
   const [metricsScript, setMetricsScript] = useState<UserScript | null>(null);
   const [isMetricsOpen, setIsMetricsOpen] = useState(false);
+
+  // Posted modal state
+  const [postedScript, setPostedScript] = useState<UserScript | null>(null);
+  const [postedPrevStatus, setPostedPrevStatus] = useState<ScriptStatus | null>(null);
+  const [isPostedModalOpen, setIsPostedModalOpen] = useState(false);
 
   // New card dialog state
   const [isNewCardOpen, setIsNewCardOpen] = useState(false);
@@ -190,11 +196,29 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
     const newStatus = targetColumnId as ScriptStatus;
     if (script.status === newStatus) return;
 
+    // AJUSTE 12: Validate movement — no skipping columns
+    const statusOrder: ScriptStatus[] = ['scripting', 'recording', 'editing', 'posted'];
+    const currentIdx = statusOrder.indexOf(script.status);
+    const targetIdx = statusOrder.indexOf(newStatus);
+    if (currentIdx >= 0 && targetIdx >= 0 && Math.abs(targetIdx - currentIdx) > 1) {
+      toast({ title: 'Mova o card para a próxima coluna antes', variant: 'destructive' });
+      return;
+    }
+
+    // AJUSTE 4: If moving to "posted", open PostedModal first
+    if (newStatus === 'posted') {
+      setPostedScript(script);
+      setPostedPrevStatus(script.status);
+      setIsPostedModalOpen(true);
+      // Optimistically move
+      setUserScripts((prev) =>
+        prev.map((s) => (s.id === script.id ? { ...s, status: newStatus } : s))
+      );
+      return;
+    }
+
     try {
       const updates: Partial<UserScript> = { status: newStatus };
-      if (newStatus === 'posted' && !script.posted_at) {
-        updates.posted_at = new Date().toISOString();
-      }
 
       const { error } = await supabase
         .from('user_scripts')
@@ -207,15 +231,58 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
         prev.map((s) => (s.id === script.id ? { ...s, ...updates } : s))
       );
 
-      if (newStatus === 'posted') {
-        setMetricsScript({ ...script, ...updates } as UserScript);
-        setIsMetricsOpen(true);
-      }
-
       toast({ title: 'Roteiro movido com sucesso!' });
     } catch (error) {
       console.error('Error moving script:', error);
       toast({ title: 'Erro ao mover', variant: 'destructive' });
+    }
+  };
+
+  const handlePostedSave = (updatedScript: UserScript) => {
+    setUserScripts((prev) =>
+      prev.map((s) => (s.id === updatedScript.id ? { ...updatedScript, status: 'posted' as ScriptStatus } : s))
+    );
+  };
+
+  const handlePostedCancel = () => {
+    // Revert optimistic move
+    if (postedScript && postedPrevStatus) {
+      setUserScripts((prev) =>
+        prev.map((s) => (s.id === postedScript.id ? { ...s, status: postedPrevStatus } : s))
+      );
+      // Also revert in DB
+      supabase.from('user_scripts').update({ status: postedPrevStatus }).eq('id', postedScript.id);
+    }
+  };
+
+  // AJUSTE 16: Duplicate user card
+  const handleDuplicateCard = async (script: UserScript) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('user_scripts')
+        .insert({
+          user_id: user.id,
+          template_id: script.template_id,
+          title: `${script.title} (cópia)`,
+          theme: script.theme,
+          style: script.style,
+          format: script.format,
+          objective: script.objective,
+          status: 'scripting' as const,
+          script_content: script.script_content,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setUserScripts((prev) => [data as UserScript, ...prev]);
+      toast({ title: 'Roteiro duplicado!' });
+    } catch (error) {
+      console.error('Error duplicating card:', error);
+      toast({ title: 'Erro ao duplicar', variant: 'destructive' });
     }
   };
 
@@ -282,6 +349,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
               onOpenMetrics={handleOpenMetrics}
               onDelete={handleDelete}
               onDrop={handleDrop}
+              onDuplicateCard={handleDuplicateCard}
               onAddCard={column.id === 'scripting' ? () => setIsNewCardOpen(true) : undefined}
             />
           ))}
@@ -306,6 +374,14 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
         isOpen={isMetricsOpen}
         onClose={() => setIsMetricsOpen(false)}
         onSave={handleSaveMetrics}
+      />
+
+      <PostedModal
+        script={postedScript}
+        isOpen={isPostedModalOpen}
+        onClose={() => setIsPostedModalOpen(false)}
+        onSave={handlePostedSave}
+        onCancel={handlePostedCancel}
       />
 
       <NewCardDialog
