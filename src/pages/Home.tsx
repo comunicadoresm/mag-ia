@@ -224,13 +224,24 @@ export default function Home() {
   const needsSetup = !isLoading && (!metrics?.initial_setup_done || profile?.has_completed_setup === false);
 
   const handleInitialSetup = async (data: any) => {
-    const error = await initializeMetrics(data);
+    // Remove fields that don't exist in user_metrics table
+    const { name, current_followers, current_revenue, current_clients, ...metricsData } = data;
+    const error = await initializeMetrics({
+      ...metricsData,
+      current_followers,
+      current_revenue,
+      current_clients,
+    });
     if (error) {
+      console.error('Onboarding save error:', error);
       toast.error('Erro ao salvar');
     } else {
-      // Mark setup as completed in profiles
+      // Update profile name and mark setup as completed
       if (user) {
-        await supabase.from('profiles').update({ has_completed_setup: true }).eq('id', user.id);
+        await supabase.from('profiles').update({ 
+          name: name || data.display_name,
+          has_completed_setup: true 
+        }).eq('id', user.id);
       }
       toast.success('Perfil configurado!');
     }
