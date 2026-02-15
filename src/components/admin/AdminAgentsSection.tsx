@@ -70,7 +70,7 @@ const defaultFormData: AgentFormData = {
   name: '', slug: '', description: '', icon_emoji: '🤖',
   system_prompt: '', welcome_message: '', model: 'claude-sonnet-4-20250514',
   api_key: '', is_active: true, display_order: 0, selectedTags: [],
-  ice_breakers: ['', '', ''], billing_type: 'per_generation',
+  ice_breakers: ['', '', ''], billing_type: 'per_messages',
   credit_cost: 1, message_package_size: 5, plan_access: 'magnetic',
   plan_access_all: true, selectedPlanIds: [],
 };
@@ -149,7 +149,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         welcome_message: agent.welcome_message || '', model: agent.model,
         api_key: (agent as any).api_key || '', is_active: agent.is_active,
         display_order: agent.display_order, selectedTags: agentTags[agent.id] || [],
-        ice_breakers: paddedIceBreakers, billing_type: (agent as any).billing_type || 'per_generation',
+        ice_breakers: paddedIceBreakers, billing_type: (agent as any).billing_type || 'per_messages',
         credit_cost: (agent as any).credit_cost || 1, message_package_size: (agent as any).message_package_size || 5,
         plan_access: (agent as any).plan_access || 'magnetic',
         plan_access_all: true, selectedPlanIds: [],
