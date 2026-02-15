@@ -133,7 +133,7 @@ export default function Agents() {
                   className="relative bg-gradient-to-br from-muted/80 to-muted/30 border border-border/30 rounded-2xl p-4 cursor-pointer hover:scale-[1.02] hover:shadow-lg hover:border-primary/40 transition-all duration-200 group overflow-hidden text-left"
                 >
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center text-2xl shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-primary/15 flex items-center justify-center text-2xl shrink-0">
                       {agent.icon_emoji || '🤖'}
                     </div>
                     <h4 className="font-bold text-foreground text-sm leading-tight line-clamp-2 group-hover:text-primary transition-colors min-w-0 flex-1">
