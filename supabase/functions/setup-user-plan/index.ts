@@ -99,6 +99,25 @@ Deno.serve(async (req) => {
     // Determine if plan changed
     const planChanged = currentPlanTypeId !== planConfig.id;
 
+    // Check if this would be a downgrade — never downgrade automatically
+    let currentPlanOrder = 0;
+    if (currentPlanTypeId) {
+      const { data: oldPlan } = await supabase
+        .from("plan_types")
+        .select("display_order")
+        .eq("id", currentPlanTypeId)
+        .single();
+      currentPlanOrder = oldPlan?.display_order || 0;
+    }
+
+    if (planChanged && currentPlanTypeId && planConfig.display_order < currentPlanOrder) {
+      console.log(`Skipping downgrade from order ${currentPlanOrder} to ${planConfig.display_order}`);
+      return new Response(
+        JSON.stringify({ success: true, planType: profile?.plan_type, skipped: "no_downgrade" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Update profile with plan_type and plan_type_id
     if (planChanged || !currentPlanTypeId) {
       console.log(`Updating plan: ${profile?.plan_type || 'none'} -> ${planConfig.slug}`);
