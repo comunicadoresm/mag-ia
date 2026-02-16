@@ -726,6 +726,7 @@ export type Database = {
           id: string
           last_ac_verification: string | null
           name: string | null
+          onboarding_step: string | null
           plan_activated_at: string | null
           plan_type: string | null
           plan_type_id: string | null
@@ -739,6 +740,7 @@ export type Database = {
           id: string
           last_ac_verification?: string | null
           name?: string | null
+          onboarding_step?: string | null
           plan_activated_at?: string | null
           plan_type?: string | null
           plan_type_id?: string | null
@@ -752,6 +754,7 @@ export type Database = {
           id?: string
           last_ac_verification?: string | null
           name?: string | null
+          onboarding_step?: string | null
           plan_activated_at?: string | null
           plan_type?: string | null
           plan_type_id?: string | null
@@ -1057,6 +1060,47 @@ export type Database = {
           },
         ]
       }
+      user_format_profile: {
+        Row: {
+          created_at: string | null
+          id: string
+          quiz_answers: Json | null
+          quiz_score: number | null
+          recommended_format: string
+          updated_at: string | null
+          user_id: string
+          weekly_plan: Json | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          quiz_answers?: Json | null
+          quiz_score?: number | null
+          recommended_format: string
+          updated_at?: string | null
+          user_id: string
+          weekly_plan?: Json | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          quiz_answers?: Json | null
+          quiz_score?: number | null
+          recommended_format?: string
+          updated_at?: string | null
+          user_id?: string
+          weekly_plan?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_format_profile_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_metrics: {
         Row: {
           created_at: string | null
@@ -1112,6 +1156,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_metrics_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_narratives: {
+        Row: {
+          concrete_results: string | null
+          created_at: string | null
+          differentials: string | null
+          expertise: string | null
+          id: string
+          ideal_client: string | null
+          is_completed: boolean | null
+          market_criticism: string | null
+          narrative_text: string | null
+          transformation: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          concrete_results?: string | null
+          created_at?: string | null
+          differentials?: string | null
+          expertise?: string | null
+          id?: string
+          ideal_client?: string | null
+          is_completed?: boolean | null
+          market_criticism?: string | null
+          narrative_text?: string | null
+          transformation?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          concrete_results?: string | null
+          created_at?: string | null
+          differentials?: string | null
+          expertise?: string | null
+          id?: string
+          ideal_client?: string | null
+          is_completed?: boolean | null
+          market_criticism?: string | null
+          narrative_text?: string | null
+          transformation?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_narratives_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: true
             referencedRelation: "profiles"
@@ -1229,6 +1326,65 @@ export type Database = {
             foreignKeyName: "user_scripts_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voice_profiles: {
+        Row: {
+          audio_casual_url: string | null
+          audio_positioning_url: string | null
+          audio_professional_url: string | null
+          calibration_score: number | null
+          created_at: string | null
+          id: string
+          is_calibrated: boolean | null
+          recalibrations_count: number | null
+          transcription_casual: string | null
+          transcription_positioning: string | null
+          transcription_professional: string | null
+          updated_at: string | null
+          user_id: string
+          voice_dna: Json | null
+        }
+        Insert: {
+          audio_casual_url?: string | null
+          audio_positioning_url?: string | null
+          audio_professional_url?: string | null
+          calibration_score?: number | null
+          created_at?: string | null
+          id?: string
+          is_calibrated?: boolean | null
+          recalibrations_count?: number | null
+          transcription_casual?: string | null
+          transcription_positioning?: string | null
+          transcription_professional?: string | null
+          updated_at?: string | null
+          user_id: string
+          voice_dna?: Json | null
+        }
+        Update: {
+          audio_casual_url?: string | null
+          audio_positioning_url?: string | null
+          audio_professional_url?: string | null
+          calibration_score?: number | null
+          created_at?: string | null
+          id?: string
+          is_calibrated?: boolean | null
+          recalibrations_count?: number | null
+          transcription_casual?: string | null
+          transcription_positioning?: string | null
+          transcription_professional?: string | null
+          updated_at?: string | null
+          user_id?: string
+          voice_dna?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voice_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
