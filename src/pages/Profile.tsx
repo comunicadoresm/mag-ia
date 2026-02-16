@@ -11,6 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { VoiceDNASetup } from '@/components/onboarding/VoiceDNASetup';
+import { FormatQuizSetup } from '@/components/onboarding/FormatQuizSetup';
+import { NarrativeSetup } from '@/components/onboarding/NarrativeSetup';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -27,6 +30,9 @@ export default function Profile() {
   const [voiceProfile, setVoiceProfile] = useState<any>(null);
   const [narrative, setNarrative] = useState<any>(null);
   const [formatProfile, setFormatProfile] = useState<any>(null);
+  const [openVoiceDNA, setOpenVoiceDNA] = useState(false);
+  const [openFormatQuiz, setOpenFormatQuiz] = useState(false);
+  const [openNarrative, setOpenNarrative] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (!authLoading && !user) navigate('/login'); }, [user, authLoading, navigate]);
@@ -262,23 +268,11 @@ export default function Profile() {
                         )}
                       </p>
                     </div>
-                  </div>
-
-                  {/* Narrative */}
-                  <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                      <BookOpen className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground">Narrativa Magnética</p>
-                      <p className="text-sm font-medium text-foreground">
-                        {narrative?.is_completed ? (
-                          <span className="text-green-500">✅ Completa{narrative.expertise ? ` — ${narrative.expertise.substring(0, 40)}...` : ''}</span>
-                        ) : (
-                          <span className="text-muted-foreground">Não configurada</span>
-                        )}
-                      </p>
-                    </div>
+                    {!voiceProfile?.is_calibrated && (
+                      <Button size="sm" variant="outline" onClick={() => setOpenVoiceDNA(true)} className="text-xs shrink-0">
+                        Configurar
+                      </Button>
+                    )}
                   </div>
 
                   {/* Format Profile */}
@@ -296,6 +290,33 @@ export default function Profile() {
                         )}
                       </p>
                     </div>
+                    {!formatProfile?.recommended_format && (
+                      <Button size="sm" variant="outline" onClick={() => setOpenFormatQuiz(true)} className="text-xs shrink-0">
+                        Configurar
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Narrative */}
+                  <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Narrativa Magnética</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {narrative?.is_completed ? (
+                          <span className="text-green-500">✅ Completa{narrative.expertise ? ` — ${narrative.expertise.substring(0, 40)}...` : ''}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Não configurada</span>
+                        )}
+                      </p>
+                    </div>
+                    {!narrative?.is_completed && (
+                      <Button size="sm" variant="outline" onClick={() => setOpenNarrative(true)} className="text-xs shrink-0">
+                        Configurar
+                      </Button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -305,6 +326,23 @@ export default function Profile() {
           <p className="text-center text-xs text-muted-foreground mt-8">CM Chat v1.0.0</p>
         </div>
       </div>
+
+      {/* Onboarding Modals */}
+      <VoiceDNASetup
+        open={openVoiceDNA}
+        onComplete={() => { setOpenVoiceDNA(false); window.location.reload(); }}
+        onSkip={() => setOpenVoiceDNA(false)}
+      />
+      <FormatQuizSetup
+        open={openFormatQuiz}
+        onComplete={() => { setOpenFormatQuiz(false); window.location.reload(); }}
+        onSkip={() => setOpenFormatQuiz(false)}
+      />
+      <NarrativeSetup
+        open={openNarrative}
+        onComplete={() => { setOpenNarrative(false); window.location.reload(); }}
+        onSkip={() => setOpenNarrative(false)}
+      />
     </AppLayout>
   );
 }
