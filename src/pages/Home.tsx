@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
+import { MagneticOnboarding } from '@/components/onboarding/MagneticOnboarding';
 
 // ─── Currency Input Helper ───────────────────────────────────
 function CurrencyInput({ value, onChange, ...props }: { value: number; onChange: (v: number) => void } & Omit<React.ComponentProps<'input'>, 'value' | 'onChange'>) {
@@ -369,6 +370,10 @@ export default function Home() {
         <UpdateMetricsModal open={updateModalOpen} onClose={() => setUpdateModalOpen(false)}
           currentValues={{ followers: m.current_followers, revenue: Number(m.current_revenue), clients: m.current_clients }}
           onSave={handleUpdateMetrics} />
+      )}
+      {/* Magnetic Onboarding (voice DNA, format quiz, narrative) */}
+      {profile?.onboarding_step && !needsSetup && (
+        <MagneticOnboarding onboardingStep={profile.onboarding_step} />
       )}
     </AppLayout>
   );

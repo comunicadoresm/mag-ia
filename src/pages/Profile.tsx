@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Mail, Calendar, Pencil, Check, X, Loader2, Coins, ChevronRight, AtSign, Camera, User, Crown } from 'lucide-react';
+import { LogOut, Mail, Calendar, Pencil, Check, X, Loader2, Coins, ChevronRight, AtSign, Camera, User, Crown, Mic, BookOpen, FileText, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { AppLayout } from '@/components/AppLayout';
@@ -24,6 +24,9 @@ export default function Profile() {
   const [isSaving, setIsSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [planInfo, setPlanInfo] = useState<{ name: string; color: string } | null>(null);
+  const [voiceProfile, setVoiceProfile] = useState<any>(null);
+  const [narrative, setNarrative] = useState<any>(null);
+  const [formatProfile, setFormatProfile] = useState<any>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (!authLoading && !user) navigate('/login'); }, [user, authLoading, navigate]);
@@ -43,6 +46,20 @@ export default function Profile() {
       if (data) setPlanInfo(data);
     });
   }, [profile?.plan_type_id]);
+
+  // Fetch identity data
+  useEffect(() => {
+    if (!user) return;
+    supabase.from('voice_profiles').select('voice_dna, is_calibrated, calibration_score').eq('user_id', user.id).maybeSingle().then(({ data }) => {
+      if (data) setVoiceProfile(data);
+    });
+    supabase.from('user_narratives').select('narrative_text, is_completed, expertise').eq('user_id', user.id).maybeSingle().then(({ data }) => {
+      if (data) setNarrative(data);
+    });
+    supabase.from('user_format_profile').select('recommended_format, quiz_score').eq('user_id', user.id).maybeSingle().then(({ data }) => {
+      if (data) setFormatProfile(data);
+    });
+  }, [user]);
 
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
 
@@ -219,6 +236,70 @@ export default function Profile() {
             <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl">
               <LogOut className="w-5 h-5" />Sair da conta
             </Button>
+
+            {/* Identidade Magnética */}
+            {(voiceProfile || narrative || formatProfile) && (
+              <div className="pt-4">
+                <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  Identidade Magnética
+                </h2>
+                <div className="space-y-3">
+                  {/* Voice DNA */}
+                  <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <Mic className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">DNA de Voz</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {voiceProfile?.is_calibrated ? (
+                          <span className="text-green-500">✅ Calibrado{voiceProfile.calibration_score ? ` (nota ${voiceProfile.calibration_score})` : ''}</span>
+                        ) : voiceProfile?.voice_dna ? (
+                          <span className="text-yellow-500">⏳ Pendente de validação</span>
+                        ) : (
+                          <span className="text-muted-foreground">Não configurado</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Narrative */}
+                  <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <BookOpen className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Narrativa Magnética</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {narrative?.is_completed ? (
+                          <span className="text-green-500">✅ Completa{narrative.expertise ? ` — ${narrative.expertise.substring(0, 40)}...` : ''}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Não configurada</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Format Profile */}
+                  <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Formato Recomendado</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {formatProfile?.recommended_format ? (
+                          <span className="text-green-500">✅ {formatProfile.recommended_format}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Não configurado</span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-8">CM Chat v1.0.0</p>

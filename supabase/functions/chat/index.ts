@@ -420,8 +420,44 @@ Deno.serve(async (req) => {
       systemPrompt = `${agent.system_prompt}\n\n## Base de Conhecimento\nUse as seguintes informações como contexto para responder às perguntas do usuário.\n\n${knowledgeContext}`;
     }
 
-    const provider = getProvider(agent.model);
-    console.log(`Provider: ${provider}, model: ${agent.model}, history: ${conversationHistory.length} msgs`);
+    // === INJECT VOICE DNA + NARRATIVE ===
+    try {
+      const { data: voiceProfile } = await supabaseClient
+        .from("voice_profiles")
+        .select("voice_dna, is_calibrated")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const { data: narrative } = await supabaseClient
+        .from("user_narratives")
+        .select("narrative_text, expertise, ideal_client, transformation, differentials, market_criticism, concrete_results, is_completed")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (voiceProfile?.voice_dna && voiceProfile?.is_calibrated) {
+        const dna = voiceProfile.voice_dna as any;
+        systemPrompt += `\n\n## DNA DE VOZ DO USUÁRIO (USE PARA ADAPTAR SUA LINGUAGEM)
+Formalidade: ${dna.formalidade}/10 | Ritmo: ${dna.ritmo} | Humor: ${dna.humor}
+Assertividade: ${dna.assertividade} | Energia: ${dna.energia}
+Expressões frequentes: ${(dna.expressoes_frequentes || []).join(", ")}
+Palavras de transição: ${(dna.palavras_transicao || []).join(", ")}
+Resumo do tom: ${dna.resumo_tom || ""}
+IMPORTANTE: Adapte suas respostas para soar como esta pessoa escreveria/falaria.`;
+      }
+
+      if (narrative?.is_completed && narrative?.narrative_text) {
+        systemPrompt += `\n\n## NARRATIVA MAGNÉTICA DO USUÁRIO
+${narrative.narrative_text}
+Expertise: ${narrative.expertise || ""}
+Cliente ideal: ${narrative.ideal_client || ""}
+Transformação: ${narrative.transformation || ""}
+Diferenciais: ${narrative.differentials || ""}
+Use estas informações para contextualizar respostas e roteiros.`;
+      }
+    } catch (e) {
+      console.error("Error fetching identity context:", e);
+    }
+    // === END IDENTITY INJECTION ===
 
     let result: { text: string; tokens: number | null };
 

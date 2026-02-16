@@ -269,6 +269,43 @@ Deno.serve(async (req) => {
 
     let systemPrompt: string;
 
+    // === INJECT VOICE DNA + NARRATIVE ===
+    let identityContext = "";
+    try {
+      const { data: voiceProfile } = await supabaseClient
+        .from("voice_profiles")
+        .select("voice_dna, is_calibrated")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const { data: narrative } = await supabaseClient
+        .from("user_narratives")
+        .select("narrative_text, expertise, ideal_client, transformation, differentials, is_completed")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (voiceProfile?.voice_dna && voiceProfile?.is_calibrated) {
+        const dna = voiceProfile.voice_dna as any;
+        identityContext += `\n\n## DNA DE VOZ DO USUÁRIO
+Formalidade: ${dna.formalidade}/10 | Ritmo: ${dna.ritmo} | Humor: ${dna.humor}
+Assertividade: ${dna.assertividade} | Energia: ${dna.energia}
+Expressões frequentes: ${(dna.expressoes_frequentes || []).join(", ")}
+Resumo do tom: ${dna.resumo_tom || ""}
+IMPORTANTE: O roteiro DEVE soar como esta pessoa escreveria.`;
+      }
+
+      if (narrative?.is_completed && narrative?.narrative_text) {
+        identityContext += `\n\n## NARRATIVA MAGNÉTICA DO USUÁRIO
+${narrative.narrative_text}
+Expertise: ${narrative.expertise || ""}
+Cliente ideal: ${narrative.ideal_client || ""}
+Transformação: ${narrative.transformation || ""}`;
+      }
+    } catch (e) {
+      console.error("Error fetching identity context:", e);
+    }
+    // === END IDENTITY INJECTION ===
+
     if (is_from_template) {
       // === TEMPLATE-BASED CARD: heavy template context ===
       let templateStructureStr = "";
@@ -381,7 +418,7 @@ Use este formato:
 - Mantenha cores de intenção e dicas de gravação
 - Pergunte se quer ajustar após entrega`;
 
-      systemPrompt = agent.system_prompt + scriptContext;
+      systemPrompt = agent.system_prompt + scriptContext + identityContext;
     } else {
       // === FREE CARD: agent cru + minimal script context ===
       const freeCardContext = `
@@ -412,7 +449,7 @@ Quando tiver informações suficientes, gere o roteiro no formato:
 
 Após entregar, pergunte se quer ajustar algo.`;
 
-      systemPrompt = agent.system_prompt + freeCardContext;
+      systemPrompt = agent.system_prompt + freeCardContext + identityContext;
     }
 
     if (action === "start") {

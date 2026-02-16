@@ -250,6 +250,43 @@ Você está sendo solicitado a criar um roteiro para vídeo de redes sociais (Re
 
     const systemPrompt = agent.system_prompt + scriptInstructions;
 
+    // === INJECT VOICE DNA + NARRATIVE ===
+    let enrichedSystemPrompt = systemPrompt;
+    try {
+      const { data: voiceProfile } = await supabaseClient
+        .from("voice_profiles")
+        .select("voice_dna, is_calibrated")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const { data: narrative } = await supabaseClient
+        .from("user_narratives")
+        .select("narrative_text, expertise, ideal_client, transformation, differentials, is_completed")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (voiceProfile?.voice_dna && voiceProfile?.is_calibrated) {
+        const dna = voiceProfile.voice_dna as any;
+        enrichedSystemPrompt += `\n\n## DNA DE VOZ DO USUÁRIO
+Formalidade: ${dna.formalidade}/10 | Ritmo: ${dna.ritmo} | Humor: ${dna.humor}
+Assertividade: ${dna.assertividade} | Energia: ${dna.energia}
+Expressões frequentes: ${(dna.expressoes_frequentes || []).join(", ")}
+Resumo do tom: ${dna.resumo_tom || ""}
+IMPORTANTE: O roteiro DEVE soar como esta pessoa escreveria.`;
+      }
+
+      if (narrative?.is_completed && narrative?.narrative_text) {
+        enrichedSystemPrompt += `\n\n## NARRATIVA MAGNÉTICA DO USUÁRIO
+${narrative.narrative_text}
+Expertise: ${narrative.expertise || ""}
+Cliente ideal: ${narrative.ideal_client || ""}
+Transformação: ${narrative.transformation || ""}`;
+      }
+    } catch (e) {
+      console.error("Error fetching identity context:", e);
+    }
+    // === END IDENTITY INJECTION ===
+
     const userPrompt = `Crie um roteiro completo para um vídeo com as seguintes características:
 
 **Título:** ${title}
@@ -274,7 +311,7 @@ Lembre-se: o roteiro deve ser natural para falar, não para ler.`;
     const provider = getProvider(agent.model);
     console.log(`Provider: ${provider}, model: ${agent.model}`);
 
-    const generatedScript = await callAI(provider, agent.model, agent.api_key, systemPrompt, userPrompt);
+    const generatedScript = await callAI(provider, agent.model, agent.api_key, enrichedSystemPrompt, userPrompt);
     console.log(`Script generated, length: ${generatedScript.length}`);
 
     return new Response(
