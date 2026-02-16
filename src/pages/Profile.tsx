@@ -237,8 +237,8 @@ export default function Profile() {
               <LogOut className="w-5 h-5" />Sair da conta
             </Button>
 
-            {/* Identidade Magnética */}
-            {(voiceProfile || narrative || formatProfile) && (
+            {/* Identidade Magnética — always show for magnetic plans */}
+            {(profile?.plan_type === 'magnetic' || profile?.plan_type === 'magnetic_pro' || profile?.plan_type === 'magnetico' || profile?.plan_type === 'magnetico_pro' || voiceProfile || narrative || formatProfile) && (
               <div className="pt-4">
                 <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-primary" />
