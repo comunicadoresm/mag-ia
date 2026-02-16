@@ -39,6 +39,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
   const [audios, setAudios] = useState<Record<string, Blob>>({});
   const [uploading, setUploading] = useState(false);
   
+  const [processing, setProcessing] = useState(false);
   const [validationText, setValidationText] = useState('');
   const [score, setScore] = useState(7);
   const [feedback, setFeedback] = useState('');

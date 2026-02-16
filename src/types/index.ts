@@ -8,6 +8,7 @@ export interface Profile {
   ac_tags: string[] | null;
   last_ac_verification: string | null;
   has_completed_setup: boolean;
+  onboarding_step: string | null;
   created_at: string;
   updated_at: string;
 }
