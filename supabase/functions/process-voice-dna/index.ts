@@ -38,6 +38,12 @@ async function callLovableAI(systemPrompt: string, messages: { role: string; con
 }
 
 async function transcribeAudio(audioUrl: string): Promise<string> {
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  if (!OPENAI_API_KEY) {
+    console.error("OPENAI_API_KEY not configured, skipping transcription");
+    return "[Transcrição indisponível - API key não configurada]";
+  }
+
   // Download audio from Supabase Storage
   const audioResponse = await fetch(audioUrl);
   if (!audioResponse.ok) {
@@ -45,17 +51,31 @@ async function transcribeAudio(audioUrl: string): Promise<string> {
     return "";
   }
   const audioBlob = await audioResponse.blob();
-
-  // For transcription, we'll use Lovable AI to simulate transcription
-  // In production, you'd use OpenAI Whisper API
-  // Since we don't have OPENAI_API_KEY, we'll note this and use a workaround
-  
-  // Try to use the audio content with Lovable AI for analysis
-  // Since Lovable AI doesn't support audio directly, we'll return a placeholder
-  // and the DNA analysis will work with whatever audios are transcribed
   console.log(`Audio downloaded from ${audioUrl}, size: ${audioBlob.size} bytes`);
-  
-  return `[Áudio de ${Math.round(audioBlob.size / 1024)}KB recebido - transcrição pendente de API Whisper]`;
+
+  // Transcribe using OpenAI Whisper API
+  const formData = new FormData();
+  formData.append("file", audioBlob, "audio.webm");
+  formData.append("model", "whisper-1");
+  formData.append("language", "pt");
+
+  const whisperResponse = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: formData,
+  });
+
+  if (!whisperResponse.ok) {
+    const errorText = await whisperResponse.text();
+    console.error("Whisper API error:", whisperResponse.status, errorText);
+    return "[Erro na transcrição do áudio]";
+  }
+
+  const result = await whisperResponse.json();
+  console.log(`Transcription complete: ${result.text?.substring(0, 100)}...`);
+  return result.text || "";
 }
 
 Deno.serve(async (req) => {
