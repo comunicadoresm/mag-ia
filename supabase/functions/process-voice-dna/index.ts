@@ -49,7 +49,6 @@ async function transcribeAudioFromStorage(
     return "[Transcrição indisponível - API key não configurada]";
   }
 
-  // Download audio using authenticated Supabase client
   const { data: fileData, error: downloadError } = await supabaseClient.storage
     .from("voice-audios")
     .download(storagePath);
@@ -61,9 +60,12 @@ async function transcribeAudioFromStorage(
 
   console.log(`Audio downloaded from storage path: ${storagePath}, size: ${fileData.size} bytes`);
 
-  // Transcribe using OpenAI Whisper API
+  // Detect file extension from path for proper naming
+  const ext = storagePath.split('.').pop() || 'webm';
+  const fileName = `audio.${ext}`;
+
   const formData = new FormData();
-  formData.append("file", fileData, "audio.webm");
+  formData.append("file", fileData, fileName);
   formData.append("model", "whisper-1");
   formData.append("language", "pt");
 
@@ -86,12 +88,9 @@ async function transcribeAudioFromStorage(
   return result.text || "";
 }
 
-// Extract storage path from full URL or path
 function extractStoragePath(urlOrPath: string): string {
-  // If it's a full URL like https://xxx.supabase.co/storage/v1/object/public/voice-audios/userId/file.webm
   const match = urlOrPath.match(/voice-audios\/(.+)$/);
   if (match) return match[1];
-  // Already a path
   return urlOrPath;
 }
 
@@ -147,7 +146,7 @@ Deno.serve(async (req) => {
 
     console.log(`Processing voice DNA for user: ${user_id}`);
 
-    // Step 1: Transcribe audios using authenticated storage download
+    // Step 1: Transcribe audios
     const transcriptions: Record<string, string> = {};
     for (const [key, url] of Object.entries(audio_urls)) {
       console.log(`Transcribing ${key}...`);
@@ -214,7 +213,6 @@ Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON v
       [{ role: "user", content: analysisPrompt }]
     );
 
-    // Parse the DNA JSON
     let voiceDna: any;
     try {
       const jsonMatch = dnaResponse.match(/\{[\s\S]*\}/);
@@ -231,11 +229,11 @@ Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON v
       };
     }
 
-    // Save DNA
+    // BUG 3 FIX: Save DNA but do NOT mark as calibrated — let frontend decide after user validation
     await supabaseClient.from("voice_profiles").update({
       voice_dna: voiceDna,
-      is_calibrated: true,
-      calibration_score: 85,
+      is_calibrated: false,
+      calibration_score: null,
     }).eq("user_id", user_id);
 
     // Step 4: Generate validation paragraph
