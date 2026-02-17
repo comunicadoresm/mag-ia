@@ -12,8 +12,6 @@ interface ConsumeRequest {
     agent_id?: string;
     conversation_id?: string;
     script_id?: string;
-    credit_cost?: number;
-    message_package_size?: number;
   };
 }
 
@@ -56,11 +54,35 @@ Deno.serve(async (req) => {
     const { action, metadata }: ConsumeRequest = await req.json();
     console.log(`Consume credits: user=${user.id}, action=${action}`);
 
-    const cost = metadata?.credit_cost || DEFAULT_COSTS[action] || 1;
+    // Determine cost server-side only (never trust client)
+    let cost = DEFAULT_COSTS[action] || 1;
+
+    // If agent_id provided, read cost from agents table
+    if (metadata?.agent_id) {
+      const { data: agent } = await supabase
+        .from("agents")
+        .select("credit_cost, message_package_size")
+        .eq("id", metadata.agent_id)
+        .single();
+      if (agent?.credit_cost) {
+        cost = agent.credit_cost;
+      }
+    }
 
     // For chat_messages, check if we need to bill based on message count
     if (action === "chat_messages" && metadata?.conversation_id) {
-      const packageSize = metadata?.message_package_size || 5;
+      // Read package size from agent config, default to 5
+      let packageSize = 5;
+      if (metadata?.agent_id) {
+        const { data: agentConfig } = await supabase
+          .from("agents")
+          .select("message_package_size")
+          .eq("id", metadata.agent_id)
+          .single();
+        if (agentConfig?.message_package_size) {
+          packageSize = agentConfig.message_package_size;
+        }
+      }
       const { count } = await supabase
         .from("messages")
         .select("*", { count: "exact", head: true })

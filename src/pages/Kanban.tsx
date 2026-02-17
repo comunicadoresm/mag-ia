@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LayoutGrid, Loader2 } from 'lucide-react';
 import { KanbanBoard } from '@/components/kanban/KanbanBoard';
 import { AppLayout } from '@/components/AppLayout';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Agent } from '@/types';
@@ -52,7 +53,9 @@ export default function Kanban() {
       {/* Content */}
       <div className="flex-1 overflow-hidden px-4 py-6 pb-24 md:pb-6">
         <div className="max-w-[1600px] mx-auto h-full">
-          <KanbanBoard agents={agents} />
+          <ErrorBoundary>
+            <KanbanBoard agents={agents} />
+          </ErrorBoundary>
         </div>
       </div>
     </AppLayout>

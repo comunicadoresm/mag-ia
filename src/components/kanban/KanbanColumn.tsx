@@ -1,9 +1,17 @@
 import React from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Lightbulb, PenTool, Video, Film, CheckCircle } from 'lucide-react';
 
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { KanbanCard } from './KanbanCard';
 import { ScriptTemplate, UserScript, KanbanColumn as KanbanColumnType } from '@/types/kanban';
+
+const COLUMN_ICONS: Record<string, React.ReactNode> = {
+  templates: <Lightbulb className="w-3.5 h-3.5" aria-hidden />,
+  scripting: <PenTool className="w-3.5 h-3.5" aria-hidden />,
+  recording: <Video className="w-3.5 h-3.5" aria-hidden />,
+  editing: <Film className="w-3.5 h-3.5" aria-hidden />,
+  posted: <CheckCircle className="w-3.5 h-3.5" aria-hidden />,
+};
 
 interface KanbanColumnProps {
   column: KanbanColumnType;
@@ -63,6 +71,9 @@ export function KanbanColumn({
           className="w-3 h-3 rounded-full"
           style={{ backgroundColor: column.color }}
         />
+        <span className="text-muted-foreground" style={{ color: column.color }}>
+          {COLUMN_ICONS[column.id]}
+        </span>
         <h3 className="font-semibold text-foreground">{column.title}</h3>
         <span className="text-sm text-muted-foreground ml-auto">
           {column.items.length}

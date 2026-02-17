@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { KanbanColumn } from './KanbanColumn';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { ScriptEditor } from './ScriptEditor';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { MetricsModal } from './MetricsModal';
 import { PostedModal } from './PostedModal';
 import { NewCardDialog } from './NewCardDialog';
@@ -336,47 +339,143 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
     }
   };
 
+  const isMobile = useIsMobile();
+  const [activeTab, setActiveTab] = useState(0);
+
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex gap-4 pb-4">
+        {[...Array(isMobile ? 1 : 5)].map((_, i) => (
+          <div key={i} className="min-w-[280px] max-w-[320px] flex-shrink-0 space-y-3">
+            <div className="flex items-center gap-2 px-1">
+              <Skeleton className="w-3 h-3 rounded-full" />
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-6 ml-auto" />
+            </div>
+            {[...Array(3)].map((_, j) => (
+              <Skeleton key={j} className="h-32 rounded-2xl" />
+            ))}
+          </div>
+        ))}
       </div>
     );
   }
 
   return (
     <>
-      <ScrollArea className="w-full">
-        <div className="flex gap-4 pb-4 min-h-[70vh]">
-          {columns.map((column) => (
-            <KanbanColumn
-              key={column.id}
-              column={column}
-              onDuplicate={handleDuplicate}
-              onCardClick={handleCardClick}
-              onWriteWithAI={handleWriteWithAI}
-              onOpenMetrics={handleOpenMetrics}
-              onDelete={handleDelete}
-              onDrop={handleDrop}
-              onDuplicateCard={handleDuplicateCard}
-              onAddCard={column.id === 'scripting' ? () => setIsNewCardOpen(true) : undefined}
-            />
-          ))}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      {/* Mobile: Tab-based view */}
+      {isMobile ? (
+        <div className="flex flex-col h-full">
+          {/* Tab headers */}
+          <div className="flex overflow-x-auto gap-1 pb-3 scrollbar-hide">
+            {columns.map((col, idx) => (
+              <button
+                key={col.id}
+                onClick={() => setActiveTab(idx)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-full whitespace-nowrap text-sm font-medium transition-all flex-shrink-0 ${
+                  activeTab === idx
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <div
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: col.color }}
+                />
+                {col.title}
+                <span className={`text-xs ${activeTab === idx ? 'text-primary-foreground/70' : 'text-muted-foreground/50'}`}>
+                  {col.items.length}
+                </span>
+              </button>
+            ))}
+          </div>
 
-      <ScriptEditor
-        script={selectedScript}
-        structure={selectedStructure}
-        isOpen={isEditorOpen}
-        onClose={() => setIsEditorOpen(false)}
-        onSave={handleSaveScript}
-        agents={agents}
-        selectedAgentId={selectedAgentId}
-        isFromTemplate={isFromTemplate}
-        isReadOnly={isReadOnly}
-      />
+          {/* Active column content */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="space-y-3 pb-4">
+              {columns[activeTab]?.items.map((item) => {
+                const col = columns[activeTab];
+                const isTemplateColumn = col.id === 'templates';
+                return (
+                  <div
+                    key={item.id}
+                    draggable={!isTemplateColumn}
+                    onDragStart={(e) => {
+                      if (!isTemplateColumn) {
+                        e.dataTransfer.setData('application/json', JSON.stringify(item));
+                      }
+                    }}
+                  >
+                    <KanbanCard
+                      item={item}
+                      isTemplate={isTemplateColumn}
+                      columnId={col.id}
+                      onDuplicate={handleDuplicate}
+                      onClick={handleCardClick}
+                      onWriteWithAI={handleWriteWithAI}
+                      onOpenMetrics={handleOpenMetrics}
+                      onDelete={handleDelete}
+                      onDuplicateCard={handleDuplicateCard}
+                    />
+                  </div>
+                );
+              })}
+
+              {/* Add button for scripting */}
+              {columns[activeTab]?.id === 'scripting' && (
+                <button
+                  onClick={() => setIsNewCardOpen(true)}
+                  className="w-full py-4 border-2 border-dashed border-border/50 rounded-2xl flex items-center justify-center gap-2 text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
+                >
+                  <span className="text-sm font-medium">+ Novo Roteiro</span>
+                </button>
+              )}
+
+              {/* Empty state */}
+              {columns[activeTab]?.items.length === 0 && columns[activeTab]?.id !== 'scripting' && (
+                <div className="w-full py-12 border-2 border-dashed border-border/30 rounded-2xl flex flex-col items-center justify-center gap-2 text-muted-foreground/50">
+                  <span className="text-sm">Nenhum roteiro aqui</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Desktop: Original horizontal scroll */
+        <ScrollArea className="w-full">
+          <div className="flex gap-4 pb-4 min-h-[70vh]">
+            {columns.map((column) => (
+              <KanbanColumn
+                key={column.id}
+                column={column}
+                onDuplicate={handleDuplicate}
+                onCardClick={handleCardClick}
+                onWriteWithAI={handleWriteWithAI}
+                onOpenMetrics={handleOpenMetrics}
+                onDelete={handleDelete}
+                onDrop={handleDrop}
+                onDuplicateCard={handleDuplicateCard}
+                onAddCard={column.id === 'scripting' ? () => setIsNewCardOpen(true) : undefined}
+              />
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      )}
+
+      <ErrorBoundary>
+        <ScriptEditor
+          script={selectedScript}
+          structure={selectedStructure}
+          isOpen={isEditorOpen}
+          onClose={() => setIsEditorOpen(false)}
+          onSave={handleSaveScript}
+          agents={agents}
+          selectedAgentId={selectedAgentId}
+          isFromTemplate={isFromTemplate}
+          isReadOnly={isReadOnly}
+        />
+      </ErrorBoundary>
 
       <MetricsModal
         script={metricsScript}

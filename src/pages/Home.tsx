@@ -1,14 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Loader2, Users, DollarSign, Briefcase, Eye, Heart, MessageCircle,
-  Bookmark, Share2, FileText, RefreshCw, AtSign, Camera, BarChart3,
+  Users, DollarSign, Briefcase, Eye, Heart, MessageCircle,
+  Bookmark, Share2, FileText, RefreshCw, AtSign, Camera, BarChart3, Loader2,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -315,7 +316,37 @@ export default function Home() {
       {/* Content */}
       <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
         {isLoading ? (
-          <div className="flex items-center justify-center py-24"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>
+          <div className="max-w-[1600px] mx-auto space-y-5">
+            {/* Profile header skeleton */}
+            <div className="bg-muted/20 border border-border/30 rounded-2xl p-4 md:p-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <Skeleton className="w-12 h-12 rounded-full" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <div className="flex gap-5">
+                  <Skeleton className="h-10 w-20" />
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-20" />
+                </div>
+              </div>
+            </div>
+            {/* Metrics grid skeleton */}
+            <div>
+              <Skeleton className="h-5 w-48 mb-3" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+                {Array.from({ length: 9 }).map((_, i) => (
+                  <Skeleton key={i} className="h-20 rounded-2xl" />
+                ))}
+              </div>
+            </div>
+            {/* Chart skeleton */}
+            <div>
+              <Skeleton className="h-5 w-36 mb-3" />
+              <Skeleton className="h-72 rounded-2xl" />
+            </div>
+          </div>
         ) : (
           <div className="max-w-[1600px] mx-auto space-y-5 animate-fade-in">
             {/* Profile Header */}

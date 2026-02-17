@@ -86,8 +86,9 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
           contentType: 'audio/webm',
         });
         if (error) throw error;
-        const { data } = supabase.storage.from('voice-audios').getPublicUrl(path);
-        urls[key] = data.publicUrl;
+        const { data: signedData, error: signError } = await supabase.storage.from('voice-audios').createSignedUrl(path, 3600);
+        if (signError) throw signError;
+        urls[key] = signedData.signedUrl;
       }
 
       setUploading(false);
