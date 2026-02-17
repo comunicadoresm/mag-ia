@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { KanbanColumn } from './KanbanColumn';
+import { KanbanCard } from './KanbanCard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScriptEditor } from './ScriptEditor';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
