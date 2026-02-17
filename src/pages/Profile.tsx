@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Mail, Calendar, Pencil, Check, X, Loader2, Coins, ChevronRight, AtSign, Camera, User, Crown, Mic, BookOpen, FileText, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
@@ -45,7 +45,6 @@ export default function Profile() {
     });
   }, [user]);
 
-  // Fetch plan info
   useEffect(() => {
     if (!profile?.plan_type_id) return;
     supabase.from('plan_types').select('name, color').eq('id', profile.plan_type_id).single().then(({ data }) => {
@@ -53,19 +52,20 @@ export default function Profile() {
     });
   }, [profile?.plan_type_id]);
 
-  // Fetch identity data
-  useEffect(() => {
+  // Fetch identity data — extracted as callback for refetch
+  const fetchIdentityData = useCallback(async () => {
     if (!user) return;
-    supabase.from('voice_profiles').select('voice_dna, is_calibrated, calibration_score').eq('user_id', user.id).maybeSingle().then(({ data }) => {
-      if (data) setVoiceProfile(data);
-    });
-    supabase.from('user_narratives').select('narrative_text, is_completed, expertise').eq('user_id', user.id).maybeSingle().then(({ data }) => {
-      if (data) setNarrative(data);
-    });
-    supabase.from('user_format_profile').select('recommended_format, quiz_score').eq('user_id', user.id).maybeSingle().then(({ data }) => {
-      if (data) setFormatProfile(data);
-    });
+    const [voiceRes, narrativeRes, formatRes] = await Promise.all([
+      supabase.from('voice_profiles').select('voice_dna, is_calibrated, calibration_score').eq('user_id', user.id).maybeSingle(),
+      supabase.from('user_narratives').select('narrative_text, is_completed, expertise').eq('user_id', user.id).maybeSingle(),
+      supabase.from('user_format_profile').select('recommended_format, quiz_score').eq('user_id', user.id).maybeSingle(),
+    ]);
+    if (voiceRes.data) setVoiceProfile(voiceRes.data);
+    if (narrativeRes.data) setNarrative(narrativeRes.data);
+    if (formatRes.data) setFormatProfile(formatRes.data);
   }, [user]);
+
+  useEffect(() => { fetchIdentityData(); }, [fetchIdentityData]);
 
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
 
@@ -268,11 +268,14 @@ export default function Profile() {
                         )}
                       </p>
                     </div>
-                    {!voiceProfile?.is_calibrated && (
-                      <Button size="sm" variant="outline" onClick={() => setOpenVoiceDNA(true)} className="text-xs shrink-0">
-                        Configurar
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant={voiceProfile?.is_calibrated ? "ghost" : "outline"}
+                      onClick={() => setOpenVoiceDNA(true)}
+                      className="text-xs shrink-0"
+                    >
+                      {voiceProfile?.is_calibrated ? 'Reconfigurar' : 'Configurar'}
+                    </Button>
                   </div>
 
                   {/* Format Profile */}
@@ -290,11 +293,14 @@ export default function Profile() {
                         )}
                       </p>
                     </div>
-                    {!formatProfile?.recommended_format && (
-                      <Button size="sm" variant="outline" onClick={() => setOpenFormatQuiz(true)} className="text-xs shrink-0">
-                        Configurar
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant={formatProfile?.recommended_format ? "ghost" : "outline"}
+                      onClick={() => setOpenFormatQuiz(true)}
+                      className="text-xs shrink-0"
+                    >
+                      {formatProfile?.recommended_format ? 'Reconfigurar' : 'Configurar'}
+                    </Button>
                   </div>
 
                   {/* Narrative */}
@@ -312,11 +318,14 @@ export default function Profile() {
                         )}
                       </p>
                     </div>
-                    {!narrative?.is_completed && (
-                      <Button size="sm" variant="outline" onClick={() => setOpenNarrative(true)} className="text-xs shrink-0">
-                        Configurar
-                      </Button>
-                    )}
+                    <Button
+                      size="sm"
+                      variant={narrative?.is_completed ? "ghost" : "outline"}
+                      onClick={() => setOpenNarrative(true)}
+                      className="text-xs shrink-0"
+                    >
+                      {narrative?.is_completed ? 'Reconfigurar' : 'Configurar'}
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -327,20 +336,20 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Onboarding Modals */}
+      {/* Onboarding Modals — refetch data on complete instead of reload */}
       <VoiceDNASetup
         open={openVoiceDNA}
-        onComplete={() => { setOpenVoiceDNA(false); window.location.reload(); }}
+        onComplete={() => { setOpenVoiceDNA(false); fetchIdentityData(); }}
         onSkip={() => setOpenVoiceDNA(false)}
       />
       <FormatQuizSetup
         open={openFormatQuiz}
-        onComplete={() => { setOpenFormatQuiz(false); window.location.reload(); }}
+        onComplete={() => { setOpenFormatQuiz(false); fetchIdentityData(); }}
         onSkip={() => setOpenFormatQuiz(false)}
       />
       <NarrativeSetup
         open={openNarrative}
-        onComplete={() => { setOpenNarrative(false); window.location.reload(); }}
+        onComplete={() => { setOpenNarrative(false); fetchIdentityData(); }}
         onSkip={() => setOpenNarrative(false)}
       />
     </AppLayout>

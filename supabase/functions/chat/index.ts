@@ -459,11 +459,13 @@ Use estas informações para contextualizar respostas e roteiros.`;
     }
     // === END IDENTITY INJECTION ===
 
+    // BUG 5 FIX: Determine provider and use systemPrompt (with voice DNA + narrative injected)
+    const provider = getProvider(agent.model || "claude-sonnet-4-20250514");
     let result: { text: string; tokens: number | null };
 
     if (provider === "anthropic") {
-      // For Anthropic, pass knowledge separately for caching
-      result = await callAnthropic(agent.api_key, agent.model, agent.system_prompt, knowledgeContext, conversationHistory);
+      // For Anthropic, pass knowledge separately for caching — use systemPrompt NOT agent.system_prompt
+      result = await callAnthropic(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
     } else if (provider === "openai") {
       result = await callOpenAI(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
     } else {
