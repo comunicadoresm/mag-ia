@@ -199,7 +199,7 @@ Bora pro primeiro?`}
                 ))}
               </div>
 
-              <AudioRecorder onAudioReady={handleAudioReady} maxDuration={60} />
+              <AudioRecorder key={audioStep} onAudioReady={handleAudioReady} maxDuration={60} />
 
               <Button variant="ghost" onClick={handleSkipAudio} className="w-full rounded-xl text-muted-foreground text-sm">
                 Pular este áudio
