@@ -14,6 +14,7 @@ import Login from "./pages/Login";
 import Verify from "./pages/Verify";
 import AccessDenied from "./pages/AccessDenied";
 import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
 import Agents from "./pages/Agents";
 import Chat from "./pages/Chat";
 import History from "./pages/History";
@@ -36,6 +37,7 @@ function AppRoutes() {
 
       {/* Protected routes */}
       <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/agents" element={<ProtectedRoute><Agents /></ProtectedRoute>} />
       <Route path="/chat/:conversationId" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
       <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
