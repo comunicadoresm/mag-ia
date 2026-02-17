@@ -263,6 +263,7 @@ export function VoiceDNAFlow({ onComplete, onSkip }: VoiceDNAFlowProps) {
         </div>
 
         <AudioRecorder
+          key={audioIndex}
           onAudioReady={(blob) => handleAudioReady(blob, audioIndex)}
           maxDuration={60}
         />
