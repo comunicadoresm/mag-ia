@@ -318,6 +318,9 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         model: a.model, is_active: a.is_active, display_order: a.display_order,
         ice_breakers: (a as any).ice_breakers || [],
         plan_access: (a as any).plan_access || 'magnetic',
+        credit_cost: a.credit_cost ?? null,
+        billing_type: a.billing_type ?? null,
+        message_package_size: a.message_package_size ?? null,
         created_at: a.created_at, updated_at: a.updated_at,
       }))} />
     );
