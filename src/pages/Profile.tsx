@@ -239,10 +239,6 @@ export default function Profile() {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl">
-              <LogOut className="w-5 h-5" />Sair da conta
-            </Button>
-
             {/* Identidade Magnética — always show for magnetic plans */}
             {(profile?.plan_type === 'magnetic' || profile?.plan_type === 'magnetic_pro' || profile?.plan_type === 'magnetico' || profile?.plan_type === 'magnetico_pro' || voiceProfile || narrative || formatProfile) && (
               <div className="pt-4">
@@ -330,6 +326,10 @@ export default function Profile() {
                 </div>
               </div>
             )}
+
+            <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl mt-3">
+              <LogOut className="w-5 h-5" />Sair da conta
+            </Button>
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-8">CM Chat v1.0.0</p>
