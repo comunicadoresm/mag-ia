@@ -92,9 +92,10 @@ export function VoiceDNAFlow({ onComplete, onSkip }: VoiceDNAFlowProps) {
 
       if (error) throw error;
 
-      const { data } = supabase.storage.from('voice-audios').getPublicUrl(path);
+      const { data: signedData, error: signError } = await supabase.storage.from('voice-audios').createSignedUrl(path, 3600);
+      if (signError) throw signError;
 
-      setAudioUrls(prev => ({ ...prev, [key]: data.publicUrl }));
+      setAudioUrls(prev => ({ ...prev, [key]: signedData.signedUrl }));
       setStep(`done_${audioIndex}` as FlowStep);
 
       toast.success(`Áudio ${audioIndex + 1} salvo!`);
