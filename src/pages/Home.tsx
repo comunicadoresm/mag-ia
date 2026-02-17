@@ -220,7 +220,7 @@ function ComparisonChart({ data }: { data: { label: string; before: number; curr
 // ─── Main Home Dashboard ──────────────────────────────────────
 export default function Home() {
   const navigate = useNavigate();
-  const { user, profile, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const { metrics, postAggregates, isLoading, initializeMetrics, updateManualMetrics } = useDashboardMetrics();
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -253,6 +253,8 @@ export default function Home() {
           name: name || data.display_name,
           has_completed_setup: true 
         }).eq('id', user.id);
+        // Refresh profile so has_completed_setup updates in state
+        await refreshProfile();
       }
       toast.success('Perfil configurado!');
     }
