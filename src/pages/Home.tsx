@@ -89,7 +89,7 @@ function InitialSetupModal({ open, onSubmit, onSkip, userName, userId }: { open:
   };
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onSkip(); }}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-card border-border/50" onPointerDownOutside={(e) => e.preventDefault()}>
         <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4">
           <DialogHeader>
