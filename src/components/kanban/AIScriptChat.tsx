@@ -58,8 +58,9 @@ export function AIScriptChat({
 
   // Determine mode: generation (empty script_content) vs adjustment (has content)
   const isAdjustment = script.script_content && Object.keys(script.script_content as Record<string, unknown>).length > 0;
-  const creditCost = isAdjustment ? 1 : 3;
   const mode = isAdjustment ? 'adjustment' : 'generation';
+  // Use agent's credit_cost; fallback to defaults only if no agent
+  const creditCost = agent?.credit_cost ?? (isAdjustment ? 1 : 3);
 
   // Load existing conversation messages when opened
   useEffect(() => {
@@ -327,7 +328,7 @@ export function AIScriptChat({
       const { data, error } = await supabase.functions.invoke('consume-credits', {
         body: {
           action: isAdjustment ? 'script_adjustment' : 'script_generation',
-          metadata: { script_id: script.id, mode },
+          metadata: { script_id: script.id, agent_id: agent?.id, mode },
         },
       });
 
