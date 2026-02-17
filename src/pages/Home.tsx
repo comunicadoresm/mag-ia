@@ -247,15 +247,18 @@ export default function Home() {
       console.error('Onboarding save error:', error);
       toast.error('Erro ao salvar');
     } else {
-      // Update profile name and mark setup as completed
+      // Update profile: name, mark setup completed, and advance onboarding step
       if (user) {
         await supabase.from('profiles').update({ 
           name: name || data.display_name,
-          has_completed_setup: true 
+          has_completed_setup: true,
+          onboarding_step: 'voice_dna',
         }).eq('id', user.id);
-        // Refresh profile so has_completed_setup updates in state
+        // Refresh profile so state updates and MagneticOnboarding can trigger
         await refreshProfile();
       }
+      // Close the setup modal immediately
+      setShowSetupModal(false);
       toast.success('Perfil configurado!');
     }
   };
