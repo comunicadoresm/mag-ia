@@ -165,9 +165,9 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
   };
 
   return (
-    <Dialog open={open}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onSkip(); }}>
       <DialogContent className="sm:max-w-lg p-0 overflow-hidden bg-card border-border/50 max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
-        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4 shrink-0">
+        <div className="relative bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4 pr-12 shrink-0">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-foreground">
               {step === 'intro' ? '📝 Narrativa Primária' : '💬 Construindo sua Narrativa'}
