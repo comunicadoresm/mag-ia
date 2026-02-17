@@ -270,7 +270,35 @@ export function AIScriptChat({
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's a 402 insufficient credits error
+        const errorBody = typeof error === 'object' && error !== null ? error : {};
+        const errorMsg = (errorBody as any)?.message || '';
+        if (errorMsg.includes('402') || errorMsg.includes('insufficient') || errorMsg.includes('créditos')) {
+          showBuyCredits();
+          toast({
+            title: 'Créditos insuficientes',
+            description: 'Seus créditos acabaram! Compre mais para continuar.',
+            variant: 'destructive',
+          });
+          setIsLoading(false);
+          return;
+        }
+        throw error;
+      }
+
+      // Check if response indicates credits were insufficient (402 returned as data)
+      if (data?.error === 'insufficient_credits') {
+        showBuyCredits();
+        toast({
+          title: 'Créditos insuficientes',
+          description: data?.message || 'Seus créditos acabaram!',
+          variant: 'destructive',
+        });
+        // Still show the script_content if returned, but don't allow applying
+        setIsLoading(false);
+        return;
+      }
 
       if (data?.message) {
         const assistantMsg: Message = {
@@ -282,6 +310,11 @@ export function AIScriptChat({
 
         if (activeConvId) {
           await saveMessage(activeConvId, 'assistant', data.message);
+        }
+
+        // If credits were consumed, refresh balance
+        if (data?.credits_consumed > 0) {
+          refreshBalance();
         }
       }
 
@@ -312,44 +345,7 @@ export function AIScriptChat({
   const handleApplyScript = async () => {
     if (!generatedContent) return;
 
-    // Check credits before applying
-    if (balance.total < creditCost) {
-      showBuyCredits();
-      toast({
-        title: 'Créditos insuficientes',
-        description: `Você precisa de ${creditCost} crédito(s) para ${isAdjustment ? 'aplicar o ajuste' : 'aplicar o roteiro'}.`,
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Consume credits via edge function
-    try {
-      const { data, error } = await supabase.functions.invoke('consume-credits', {
-        body: {
-          action: isAdjustment ? 'script_adjustment' : 'script_generation',
-          metadata: { script_id: script.id, agent_id: agent?.id, mode },
-        },
-      });
-
-      if (error || !data?.success) {
-        showBuyCredits();
-        toast({
-          title: 'Créditos insuficientes',
-          description: data?.message || 'Seus créditos acabaram!',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      // Refresh balance after consumption
-      refreshBalance();
-    } catch (err) {
-      console.error('Error consuming credits:', err);
-      toast({ title: 'Erro ao debitar créditos', variant: 'destructive' });
-      return;
-    }
-
+    // Credits already consumed when script was generated — just apply
     onScriptGenerated(generatedContent);
     onClose();
     toast({ title: isAdjustment ? 'Ajuste aplicado com sucesso!' : 'Roteiro aplicado com sucesso!' });
@@ -419,13 +415,10 @@ export function AIScriptChat({
                     {isAdjustment ? 'Ajuste Gerado!' : 'Roteiro Gerado!'}
                   </span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-1">
+                <p className="text-sm text-muted-foreground mb-4">
                   {isAdjustment
                     ? 'O ajuste foi criado. Clique em "Aplicar Ajuste" para atualizar o roteiro.'
                     : 'O roteiro foi criado com base na nossa conversa. Clique em "Aplicar Roteiro" para preencher os campos automaticamente.'}
-                </p>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Custo: {creditCost} crédito{creditCost > 1 ? 's' : ''}
                 </p>
                 <Button onClick={handleApplyScript} className="w-full gap-2">
                   <Check className="w-4 h-4" />
