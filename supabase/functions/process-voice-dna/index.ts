@@ -6,18 +6,20 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-const LOVABLE_API_URL = "https://api.lovable.dev/v1/chat/completions";
+async function callOpenAI(systemPrompt: string, messages: { role: string; content: string }[]): Promise<string> {
+  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+  if (!OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY not configured");
+  }
 
-async function callLovableAI(systemPrompt: string, messages: { role: string; content: string }[]): Promise<string> {
-  const response = await fetch(LOVABLE_API_URL, {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "openai/gpt-5-mini",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         ...messages,
@@ -29,7 +31,7 @@ async function callLovableAI(systemPrompt: string, messages: { role: string; con
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("Lovable AI error:", errorText);
+    console.error("OpenAI API error:", errorText);
     throw new Error("Erro na API de IA");
   }
 
@@ -37,25 +39,31 @@ async function callLovableAI(systemPrompt: string, messages: { role: string; con
   return data.choices?.[0]?.message?.content || "";
 }
 
-async function transcribeAudio(audioUrl: string): Promise<string> {
+async function transcribeAudioFromStorage(
+  supabaseClient: any,
+  storagePath: string
+): Promise<string> {
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   if (!OPENAI_API_KEY) {
     console.error("OPENAI_API_KEY not configured, skipping transcription");
     return "[Transcrição indisponível - API key não configurada]";
   }
 
-  // Download audio from Supabase Storage
-  const audioResponse = await fetch(audioUrl);
-  if (!audioResponse.ok) {
-    console.error("Failed to download audio:", audioUrl);
+  // Download audio using authenticated Supabase client
+  const { data: fileData, error: downloadError } = await supabaseClient.storage
+    .from("voice-audios")
+    .download(storagePath);
+
+  if (downloadError || !fileData) {
+    console.error("Failed to download audio from storage:", storagePath, downloadError?.message);
     return "";
   }
-  const audioBlob = await audioResponse.blob();
-  console.log(`Audio downloaded from ${audioUrl}, size: ${audioBlob.size} bytes`);
+
+  console.log(`Audio downloaded from storage path: ${storagePath}, size: ${fileData.size} bytes`);
 
   // Transcribe using OpenAI Whisper API
   const formData = new FormData();
-  formData.append("file", audioBlob, "audio.webm");
+  formData.append("file", fileData, "audio.webm");
   formData.append("model", "whisper-1");
   formData.append("language", "pt");
 
@@ -76,6 +84,15 @@ async function transcribeAudio(audioUrl: string): Promise<string> {
   const result = await whisperResponse.json();
   console.log(`Transcription complete: ${result.text?.substring(0, 100)}...`);
   return result.text || "";
+}
+
+// Extract storage path from full URL or path
+function extractStoragePath(urlOrPath: string): string {
+  // If it's a full URL like https://xxx.supabase.co/storage/v1/object/public/voice-audios/userId/file.webm
+  const match = urlOrPath.match(/voice-audios\/(.+)$/);
+  if (match) return match[1];
+  // Already a path
+  return urlOrPath;
 }
 
 Deno.serve(async (req) => {
@@ -111,7 +128,7 @@ Deno.serve(async (req) => {
     // === NARRATIVE CHAT MODE ===
     if (body.action === "narrative_chat") {
       const { messages, system_prompt } = body;
-      const aiResponse = await callLovableAI(system_prompt, messages);
+      const aiResponse = await callOpenAI(system_prompt, messages);
       return new Response(
         JSON.stringify({ message: aiResponse }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -130,11 +147,12 @@ Deno.serve(async (req) => {
 
     console.log(`Processing voice DNA for user: ${user_id}`);
 
-    // Step 1: Transcribe audios
+    // Step 1: Transcribe audios using authenticated storage download
     const transcriptions: Record<string, string> = {};
     for (const [key, url] of Object.entries(audio_urls)) {
       console.log(`Transcribing ${key}...`);
-      transcriptions[key] = await transcribeAudio(url as string);
+      const storagePath = extractStoragePath(url as string);
+      transcriptions[key] = await transcribeAudioFromStorage(supabaseClient, storagePath);
     }
 
     // Step 2: Upsert voice profile with audio URLs and transcriptions
@@ -191,7 +209,7 @@ Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON v
   "resumo_tom": "Resumo de 2-3 linhas do tom geral"
 }`;
 
-    const dnaResponse = await callLovableAI(
+    const dnaResponse = await callOpenAI(
       "Você é um analisador de comunicação. Retorne APENAS JSON válido, sem markdown.",
       [{ role: "user", content: analysisPrompt }]
     );
@@ -216,6 +234,8 @@ Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON v
     // Save DNA
     await supabaseClient.from("voice_profiles").update({
       voice_dna: voiceDna,
+      is_calibrated: true,
+      calibration_score: 85,
     }).eq("user_id", user_id);
 
     // Step 4: Generate validation paragraph
@@ -224,7 +244,7 @@ Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON v
 Escreva um parágrafo curto (3-4 frases) sobre empreendedorismo digital, como se ESTA PESSOA tivesse escrito.
 Use o vocabulário, ritmo, expressões e tom identificados. O parágrafo deve soar natural.`;
 
-    const validationParagraph = await callLovableAI(
+    const validationParagraph = await callOpenAI(
       "Escreva no tom de voz descrito. Sem explicações, apenas o parágrafo.",
       [{ role: "user", content: validationPrompt }]
     );
