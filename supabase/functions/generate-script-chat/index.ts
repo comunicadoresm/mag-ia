@@ -247,10 +247,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // === CREDIT CONSUMPTION: moved to frontend (AIScriptChat) ===
-    // Credits are NOT charged here. The frontend calls consume-credits separately
-    // when the user clicks "Aplicar Roteiro" or "Aplicar Ajuste".
-    console.log(`Script chat: credits handled by frontend on approval.`);
+    // === CREDIT CONSUMPTION: charged when script is generated ===
+    // Determine credit cost from agent config
+    const creditCost = agent.credit_cost ?? 3;
+    console.log(`Script chat: agent credit_cost=${creditCost}`);
 
     const objectiveMap: Record<string, string> = {
       attraction: "Atração",
@@ -480,10 +480,58 @@ Após entregar, pergunte se quer ajustar algo.`;
       scriptContent = parseScriptContent(aiResponse, structure);
     }
 
-    // === CREDITS NOT CHARGED HERE — handled by frontend on approval ===
+    // === CONSUME CREDITS when a script/adjustment is detected ===
+    let creditsConsumed = 0;
+    if (hasScriptStructure) {
+      try {
+        // Determine if adjustment or generation
+        const isAdjustment = messages.length > 2; // If there's prior conversation, likely an adjustment
+        const consumeAction = isAdjustment ? 'script_adjustment' : 'script_generation';
+        
+        // Call consume-credits internally
+        const consumeResponse = await fetch(
+          `${supabaseUrl}/functions/v1/consume-credits`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': req.headers.get('Authorization') || '',
+              'apikey': Deno.env.get('SUPABASE_ANON_KEY') || '',
+            },
+            body: JSON.stringify({
+              action: consumeAction,
+              metadata: { agent_id: agent_id, mode: isAdjustment ? 'adjustment' : 'generation' },
+            }),
+          }
+        );
+
+        const consumeData = await consumeResponse.json();
+        if (!consumeResponse.ok) {
+          // Return error with credit info so frontend can show upsell
+          return new Response(
+            JSON.stringify({
+              error: 'insufficient_credits',
+              message: consumeData?.message || 'Seus créditos acabaram!',
+              balance: consumeData?.balance,
+              script_content: scriptContent,
+            }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        creditsConsumed = consumeData?.credits_consumed || 0;
+        console.log(`Credits consumed: ${creditsConsumed}`);
+      } catch (creditErr) {
+        console.error('Error consuming credits:', creditErr);
+      }
+    }
 
     return new Response(
-      JSON.stringify({ message: aiResponse, script_content: scriptContent }),
+      JSON.stringify({
+        message: aiResponse,
+        script_content: scriptContent,
+        credits_consumed: creditsConsumed,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
