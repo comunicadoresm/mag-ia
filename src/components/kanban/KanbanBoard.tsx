@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { KanbanColumn } from './KanbanColumn';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScriptEditor } from './ScriptEditor';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { MetricsModal } from './MetricsModal';
 import { PostedModal } from './PostedModal';
 import { NewCardDialog } from './NewCardDialog';
@@ -462,17 +463,19 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
         </ScrollArea>
       )}
 
-      <ScriptEditor
-        script={selectedScript}
-        structure={selectedStructure}
-        isOpen={isEditorOpen}
-        onClose={() => setIsEditorOpen(false)}
-        onSave={handleSaveScript}
-        agents={agents}
-        selectedAgentId={selectedAgentId}
-        isFromTemplate={isFromTemplate}
-        isReadOnly={isReadOnly}
-      />
+      <ErrorBoundary>
+        <ScriptEditor
+          script={selectedScript}
+          structure={selectedStructure}
+          isOpen={isEditorOpen}
+          onClose={() => setIsEditorOpen(false)}
+          onSave={handleSaveScript}
+          agents={agents}
+          selectedAgentId={selectedAgentId}
+          isFromTemplate={isFromTemplate}
+          isReadOnly={isReadOnly}
+        />
+      </ErrorBoundary>
 
       <MetricsModal
         script={metricsScript}

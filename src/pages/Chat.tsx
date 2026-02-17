@@ -4,6 +4,7 @@ import { ArrowLeft, Send, Paperclip, Menu, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatBubble, TypingIndicator } from '@/components/ChatBubble';
 import { ChatSidebar } from '@/components/ChatSidebar';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { IceBreakers } from '@/components/IceBreakers';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -385,6 +386,7 @@ export default function Chat() {
       />
 
       {/* Main Chat Area */}
+      <ErrorBoundary>
       <main className="flex-1 flex flex-col h-screen">
         {/* Minimal Header */}
         <header className="flex items-center justify-between px-4 py-2 border-b border-border/50 bg-background">
@@ -503,6 +505,7 @@ export default function Chat() {
           </div>
         </div>
       </main>
+      </ErrorBoundary>
     </div>
   );
 }
