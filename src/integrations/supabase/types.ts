@@ -1424,7 +1424,9 @@ export type Database = {
     Views: {
       agents_public: {
         Row: {
+          billing_type: string | null
           created_at: string | null
+          credit_cost: number | null
           description: string | null
           display_order: number | null
           ice_breakers: Json | null
@@ -1432,6 +1434,7 @@ export type Database = {
           icon_url: string | null
           id: string | null
           is_active: boolean | null
+          message_package_size: number | null
           model: string | null
           name: string | null
           plan_access: string | null
@@ -1441,7 +1444,9 @@ export type Database = {
           welcome_message: string | null
         }
         Insert: {
+          billing_type?: string | null
           created_at?: string | null
+          credit_cost?: number | null
           description?: string | null
           display_order?: number | null
           ice_breakers?: Json | null
@@ -1449,6 +1454,7 @@ export type Database = {
           icon_url?: string | null
           id?: string | null
           is_active?: boolean | null
+          message_package_size?: number | null
           model?: string | null
           name?: string | null
           plan_access?: string | null
@@ -1458,7 +1464,9 @@ export type Database = {
           welcome_message?: string | null
         }
         Update: {
+          billing_type?: string | null
           created_at?: string | null
+          credit_cost?: number | null
           description?: string | null
           display_order?: number | null
           ice_breakers?: Json | null
@@ -1466,6 +1474,7 @@ export type Database = {
           icon_url?: string | null
           id?: string | null
           is_active?: boolean | null
+          message_package_size?: number | null
           model?: string | null
           name?: string | null
           plan_access?: string | null
