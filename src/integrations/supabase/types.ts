@@ -1478,6 +1478,10 @@ export type Database = {
       }
     }
     Functions: {
+      consume_credits_atomic: {
+        Args: { p_amount: number; p_user_id: string }
+        Returns: Json
+      }
       get_agent_api_key: { Args: { agent_uuid: string }; Returns: string }
       has_role: {
         Args: {
