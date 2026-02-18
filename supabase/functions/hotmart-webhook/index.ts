@@ -133,13 +133,40 @@ Deno.serve(async (req) => {
   }
 });
 
+// RFC 5321: max 254 chars; only safe characters allowed
+const EMAIL_REGEX = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
+const EMAIL_MAX_LENGTH = 254;
+
 function extractEmail(payload: any): string | null {
-  return (
+  const raw =
     payload?.data?.buyer?.email ||
     payload?.buyer?.email ||
     payload?.data?.subscriber?.email ||
-    null
-  )?.toLowerCase()?.trim() || null;
+    null;
+
+  if (!raw || typeof raw !== "string") return null;
+
+  const email = raw.toLowerCase().trim();
+
+  // Length check (RFC 5321)
+  if (email.length > EMAIL_MAX_LENGTH) {
+    console.error(`Email too long (${email.length} chars), rejecting`);
+    return null;
+  }
+
+  // Format validation
+  if (!EMAIL_REGEX.test(email)) {
+    console.error(`Invalid email format, rejecting`);
+    return null;
+  }
+
+  // Reject null bytes and control characters
+  if (/[\x00-\x1F\x7F]/.test(email)) {
+    console.error("Email contains control characters, rejecting");
+    return null;
+  }
+
+  return email;
 }
 
 function extractProductId(payload: any): string | null {
