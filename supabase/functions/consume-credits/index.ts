@@ -117,50 +117,39 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Get user credits
-    const { data: credits, error: creditsError } = await supabase
-      .from("user_credits")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
+    // Atomic credit consumption via PostgreSQL function (prevents race conditions)
+    const { data: atomicResult, error: atomicError } = await supabase.rpc(
+      "consume_credits_atomic",
+      { p_user_id: user.id, p_amount: cost }
+    );
 
-    if (creditsError || !credits) {
+    if (atomicError) {
+      console.error("Atomic consume error:", atomicError);
       return new Response(
-        JSON.stringify({
-          error: "no_credits",
-          message: "Você não tem créditos configurados. Entre em contato com o suporte.",
-        }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Failed to consume credits" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // ** NEW: Check plan_credits expiration **
-    let planCredits = credits.plan_credits || 0;
-    if (credits.plan_credits_expire_at) {
-      const expireDate = new Date(credits.plan_credits_expire_at);
-      if (expireDate <= new Date()) {
-        console.log(`Plan credits expired at ${credits.plan_credits_expire_at}, zeroing out.`);
-        planCredits = 0;
-        // Zero out in DB immediately
-        await supabase
-          .from("user_credits")
-          .update({ plan_credits: 0, plan_credits_expire_at: null })
-          .eq("user_id", user.id);
+    if (!atomicResult.success) {
+      const errorCode = atomicResult.error;
+      if (errorCode === "no_credits") {
+        return new Response(
+          JSON.stringify({
+            error: "no_credits",
+            message: "Você não tem créditos configurados. Entre em contato com o suporte.",
+          }),
+          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-    }
-
-    const totalBalance = planCredits + (credits.subscription_credits || 0) + (credits.bonus_credits || 0);
-
-    if (totalBalance < cost) {
+      // insufficient_credits
       return new Response(
         JSON.stringify({
           error: "insufficient_credits",
           message: "Seus créditos acabaram!",
           balance: {
-            plan: planCredits,
-            subscription: credits.subscription_credits || 0,
-            bonus: credits.bonus_credits || 0,
-            total: totalBalance,
+            plan: 0, subscription: 0, bonus: 0,
+            total: atomicResult.balance || 0,
           },
           required: cost,
         }),
@@ -168,45 +157,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Debit in priority order: plan → subscription → bonus
-    let remaining = cost;
-    let newPlan = planCredits;
-    let newSubscription = credits.subscription_credits || 0;
-    let newBonus = credits.bonus_credits || 0;
-
-    if (remaining > 0 && newPlan > 0) {
-      const debit = Math.min(remaining, newPlan);
-      newPlan -= debit;
-      remaining -= debit;
-    }
-    if (remaining > 0 && newSubscription > 0) {
-      const debit = Math.min(remaining, newSubscription);
-      newSubscription -= debit;
-      remaining -= debit;
-    }
-    if (remaining > 0 && newBonus > 0) {
-      const debit = Math.min(remaining, newBonus);
-      newBonus -= debit;
-      remaining -= debit;
-    }
-
-    const newTotal = newPlan + newSubscription + newBonus;
-
-    const { error: updateError } = await supabase
-      .from("user_credits")
-      .update({
-        plan_credits: newPlan,
-        subscription_credits: newSubscription,
-        bonus_credits: newBonus,
-      })
-      .eq("user_id", user.id);
-
-    if (updateError) {
-      return new Response(
-        JSON.stringify({ error: "Failed to update credits" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const balance = atomicResult.balance;
+    const newTotal = balance.total;
 
     // Log transaction
     await supabase.from("credit_transactions").insert({
@@ -224,7 +176,12 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         credits_consumed: cost,
-        balance: { plan: newPlan, subscription: newSubscription, bonus: newBonus, total: newTotal },
+        balance: {
+          plan: balance.plan,
+          subscription: balance.subscription,
+          bonus: balance.bonus,
+          total: newTotal,
+        },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

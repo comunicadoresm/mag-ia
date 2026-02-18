@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-async function callOpenAI(systemPrompt: string, messages: { role: string; content: string }[]): Promise<string> {
+async function callOpenAI(systemPrompt: string, messages: { role: string; content: string }[], temperature = 0.7): Promise<string> {
   const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
   if (!OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY not configured");
@@ -25,7 +25,7 @@ async function callOpenAI(systemPrompt: string, messages: { role: string; conten
         ...messages,
       ],
       max_tokens: 2048,
-      temperature: 0.7,
+      temperature,
     }),
   });
 
@@ -135,13 +135,26 @@ Deno.serve(async (req) => {
     }
 
     // === VOICE DNA PROCESSING ===
-    const { audio_urls, user_id } = body;
+    const { audio_urls } = body;
+    // SECURITY: Always use the authenticated user's ID, never trust client-provided user_id
+    const user_id = user.id;
 
     if (!audio_urls || typeof audio_urls !== "object") {
       return new Response(
         JSON.stringify({ error: "audio_urls required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Validate that audio URLs belong to the authenticated user
+    for (const [key, url] of Object.entries(audio_urls)) {
+      const storagePath = extractStoragePath(url as string);
+      if (!storagePath.startsWith(`${user_id}/`)) {
+        return new Response(
+          JSON.stringify({ error: `Unauthorized: audio ${key} does not belong to you` }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     console.log(`Processing voice DNA for user: ${user_id}`);
@@ -168,49 +181,66 @@ Deno.serve(async (req) => {
     await supabaseClient.from("voice_profiles").upsert(profileData, { onConflict: "user_id" });
 
     // Step 3: Analyze with AI to generate voice DNA
-    const analysisPrompt = `Você é um especialista em análise linguística e comunicação.
+    const analysisSystemPrompt = `Você é um linguista especializado em análise de padrões de comunicação oral.
 
-Recebi 3 transcrições de áudio da mesma pessoa, cada uma em um contexto diferente:
+Sua tarefa: analisar transcrições de áudio e extrair o DNA de Voz — o perfil linguístico único de uma pessoa.
 
-ÁUDIO 1 — Falando com um amigo (tom casual):
+REGRAS DE ANÁLISE:
+- Analise APENAS o que está nas transcrições. Não invente padrões que não existem.
+- Se um áudio estiver marcado como "Não disponível", ignore-o e baseie a análise nos áudios disponíveis.
+- Para "frases_exemplo_*": extraia frases REAIS das transcrições, copiadas literalmente. Não invente.
+- Para "expressoes_frequentes", "palavras_transicao" e "expressoes_enfase": extraia apenas palavras/expressões que REALMENTE aparecem nas transcrições.
+- Compare os 3 contextos para identificar o que é CONSTANTE (DNA real) vs. o que muda por contexto (adaptação situacional).
+- Para "evita": identifique padrões de linguagem que a pessoa claramente NÃO usa — estilos, registros ou formatos ausentes nos 3 áudios.
+- Para "forma_impacto": identifique COMO a pessoa cria peso emocional — pela forma, não pelo conteúdo.
+- Não invente uma personalidade genérica. Se os áudios forem curtos, retorne menos itens em vez de inventar.
+
+RETORNE APENAS um JSON válido, sem markdown, sem explicações.`;
+
+    const analysisUserPrompt = `Analise estas 3 transcrições da mesma pessoa:
+
+ÁUDIO 1 — Tom casual (falando com amigo):
 """
-${transcriptions.casual || "Não gravado"}
+${transcriptions.casual || "Não disponível"}
 """
 
-ÁUDIO 2 — Falando com um cliente/seguidor (tom profissional):
+ÁUDIO 2 — Tom profissional (falando com cliente/seguidor):
 """
-${transcriptions.professional || "Não gravado"}
-"""
-
-ÁUDIO 3 — Respondendo alguém que discordou (tom de posicionamento):
-"""
-${transcriptions.positioning || "Não gravado"}
+${transcriptions.professional || "Não disponível"}
 """
 
-Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON válido:
+ÁUDIO 3 — Tom de posicionamento (respondendo discordância):
+"""
+${transcriptions.positioning || "Não disponível"}
+"""
+
+Retorne o DNA de Voz neste schema JSON exato:
 
 {
-  "formalidade": 5,
-  "ritmo": "medio",
-  "humor": "sutil",
-  "dramatizacao": "media",
-  "assertividade": "media",
-  "vocabulario_nivel": "simples",
-  "confronto_estilo": "firme_respeitoso",
-  "didatica": "usa_analogias",
-  "energia": "media",
-  "expressoes_frequentes": ["exemplo"],
-  "palavras_transicao": ["então", "aí"],
-  "expressoes_enfase": ["o ponto é"],
-  "frases_exemplo_casual": ["exemplo casual"],
-  "frases_exemplo_profissional": ["exemplo profissional"],
-  "frases_exemplo_posicionamento": ["exemplo posicionamento"],
-  "resumo_tom": "Resumo de 2-3 linhas do tom geral"
+  "formalidade": <número de 1 a 10, onde 1=muito informal e 10=muito formal>,
+  "ritmo": <"rapido" | "medio" | "lento" | "variavel">,
+  "humor": <"ausente" | "sutil" | "moderado" | "frequente">,
+  "dramatizacao": <"baixa" | "media" | "alta">,
+  "assertividade": <"baixa" | "media" | "alta">,
+  "vocabulario_nivel": <"simples" | "intermediario" | "avancado" | "misto">,
+  "confronto_estilo": <"evita_conflito" | "diplomatico" | "firme_respeitoso" | "direto_incisivo">,
+  "didatica": <"exemplos_concretos" | "usa_analogias" | "passo_a_passo" | "provocativo" | "misto">,
+  "energia": "descrição curta combinando intensidade + estilo (ex: 'direta e provocadora', 'calma e firme', 'emocional e próxima', 'acelerada e intensa')",
+  "forma_impacto": <"historias_curtas" | "frases_de_choque" | "comparacoes_simples" | "ironia" | "provocacao_direta" | "dados_e_fatos" | "misto">,
+  "evita": [2 a 4 padrões de linguagem que a pessoa claramente NÃO usa — ex: "linguagem coach", "termos técnicos", "formalidade excessiva", "promessas exageradas"],
+  "expressoes_frequentes": [3 a 5 expressões REAIS extraídas das transcrições],
+  "palavras_transicao": [3 a 5 palavras de transição REAIS extraídas],
+  "expressoes_enfase": [2 a 4 expressões de ênfase REAIS extraídas],
+  "frases_exemplo_casual": [2 a 3 frases LITERAIS do áudio casual],
+  "frases_exemplo_profissional": [2 a 3 frases LITERAIS do áudio profissional],
+  "frases_exemplo_posicionamento": [2 a 3 frases LITERAIS do áudio de posicionamento],
+  "resumo_tom": "Resumo de 2-3 linhas descrevendo o padrão geral de comunicação desta pessoa, destacando o que é constante nos 3 contextos"
 }`;
 
     const dnaResponse = await callOpenAI(
-      "Você é um analisador de comunicação. Retorne APENAS JSON válido, sem markdown.",
-      [{ role: "user", content: analysisPrompt }]
+      analysisSystemPrompt,
+      [{ role: "user", content: analysisUserPrompt }],
+      0.3
     );
 
     let voiceDna: any;
@@ -222,7 +252,8 @@ Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON v
       voiceDna = {
         formalidade: 5, ritmo: "medio", humor: "sutil", dramatizacao: "media",
         assertividade: "media", vocabulario_nivel: "simples", confronto_estilo: "firme_respeitoso",
-        didatica: "usa_analogias", energia: "media",
+        didatica: "usa_analogias", energia: "equilibrada e neutra", forma_impacto: "misto",
+        evita: [],
         expressoes_frequentes: [], palavras_transicao: [], expressoes_enfase: [],
         frases_exemplo_casual: [], frases_exemplo_profissional: [], frases_exemplo_posicionamento: [],
         resumo_tom: "Tom de voz padrão - por favor recalibre para melhor resultado."
@@ -237,14 +268,25 @@ Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON v
     }).eq("user_id", user_id);
 
     // Step 4: Generate validation paragraph
-    const validationPrompt = `Com base neste DNA de voz: ${JSON.stringify(voiceDna)}
+    const validationSystemPrompt = `Você é um ghostwriter. Sua tarefa é escrever EXATAMENTE como a pessoa descrita no DNA de Voz escreveria.
 
-Escreva um parágrafo curto (3-4 frases) sobre empreendedorismo digital, como se ESTA PESSOA tivesse escrito.
-Use o vocabulário, ritmo, expressões e tom identificados. O parágrafo deve soar natural.`;
+REGRAS:
+- Use as expressões frequentes e palavras de transição do DNA.
+- Mantenha o nível de formalidade, ritmo e energia descritos.
+- EVITE os padrões listados em "evita" — se a pessoa evita "linguagem coach", não use esse registro.
+- Use a "forma_impacto" para decidir como construir o peso emocional do texto.
+- O texto deve soar como fala natural transcrita, não como texto escrito.
+- Retorne APENAS o parágrafo, sem aspas, sem explicação, sem título.`;
+
+    const validationUserPrompt = `DNA de Voz da pessoa:
+${JSON.stringify(voiceDna, null, 2)}
+
+Escreva um parágrafo curto (3-4 frases) sobre criar conteúdo nas redes sociais, como se ESTA PESSOA estivesse falando para um seguidor.
+Use o vocabulário, ritmo, expressões e tom identificados no DNA. O parágrafo deve soar natural e reconhecível.`;
 
     const validationParagraph = await callOpenAI(
-      "Escreva no tom de voz descrito. Sem explicações, apenas o parágrafo.",
-      [{ role: "user", content: validationPrompt }]
+      validationSystemPrompt,
+      [{ role: "user", content: validationUserPrompt }]
     );
 
     return new Response(

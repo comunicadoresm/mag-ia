@@ -3,8 +3,37 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version, x-hotmart-hottok",
 };
+
+/**
+ * Verify HMAC-SHA256 signature from Hotmart webhook.
+ * If HOTMART_WEBHOOK_SECRET is configured, validates the X-Hotmart-Hmac-SHA256 header.
+ */
+async function verifyHmac(body: string, signature: string | null, secret: string): Promise<boolean> {
+  if (!signature) return false;
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const signatureBytes = await crypto.subtle.sign("HMAC", key, encoder.encode(body));
+  const computed = Array.from(new Uint8Array(signatureBytes))
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  // Constant-time comparison
+  if (computed.length !== signature.length) return false;
+  let result = 0;
+  for (let i = 0; i < computed.length; i++) {
+    result |= computed.charCodeAt(i) ^ signature.charCodeAt(i);
+  }
+  return result === 0;
+}
 
 /**
  * hotmart-webhook: Receives Hotmart payment events.
@@ -23,14 +52,30 @@ Deno.serve(async (req) => {
   let eventType: string | null = null;
 
   try {
-    payload = await req.json();
+    // Read raw body for HMAC verification before parsing
+    const rawBody = await req.text();
+    payload = JSON.parse(rawBody);
     eventType = payload?.event || payload?.data?.event || null;
 
-    // Validate hottok
+    // SECURITY: HMAC-SHA256 verification (preferred, if secret is configured)
+    const webhookSecret = Deno.env.get("HOTMART_WEBHOOK_SECRET");
+    if (webhookSecret) {
+      const hmacHeader = req.headers.get("X-Hotmart-Hmac-SHA256");
+      const isValid = await verifyHmac(rawBody, hmacHeader, webhookSecret);
+      if (!isValid) {
+        console.error("Invalid HMAC signature");
+        await logWebhook(supabase, "hotmart", eventType, payload, "rejected", "Invalid HMAC signature");
+        return new Response(JSON.stringify({ status: "rejected" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Fallback: validate hottok (legacy token validation)
     const hottok = Deno.env.get("HOTMART_HOTTOK");
     const receivedToken = payload?.hottok || req.headers.get("x-hotmart-hottok") || "";
 
-    if (hottok && receivedToken !== hottok) {
+    if (!webhookSecret && hottok && receivedToken !== hottok) {
       console.error("Invalid hottok received");
       await logWebhook(supabase, "hotmart", eventType, payload, "rejected", "Invalid hottok");
       // Return 200 so Hotmart doesn't retry
