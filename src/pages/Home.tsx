@@ -26,12 +26,12 @@ const greetings = [
 ];
 
 // ─── Status config ────────────────────────────────────────────
-const statusConfig: Record<string, { label: string; className: string }> = {
-  idea: { label: 'Ideia', className: 'bg-yellow-500/10 text-yellow-400' },
-  scripting: { label: 'Roteirizando', className: 'bg-blue-500/10 text-blue-400' },
-  recording: { label: 'Gravando', className: 'bg-purple-500/10 text-purple-400' },
-  editing: { label: 'Editando', className: 'bg-orange-500/10 text-orange-400' },
-  posted: { label: 'Publicado', className: 'bg-green-500/10 text-green-400' },
+const statusConfig: Record<string, { label: string; dot: string; bg: string; text: string }> = {
+  idea:      { label: 'Ideia',        dot: '#FAFC59', bg: 'rgba(250,252,89,0.12)',  text: '#FAFC59' },
+  scripting: { label: 'Roteirizando', dot: '#F97316', bg: 'rgba(249,115,22,0.12)',  text: '#F97316' },
+  recording: { label: 'Gravando',     dot: '#3B82F6', bg: 'rgba(59,130,246,0.12)',  text: '#3B82F6' },
+  editing:   { label: 'Editando',     dot: '#A855F7', bg: 'rgba(168,85,247,0.12)',  text: '#A855F7' },
+  posted:    { label: 'Publicado',    dot: '#22C55E', bg: 'rgba(34,197,94,0.12)',   text: '#22C55E' },
 };
 
 
@@ -115,8 +115,11 @@ function ScriptCard({
         {script.title || 'Sem título'}
       </h3>
       <div className="mt-3">
-        <span className={cn('inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium', st.className)}>
-          <span className="w-1.5 h-1.5 rounded-full bg-current" />
+        <span
+          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium"
+          style={{ backgroundColor: st.bg, color: st.text }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: st.dot }} />
           {st.label}
         </span>
       </div>
