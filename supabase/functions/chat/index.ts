@@ -374,12 +374,25 @@ Deno.serve(async (req) => {
     }
     // === END CREDIT CONSUMPTION ===
 
-    if (!agent.api_key) {
+    // Determine provider from model name
+    const provider = getProvider(agent.model || "claude-haiku-4-5-20251021");
+
+    // Resolve API key: use agent's own key first, then fallback to env secrets
+    let resolvedApiKey = agent.api_key;
+    if (!resolvedApiKey) {
+      if (provider === "anthropic") resolvedApiKey = Deno.env.get("ANTHROPIC_API_KEY") || null;
+      else if (provider === "openai") resolvedApiKey = Deno.env.get("OPENAI_API_KEY") || null;
+      else if (provider === "google") resolvedApiKey = Deno.env.get("GOOGLE_API_KEY") || null;
+    }
+
+    if (!resolvedApiKey) {
       return new Response(
         JSON.stringify({ error: "Este agente não tem uma API Key configurada." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    // Override agent.api_key with resolved key for downstream calls
+    agent.api_key = resolvedApiKey;
 
     // Get conversation history — LIMITED to last N messages
     const { data: messagesData, error: messagesError } = await supabaseClient
