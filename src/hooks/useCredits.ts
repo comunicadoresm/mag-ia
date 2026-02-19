@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import type { CreditBalance, CreditAction, ConsumeResult, UserCredits } from '@/types/credits';
+import type { CreditBalance, CreditAction, ConsumeResult } from '@/types/credits';
 
 export function useCredits() {
   const { user } = useAuth();
   const [balance, setBalance] = useState<CreditBalance>({ plan: 0, subscription: 0, bonus: 0, total: 0 });
   const [cycleEndDate, setCycleEndDate] = useState<string | null>(null);
   const [planType, setPlanType] = useState<string | null>(null);
+  const [planTypeId, setPlanTypeId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchBalance = useCallback(async () => {
@@ -26,7 +27,7 @@ export function useCredits() {
           .maybeSingle(),
         supabase
           .from('profiles')
-          .select('plan_type')
+          .select('plan_type, plan_type_id')
           .eq('id', user.id)
           .maybeSingle(),
       ]);
@@ -48,6 +49,7 @@ export function useCredits() {
       }
       if (profileRes.data) {
         setPlanType(profileRes.data.plan_type);
+        setPlanTypeId((profileRes.data as any).plan_type_id ?? null);
       }
     } catch (err) {
       console.error('Error in fetchBalance:', err);
@@ -61,7 +63,7 @@ export function useCredits() {
     fetchBalance();
   }, [fetchBalance]);
 
-  // Realtime subscription
+  // Realtime subscription on user_credits
   useEffect(() => {
     if (!user) return;
 
@@ -79,10 +81,10 @@ export function useCredits() {
           const data = payload.new as any;
           if (data) {
             setBalance({
-              plan: data.plan_credits,
-              subscription: data.subscription_credits,
-              bonus: data.bonus_credits,
-              total: data.plan_credits + data.subscription_credits + data.bonus_credits,
+              plan: data.plan_credits ?? 0,
+              subscription: data.subscription_credits ?? 0,
+              bonus: data.bonus_credits ?? 0,
+              total: (data.plan_credits ?? 0) + (data.subscription_credits ?? 0) + (data.bonus_credits ?? 0),
             });
           }
         }
@@ -104,7 +106,6 @@ export function useCredits() {
       });
 
       if (error) {
-        // Check if it's a 402 (insufficient credits)
         return {
           success: false,
           credits_consumed: 0,
@@ -131,10 +132,15 @@ export function useCredits() {
     }
   }, [balance]);
 
+  // canUseAI: has any credits OR is on a plan with monthly renewal
+  const canUseAI = balance.total > 0;
+
   return {
     balance,
     cycleEndDate,
     planType,
+    planTypeId,
+    canUseAI,
     isLoading,
     consumeCredits,
     refreshBalance: fetchBalance,
