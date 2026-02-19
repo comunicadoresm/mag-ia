@@ -184,7 +184,7 @@ export default function Agents() {
                       const g = parseInt(hex.substring(2, 4), 16);
                       const b = parseInt(hex.substring(4, 6), 16);
                       const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-                      const textColor = luminance > 0.55 ? tag.color : '#ffffff';
+                      const textColor = luminance > 0.55 ? '#1a1a1a' : '#ffffff';
                       return (
                         <span key={tagId} className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide" style={{ backgroundColor: tag.color || '#6B7280', color: textColor }}>
                           {tag.name}
