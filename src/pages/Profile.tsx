@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Mail, Calendar, Pencil, Check, X, Loader2, Coins, ChevronRight, AtSign, Camera, User, Crown, Mic, BookOpen, FileText, Sparkles } from 'lucide-react';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { LogOut, Mail, Pencil, Check, X, Loader2, Coins, ChevronRight, AtSign, Camera, User, Crown, Mic, BookOpen, FileText, Sparkles } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,7 +41,6 @@ export default function Profile() {
     });
   }, [user]);
 
-  // Fetch plan info
   useEffect(() => {
     if (!profile?.plan_type_id) return;
     supabase.from('plan_types').select('name, color').eq('id', profile.plan_type_id).single().then(({ data }) => {
@@ -51,7 +48,6 @@ export default function Profile() {
     });
   }, [profile?.plan_type_id]);
 
-  // Fetch identity data
   useEffect(() => {
     if (!user) return;
     supabase.from('voice_profiles').select('voice_dna, is_calibrated, calibration_score').eq('user_id', user.id).maybeSingle().then(({ data }) => {
@@ -115,7 +111,9 @@ export default function Profile() {
     return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
   }
 
-  const memberSince = profile?.created_at ? format(new Date(profile.created_at), "MMMM 'de' yyyy", { locale: ptBR }) : 'N/A';
+
+
+  const isMagnetic = profile?.plan_type === 'magnetic' || profile?.plan_type === 'magnetic_pro' || profile?.plan_type === 'magnetico' || profile?.plan_type === 'magnetico_pro' || voiceProfile || narrative || formatProfile;
 
   return (
     <AppLayout>
@@ -148,6 +146,7 @@ export default function Profile() {
       {/* Content */}
       <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
         <div className="max-w-md mx-auto">
+
           {/* Avatar + Name */}
           <div className="flex flex-col items-center text-center mb-8">
             <div className="relative cursor-pointer mb-4" onClick={() => fileRef.current?.click()}>
@@ -175,165 +174,168 @@ export default function Profile() {
             )}
           </div>
 
-          {/* Info Cards */}
-          <div className="space-y-3">
-            {/* Instagram Handle */}
-            <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><AtSign className="w-5 h-5 text-primary" /></div>
-              {isEditingHandle ? (
-                <div className="flex-1 flex items-center gap-2 min-w-0">
-                  <Input value={handleValue} onChange={(e) => setHandleValue(e.target.value)} className="text-sm" placeholder="@seuarroba" autoFocus />
-                  <Button size="icon" variant="ghost" onClick={handleSaveHandle} disabled={isSaving}>{isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}</Button>
-                  <Button size="icon" variant="ghost" onClick={() => { setHandleValue(currentHandle); setIsEditingHandle(false); }} disabled={isSaving}><X className="w-4 h-4" /></Button>
-                </div>
-              ) : (
-                <>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">@ do Instagram</p>
-                    <p className="text-sm font-medium text-foreground truncate">{currentHandle || 'Adicione seu @'}</p>
-                  </div>
-                  <Button size="icon" variant="ghost" onClick={() => setIsEditingHandle(true)} className="text-muted-foreground hover:text-foreground shrink-0"><Pencil className="w-4 h-4" /></Button>
-                </>
-              )}
-            </div>
+          {/* ── Informações Gerais ── */}
+          <div className="mb-6">
+            <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+              <User className="w-4 h-4 text-primary" />
+              Informações Gerais
+            </h2>
+            <div className="space-y-3">
 
-            <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Mail className="w-5 h-5 text-primary" /></div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">Email</p>
-                <p className="text-sm font-medium text-foreground truncate">{profile?.email || user.email}</p>
-                <button
-                  onClick={() => window.open('https://wa.me/5511999999999?text=Olá! Gostaria de alterar meu e-mail na Magnetic.IA', '_blank')}
-                  className="text-xs text-primary hover:underline mt-1 block"
-                >
-                  Alterar e-mail →
-                </button>
-              </div>
-            </div>
-
-            {/* Plan Info */}
-            {planInfo && (
+              {/* Instagram Handle */}
               <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${planInfo.color}20` }}>
-                  <Crown className="w-5 h-5" style={{ color: planInfo.color }} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Seu Plano</p>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary" className="text-xs font-semibold" style={{ backgroundColor: `${planInfo.color}20`, color: planInfo.color }}>
-                      {planInfo.name}
-                    </Badge>
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><AtSign className="w-5 h-5 text-primary" /></div>
+                {isEditingHandle ? (
+                  <div className="flex-1 flex items-center gap-2 min-w-0">
+                    <Input value={handleValue} onChange={(e) => setHandleValue(e.target.value)} className="text-sm" placeholder="@seuarroba" autoFocus />
+                    <Button size="icon" variant="ghost" onClick={handleSaveHandle} disabled={isSaving}>{isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}</Button>
+                    <Button size="icon" variant="ghost" onClick={() => { setHandleValue(currentHandle); setIsEditingHandle(false); }} disabled={isSaving}><X className="w-4 h-4" /></Button>
                   </div>
-                </div>
-                <Button size="sm" variant="ghost" onClick={() => navigate('/profile/credits')} className="text-xs text-primary shrink-0">
-                  Ver planos <ChevronRight className="w-3 h-3 ml-1" />
-                </Button>
+                ) : (
+                  <>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">@ do Instagram</p>
+                      <p className="text-sm font-medium text-foreground truncate">{currentHandle || 'Adicione seu @'}</p>
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={() => setIsEditingHandle(true)} className="text-muted-foreground hover:text-foreground shrink-0"><Pencil className="w-4 h-4" /></Button>
+                  </>
+                )}
               </div>
-            )}
 
-            <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Calendar className="w-5 h-5 text-primary" /></div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">Membro desde</p>
-                <p className="text-sm font-medium text-foreground">{memberSince}</p>
+              {/* Email */}
+              <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Mail className="w-5 h-5 text-primary" /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm font-medium text-foreground truncate">{profile?.email || user.email}</p>
+                  <button
+                    onClick={() => window.open('https://wa.me/5511999999999?text=Olá! Gostaria de alterar meu e-mail na Magnetic.IA', '_blank')}
+                    className="text-xs text-primary hover:underline mt-1 block"
+                  >
+                    Alterar e-mail →
+                  </button>
+                </div>
+              </div>
+
+              {/* Plan Info */}
+              {planInfo && (
+                <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${planInfo.color}20` }}>
+                    <Crown className="w-5 h-5" style={{ color: planInfo.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Seu Plano</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs font-semibold" style={{ backgroundColor: `${planInfo.color}20`, color: planInfo.color }}>
+                        {planInfo.name}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => navigate('/profile/credits')} className="text-xs text-primary shrink-0">
+                    Ver planos <ChevronRight className="w-3 h-3 ml-1" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Credits */}
+              <button onClick={() => navigate('/profile/credits')} className="w-full bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-primary/40 transition-all">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Coins className="w-5 h-5 text-primary" /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Créditos</p>
+                  <p className="text-sm font-medium text-foreground">Ver meus créditos e consumo</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+
+              {/* Sign out */}
+              <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl">
+                <LogOut className="w-5 h-5" />Sair da conta
+              </Button>
+            </div>
+          </div>
+
+          {/* ── Identidade Magnética ── */}
+          {isMagnetic && (
+            <div>
+              <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-primary" />
+                Identidade Magnética
+              </h2>
+              <div className="space-y-3">
+
+                {/* Voice DNA */}
+                <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <Mic className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">DNA de Voz</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {voiceProfile?.is_calibrated ? (
+                        <span className="text-green-500">✅ Calibrado{voiceProfile.calibration_score ? ` (nota ${voiceProfile.calibration_score})` : ''}</span>
+                      ) : voiceProfile?.voice_dna ? (
+                        <span className="text-yellow-500">⏳ Pendente de validação</span>
+                      ) : (
+                        <span className="text-muted-foreground">Não configurado</span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveOnboarding('voice_dna')}
+                    className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
+                  >
+                    {voiceProfile?.is_calibrated ? 'Reconfigurar' : 'Configurar'}
+                  </button>
+                </div>
+
+                {/* Narrative */}
+                <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <BookOpen className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Narrativa Magnética</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {narrative?.is_completed ? (
+                        <span className="text-green-500">✅ Completa{narrative.expertise ? ` — ${narrative.expertise.substring(0, 40)}...` : ''}</span>
+                      ) : (
+                        <span className="text-muted-foreground">Não configurada</span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveOnboarding('narrative')}
+                    className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
+                  >
+                    {narrative?.is_completed ? 'Reconfigurar' : 'Configurar'}
+                  </button>
+                </div>
+
+                {/* Format Profile */}
+                <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                    <FileText className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Formato Recomendado</p>
+                    <p className="text-sm font-medium text-foreground">
+                      {formatProfile?.recommended_format ? (
+                        <span className="text-green-500">✅ {formatProfile.recommended_format}</span>
+                      ) : (
+                        <span className="text-muted-foreground">Não configurado</span>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setActiveOnboarding('format_quiz')}
+                    className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
+                  >
+                    {formatProfile?.recommended_format ? 'Reconfigurar' : 'Configurar'}
+                  </button>
+                </div>
               </div>
             </div>
-
-            <button onClick={() => navigate('/profile/credits')} className="w-full bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-primary/40 transition-all">
-              <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Coins className="w-5 h-5 text-primary" /></div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground">Créditos</p>
-                <p className="text-sm font-medium text-foreground">Ver meus créditos e consumo</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
-
-            {/* Identidade Magnética — above sign out */}
-            {(profile?.plan_type === 'magnetic' || profile?.plan_type === 'magnetic_pro' || profile?.plan_type === 'magnetico' || profile?.plan_type === 'magnetico_pro' || voiceProfile || narrative || formatProfile) && (
-              <div className="pt-2">
-                <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-primary" />
-                  Identidade Magnética
-                </h2>
-                <div className="space-y-3">
-                  {/* Voice DNA */}
-                  <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                      <Mic className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground">DNA de Voz</p>
-                      <p className="text-sm font-medium text-foreground">
-                        {voiceProfile?.is_calibrated ? (
-                          <span className="text-green-500">✅ Calibrado{voiceProfile.calibration_score ? ` (nota ${voiceProfile.calibration_score})` : ''}</span>
-                        ) : voiceProfile?.voice_dna ? (
-                          <span className="text-yellow-500">⏳ Pendente de validação</span>
-                        ) : (
-                          <span className="text-muted-foreground">Não configurado</span>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setActiveOnboarding('voice_dna')}
-                      className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
-                    >
-                      {voiceProfile?.is_calibrated ? 'Reconfigurar' : 'Configurar'}
-                    </button>
-                  </div>
-
-                  {/* Narrative */}
-                  <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                      <BookOpen className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground">Narrativa Magnética</p>
-                      <p className="text-sm font-medium text-foreground">
-                        {narrative?.is_completed ? (
-                          <span className="text-green-500">✅ Completa{narrative.expertise ? ` — ${narrative.expertise.substring(0, 40)}...` : ''}</span>
-                        ) : (
-                          <span className="text-muted-foreground">Não configurada</span>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setActiveOnboarding('narrative')}
-                      className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
-                    >
-                      {narrative?.is_completed ? 'Reconfigurar' : 'Configurar'}
-                    </button>
-                  </div>
-
-                  {/* Format Profile */}
-                  <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground">Formato Recomendado</p>
-                      <p className="text-sm font-medium text-foreground">
-                        {formatProfile?.recommended_format ? (
-                          <span className="text-green-500">✅ {formatProfile.recommended_format}</span>
-                        ) : (
-                          <span className="text-muted-foreground">Não configurado</span>
-                        )}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => setActiveOnboarding('format_quiz')}
-                      className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
-                    >
-                      {formatProfile?.recommended_format ? 'Reconfigurar' : 'Configurar'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl">
-              <LogOut className="w-5 h-5" />Sair da conta
-            </Button>
-          </div>
+          )}
 
           <p className="text-center text-xs text-muted-foreground mt-8">CM Chat v1.0.0</p>
         </div>
