@@ -10,10 +10,7 @@ import { useCredits } from '@/hooks/useCredits';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { VoiceDNASetup } from '@/components/onboarding/VoiceDNASetup';
-import { FormatQuizSetup } from '@/components/onboarding/FormatQuizSetup';
-import { NarrativeSetup } from '@/components/onboarding/NarrativeSetup';
-import { RequireSetupModal } from '@/components/onboarding/RequireSetupModal';
+import { MagneticOnboarding } from '@/components/onboarding/MagneticOnboarding';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -245,7 +242,6 @@ export default function Home() {
   const [identity, setIdentity] = useState({ voiceDna: false, narrative: false, formatProfile: false });
   const [agentCount, setAgentCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [activeOnboarding, setActiveOnboarding] = useState<'voice_dna' | 'format_quiz' | 'narrative' | null>(null);
 
   // Show mandatory setup modal if user hasn't completed setup
   // AND hasn't skipped this session
@@ -296,30 +292,14 @@ export default function Home() {
     fetchAll();
   }, [user]);
 
-  // First pending onboarding step
-  const pendingStep = useMemo(() => {
-    if (!identity.voiceDna) return 'voice_dna' as const;
-    if (!identity.formatProfile) return 'format_quiz' as const;
-    if (!identity.narrative) return 'narrative' as const;
-    return null;
-  }, [identity]);
+
 
   const firstName = profile?.name?.split(' ')[0] || 'você';
 
   return (
     <AppLayout>
-      {/* ── Mandatory setup modal ── */}
-      <RequireSetupModal open={showSetupModal} />
-
-      {activeOnboarding === 'voice_dna' && (
-        <VoiceDNASetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
-      )}
-      {activeOnboarding === 'format_quiz' && (
-        <FormatQuizSetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
-      )}
-      {activeOnboarding === 'narrative' && (
-        <NarrativeSetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
-      )}
+      {/* ── Onboarding wizard (obrigatório até has_completed_setup = true) ── */}
+      <MagneticOnboarding open={showSetupModal} />
 
       {/* ── Content (mesmo padrão do Kanban) ── */}
       <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
@@ -395,7 +375,7 @@ export default function Home() {
                 voiceDna={identity.voiceDna}
                 narrative={identity.narrative}
                 formatProfile={identity.formatProfile}
-                onComplete={() => setActiveOnboarding(pendingStep)}
+                onComplete={() => navigate('/profile')}
                 onView={() => navigate('/profile')}
               />
             )}
