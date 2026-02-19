@@ -10,7 +10,6 @@ interface ChatRequest {
   conversation_id: string;
   message: string;
   agent_id: string;
-  stream?: boolean;
 }
 
 interface Message {
@@ -24,7 +23,7 @@ const MAX_HISTORY_MESSAGES = 20;
 // Determine provider based on model name
 function getProvider(model: string): "anthropic" | "openai" | "google" {
   if (model.startsWith("claude")) return "anthropic";
-  if (model.startsWith("gpt-") || model.startsWith("o1") || model.startsWith("o3") || model.startsWith("gpt4")) return "openai";
+  if (model.startsWith("gpt-") || model.startsWith("o1")) return "openai";
   if (model.startsWith("gemini")) return "google";
   return "anthropic"; // fallback
 }
@@ -262,7 +261,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { conversation_id, agent_id, stream }: ChatRequest = await req.json();
+    const { conversation_id, agent_id }: ChatRequest = await req.json();
     console.log(`Chat: user=${user.id}, conv=${conversation_id}`);
 
     // Verify conversation belongs to user
@@ -375,19 +374,7 @@ Deno.serve(async (req) => {
     }
     // === END CREDIT CONSUMPTION ===
 
-    // Resolve API key: use agent's own key if set, otherwise fall back to environment secrets
-    const provider = getProvider(agent.model || "claude-sonnet-4-20250514");
-    let resolvedApiKey = agent.api_key;
-    if (!resolvedApiKey) {
-      if (provider === "anthropic") {
-        resolvedApiKey = Deno.env.get("ANTHROPIC_API_KEY") || null;
-      } else if (provider === "openai") {
-        resolvedApiKey = Deno.env.get("OPENAI_API_KEY") || null;
-      } else if (provider === "google") {
-        resolvedApiKey = Deno.env.get("GOOGLE_API_KEY") || null;
-      }
-    }
-    if (!resolvedApiKey) {
+    if (!agent.api_key) {
       return new Response(
         JSON.stringify({ error: "Este agente não tem uma API Key configurada." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -472,287 +459,15 @@ Use estas informações para contextualizar respostas e roteiros.`;
     }
     // === END IDENTITY INJECTION ===
 
-    console.log(`Provider: ${provider}, Model: ${agent.model}`);
-
-    // Helper: persist assistant message + deferred billing + update conversation
-    async function finalizeStream(fullText: string, tokens: number) {
-      await supabaseClient.from("messages").insert({
-        conversation_id, role: "assistant", content: fullText, tokens_used: tokens,
-      });
-      if (deferCharge) {
-        const nText = fullText.replace(/\*\*/g, "").replace(/##\s*/g, "");
-        const hasOutput =
-          nText.includes("🎯 INÍCIO") || nText.includes("📚 DESENVOLVIMENTO") ||
-          nText.includes("🎬 ROTEIRO FINAL") || nText.includes("📍 DESENVOLVIMENTO") ||
-          nText.includes("✅ FECHAMENTO");
-        if (hasOutput) {
-          const { data: dc } = await supabaseClient.from("user_credits").select("*").eq("user_id", user.id).single();
-          if (dc) {
-            const dt = (dc.plan_credits || 0) + (dc.subscription_credits || 0) + (dc.bonus_credits || 0);
-            if (dt >= creditCost) {
-              let rem = creditCost, nP = dc.plan_credits || 0, nS = dc.subscription_credits || 0, nB = dc.bonus_credits || 0;
-              if (rem > 0 && nP > 0) { const d = Math.min(rem, nP); nP -= d; rem -= d; }
-              if (rem > 0 && nS > 0) { const d = Math.min(rem, nS); nS -= d; rem -= d; }
-              if (rem > 0 && nB > 0) { const d = Math.min(rem, nB); nB -= d; rem -= d; }
-              await supabaseClient.from("user_credits").update({ plan_credits: nP, subscription_credits: nS, bonus_credits: nB }).eq("user_id", user.id);
-              await supabaseClient.from("credit_transactions").insert({
-                user_id: user.id, type: "consumption", amount: -creditCost, source: "chat_output",
-                balance_after: nP + nS + nB, metadata: { agent_id, conversation_id },
-              });
-            }
-          }
-        }
-      }
-      await supabaseClient.from("conversations").update({
-        last_message_at: new Date().toISOString(),
-        message_count: (conversation.message_count || 0) + 2,
-      }).eq("id", conversation_id);
-    }
-
-    // === STREAMING PATH — Anthropic ===
-    if (stream && provider === "anthropic") {
-      const sysBlocks = [
-        { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
-      ];
-      const apiMsgs: any[] = [];
-      if (knowledgeContext) {
-        apiMsgs.push({
-          role: "user",
-          content: [{ type: "text", text: `Contexto da base de conhecimento:\n${knowledgeContext}`, cache_control: { type: "ephemeral" } }],
-        });
-        apiMsgs.push({ role: "assistant", content: "Entendido, vou usar essas informações como contexto." });
-      }
-      apiMsgs.push(...conversationHistory.map((m) => ({ role: m.role, content: m.content })));
-
-      const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": resolvedApiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: agent.model,
-          max_tokens: 2048,
-          system: sysBlocks,
-          messages: apiMsgs,
-          stream: true,
-        }),
-      });
-
-      if (!anthropicRes.ok) {
-        const errText = await anthropicRes.text();
-        console.error("Anthropic streaming error:", errText);
-        throw new Error(`Erro na API Anthropic: ${errText}`);
-      }
-
-      let fullText = "";
-      let inTok = 0;
-      let outTok = 0;
-      const enc = new TextEncoder();
-
-      const responseStream = new ReadableStream({
-        async start(controller) {
-          try {
-            const reader = anthropicRes.body!.getReader();
-            const dec = new TextDecoder();
-            let buf = "";
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buf += dec.decode(value, { stream: true });
-              const lines = buf.split("\n");
-              buf = lines.pop() || "";
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  const jsonStr = line.slice(6).trim();
-                  if (!jsonStr || jsonStr === "[DONE]") continue;
-                  try {
-                    const ev = JSON.parse(jsonStr);
-                    if (ev.type === "content_block_delta" && ev.delta?.type === "text_delta") {
-                      fullText += ev.delta.text;
-                      controller.enqueue(enc.encode(`data: ${JSON.stringify({ t: ev.delta.text })}\n\n`));
-                    } else if (ev.type === "message_start") {
-                      inTok = ev.message?.usage?.input_tokens || 0;
-                    } else if (ev.type === "message_delta") {
-                      outTok = ev.usage?.output_tokens || 0;
-                    }
-                  } catch {}
-                }
-              }
-            }
-            await finalizeStream(fullText, inTok + outTok);
-            controller.enqueue(enc.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
-            controller.close();
-          } catch (err) {
-            console.error("Anthropic stream error:", err);
-            controller.enqueue(enc.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
-            controller.close();
-          }
-        },
-      });
-
-      return new Response(responseStream, {
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
-      });
-    }
-
-    // === STREAMING PATH — OpenAI ===
-    if (stream && provider === "openai") {
-      const oaiMsgs: any[] = [{ role: "system", content: systemPrompt }];
-      if (knowledgeContext) {
-        oaiMsgs.push({ role: "user", content: `Contexto da base de conhecimento:\n${knowledgeContext}` });
-        oaiMsgs.push({ role: "assistant", content: "Entendido, vou usar essas informações como contexto." });
-      }
-      oaiMsgs.push(...conversationHistory.map((m) => ({ role: m.role, content: m.content })));
-
-      const oaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${resolvedApiKey}` },
-        body: JSON.stringify({ model: agent.model, messages: oaiMsgs, max_tokens: 2048, temperature: 0.7, stream: true }),
-      });
-
-      if (!oaiRes.ok) {
-        const errText = await oaiRes.text();
-        console.error("OpenAI streaming error:", errText);
-        throw new Error(`Erro na API OpenAI: ${errText}`);
-      }
-
-      let fullText = "";
-      const enc = new TextEncoder();
-
-      const responseStream = new ReadableStream({
-        async start(controller) {
-          try {
-            const reader = oaiRes.body!.getReader();
-            const dec = new TextDecoder();
-            let buf = "";
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buf += dec.decode(value, { stream: true });
-              const lines = buf.split("\n");
-              buf = lines.pop() || "";
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  const jsonStr = line.slice(6).trim();
-                  if (!jsonStr || jsonStr === "[DONE]") continue;
-                  try {
-                    const ev = JSON.parse(jsonStr);
-                    const delta = ev.choices?.[0]?.delta?.content;
-                    if (delta) {
-                      fullText += delta;
-                      controller.enqueue(enc.encode(`data: ${JSON.stringify({ t: delta })}\n\n`));
-                    }
-                  } catch {}
-                }
-              }
-            }
-            await finalizeStream(fullText, 0);
-            controller.enqueue(enc.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
-            controller.close();
-          } catch (err) {
-            console.error("OpenAI stream error:", err);
-            controller.enqueue(enc.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
-            controller.close();
-          }
-        },
-      });
-
-      return new Response(responseStream, {
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
-      });
-    }
-
-    // === STREAMING PATH — Google Gemini ===
-    if (stream && provider === "google") {
-      const fullSystemPrompt = knowledgeContext
-        ? `${systemPrompt}\n\n## Base de Conhecimento\n${knowledgeContext}`
-        : systemPrompt;
-
-      const contents = conversationHistory.map((m) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      }));
-
-      const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${agent.model}:streamGenerateContent?key=${resolvedApiKey}&alt=sse`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents,
-            systemInstruction: { parts: [{ text: fullSystemPrompt }] },
-            generationConfig: { maxOutputTokens: 2048, temperature: 0.7 },
-          }),
-        }
-      );
-
-      if (!geminiRes.ok) {
-        const errText = await geminiRes.text();
-        console.error("Gemini streaming error:", errText);
-        throw new Error(`Erro na API Gemini: ${errText}`);
-      }
-
-      let fullText = "";
-      const enc = new TextEncoder();
-
-      const responseStream = new ReadableStream({
-        async start(controller) {
-          try {
-            const reader = geminiRes.body!.getReader();
-            const dec = new TextDecoder();
-            let buf = "";
-
-            while (true) {
-              const { done, value } = await reader.read();
-              if (done) break;
-              buf += dec.decode(value, { stream: true });
-              const lines = buf.split("\n");
-              buf = lines.pop() || "";
-              for (const line of lines) {
-                if (line.startsWith("data: ")) {
-                  const jsonStr = line.slice(6).trim();
-                  if (!jsonStr) continue;
-                  try {
-                    const ev = JSON.parse(jsonStr);
-                    const delta = ev.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (delta) {
-                      fullText += delta;
-                      controller.enqueue(enc.encode(`data: ${JSON.stringify({ t: delta })}\n\n`));
-                    }
-                  } catch {}
-                }
-              }
-            }
-            await finalizeStream(fullText, 0);
-            controller.enqueue(enc.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
-            controller.close();
-          } catch (err) {
-            console.error("Gemini stream error:", err);
-            controller.enqueue(enc.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
-            controller.close();
-          }
-        },
-      });
-
-      return new Response(responseStream, {
-        headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
-      });
-    }
-
-    // === NON-STREAMING PATH ===
-
     let result: { text: string; tokens: number | null };
 
     if (provider === "anthropic") {
-      result = await callAnthropic(resolvedApiKey, agent.model, systemPrompt, knowledgeContext, conversationHistory);
+      // For Anthropic, pass knowledge separately for caching
+      result = await callAnthropic(agent.api_key, agent.model, agent.system_prompt, knowledgeContext, conversationHistory);
     } else if (provider === "openai") {
-      result = await callOpenAI(resolvedApiKey, agent.model, systemPrompt, knowledgeContext, conversationHistory);
+      result = await callOpenAI(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
     } else {
-      result = await callGemini(resolvedApiKey, agent.model, systemPrompt, knowledgeContext, conversationHistory);
+      result = await callGemini(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
     }
 
     console.log(`AI response: ${result.tokens} tokens`);

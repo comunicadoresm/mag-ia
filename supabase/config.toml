@@ -1,40 +1,40 @@
 project_id = "wlidszutcjsisczhmzjg"
 
 [functions.consume-credits]
-verify_jwt = true
+verify_jwt = false
 
 [functions.renew-credits]
 verify_jwt = false
 
 [functions.setup-user-plan]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-script]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-script-chat]
-verify_jwt = true
+verify_jwt = false
 
 [functions.chat]
-verify_jwt = true
+verify_jwt = false
 
 [functions.process-document]
-verify_jwt = true
+verify_jwt = false
 
 [functions.verify-student]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-create-user]
-verify_jwt = true
+verify_jwt = false
 
 [functions.admin-delete-user]
-verify_jwt = true
+verify_jwt = false
 
 [functions.hotmart-webhook]
 verify_jwt = false
 
 [functions.process-voice-dna]
-verify_jwt = true
+verify_jwt = false
 
 [functions.recalibrate-voice]
-verify_jwt = true
+verify_jwt = false

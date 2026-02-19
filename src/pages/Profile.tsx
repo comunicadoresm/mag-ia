@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Mail, Calendar, Pencil, Check, X, Loader2, Coins, ChevronRight, AtSign, Camera, User, Crown, Mic, BookOpen, FileText, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
@@ -11,9 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { VoiceDNASetup } from '@/components/onboarding/VoiceDNASetup';
-import { FormatQuizSetup } from '@/components/onboarding/FormatQuizSetup';
-import { NarrativeSetup } from '@/components/onboarding/NarrativeSetup';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -30,9 +27,6 @@ export default function Profile() {
   const [voiceProfile, setVoiceProfile] = useState<any>(null);
   const [narrative, setNarrative] = useState<any>(null);
   const [formatProfile, setFormatProfile] = useState<any>(null);
-  const [openVoiceDNA, setOpenVoiceDNA] = useState(false);
-  const [openFormatQuiz, setOpenFormatQuiz] = useState(false);
-  const [openNarrative, setOpenNarrative] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (!authLoading && !user) navigate('/login'); }, [user, authLoading, navigate]);
@@ -45,6 +39,7 @@ export default function Profile() {
     });
   }, [user]);
 
+  // Fetch plan info
   useEffect(() => {
     if (!profile?.plan_type_id) return;
     supabase.from('plan_types').select('name, color').eq('id', profile.plan_type_id).single().then(({ data }) => {
@@ -52,20 +47,19 @@ export default function Profile() {
     });
   }, [profile?.plan_type_id]);
 
-  // Fetch identity data — extracted as callback for refetch
-  const fetchIdentityData = useCallback(async () => {
+  // Fetch identity data
+  useEffect(() => {
     if (!user) return;
-    const [voiceRes, narrativeRes, formatRes] = await Promise.all([
-      supabase.from('voice_profiles').select('voice_dna, is_calibrated, calibration_score').eq('user_id', user.id).maybeSingle(),
-      supabase.from('user_narratives').select('narrative_text, is_completed, expertise').eq('user_id', user.id).maybeSingle(),
-      supabase.from('user_format_profile').select('recommended_format, quiz_score').eq('user_id', user.id).maybeSingle(),
-    ]);
-    if (voiceRes.data) setVoiceProfile(voiceRes.data);
-    if (narrativeRes.data) setNarrative(narrativeRes.data);
-    if (formatRes.data) setFormatProfile(formatRes.data);
+    supabase.from('voice_profiles').select('voice_dna, is_calibrated, calibration_score').eq('user_id', user.id).maybeSingle().then(({ data }) => {
+      if (data) setVoiceProfile(data);
+    });
+    supabase.from('user_narratives').select('narrative_text, is_completed, expertise').eq('user_id', user.id).maybeSingle().then(({ data }) => {
+      if (data) setNarrative(data);
+    });
+    supabase.from('user_format_profile').select('recommended_format, quiz_score').eq('user_id', user.id).maybeSingle().then(({ data }) => {
+      if (data) setFormatProfile(data);
+    });
   }, [user]);
-
-  useEffect(() => { fetchIdentityData(); }, [fetchIdentityData]);
 
   const handleSignOut = async () => { await signOut(); navigate('/login'); };
 
@@ -239,6 +233,10 @@ export default function Profile() {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
+            <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl">
+              <LogOut className="w-5 h-5" />Sair da conta
+            </Button>
+
             {/* Identidade Magnética — always show for magnetic plans */}
             {(profile?.plan_type === 'magnetic' || profile?.plan_type === 'magnetic_pro' || profile?.plan_type === 'magnetico' || profile?.plan_type === 'magnetico_pro' || voiceProfile || narrative || formatProfile) && (
               <div className="pt-4">
@@ -264,39 +262,6 @@ export default function Profile() {
                         )}
                       </p>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={voiceProfile?.is_calibrated ? "ghost" : "outline"}
-                      onClick={() => setOpenVoiceDNA(true)}
-                      className="text-xs shrink-0"
-                    >
-                      {voiceProfile?.is_calibrated ? 'Reconfigurar' : 'Configurar'}
-                    </Button>
-                  </div>
-
-                  {/* Format Profile */}
-                  <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                      <FileText className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground">Formato Recomendado</p>
-                      <p className="text-sm font-medium text-foreground">
-                        {formatProfile?.recommended_format ? (
-                          <span className="text-green-500">✅ {formatProfile.recommended_format}</span>
-                        ) : (
-                          <span className="text-muted-foreground">Não configurado</span>
-                        )}
-                      </p>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant={formatProfile?.recommended_format ? "ghost" : "outline"}
-                      onClick={() => setOpenFormatQuiz(true)}
-                      className="text-xs shrink-0"
-                    >
-                      {formatProfile?.recommended_format ? 'Reconfigurar' : 'Configurar'}
-                    </Button>
                   </div>
 
                   {/* Narrative */}
@@ -314,44 +279,32 @@ export default function Profile() {
                         )}
                       </p>
                     </div>
-                    <Button
-                      size="sm"
-                      variant={narrative?.is_completed ? "ghost" : "outline"}
-                      onClick={() => setOpenNarrative(true)}
-                      className="text-xs shrink-0"
-                    >
-                      {narrative?.is_completed ? 'Reconfigurar' : 'Configurar'}
-                    </Button>
+                  </div>
+
+                  {/* Format Profile */}
+                  <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <FileText className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Formato Recomendado</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {formatProfile?.recommended_format ? (
+                          <span className="text-green-500">✅ {formatProfile.recommended_format}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Não configurado</span>
+                        )}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
-
-            <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl mt-3">
-              <LogOut className="w-5 h-5" />Sair da conta
-            </Button>
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-8">CM Chat v1.0.0</p>
         </div>
       </div>
-
-      {/* Onboarding Modals — refetch data on complete instead of reload */}
-      <VoiceDNASetup
-        open={openVoiceDNA}
-        onComplete={() => { setOpenVoiceDNA(false); fetchIdentityData(); }}
-        onSkip={() => setOpenVoiceDNA(false)}
-      />
-      <FormatQuizSetup
-        open={openFormatQuiz}
-        onComplete={() => { setOpenFormatQuiz(false); fetchIdentityData(); }}
-        onSkip={() => setOpenFormatQuiz(false)}
-      />
-      <NarrativeSetup
-        open={openNarrative}
-        onComplete={() => { setOpenNarrative(false); fetchIdentityData(); }}
-        onSkip={() => setOpenNarrative(false)}
-      />
     </AppLayout>
   );
 }

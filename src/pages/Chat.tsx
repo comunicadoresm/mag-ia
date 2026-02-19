@@ -1,15 +1,13 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
-import { ArrowLeft, Send, Paperclip, Menu, Plus } from 'lucide-react';
+import { ArrowLeft, Loader2, Send, Paperclip, Menu, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ChatBubble, TypingIndicator } from '@/components/ChatBubble';
 import { ChatSidebar } from '@/components/ChatSidebar';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { IceBreakers } from '@/components/IceBreakers';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Agent, Message } from '@/types';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useCreditsModals } from '@/contexts/CreditsModalContext';
 import { useCredits } from '@/hooks/useCredits';
@@ -30,7 +28,6 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const [streaming, setStreaming] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -190,107 +187,42 @@ export default function Chat() {
         return;
       }
 
-      // Get auth token for raw fetch
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        toast({ title: 'Sessão expirada', description: 'Faça login novamente.', variant: 'destructive' });
-        setSending(false);
-        return;
-      }
-
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/chat`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-          'apikey': supabaseKey,
-        },
-        body: JSON.stringify({
-          conversation_id: conversationId,
-          message: messageContent,
-          agent_id: agent.id,
-          stream: true,
-        }),
+      const { data: aiData, error: aiError } = await supabase.functions.invoke('chat', {
+        body: { conversation_id: conversationId, message: messageContent, agent_id: agent.id },
       });
 
-      if (!response.ok) {
+      if (aiError) {
+        // Try to parse the error body from multiple possible structures
         let parsedError: any = null;
-        try { parsedError = await response.json(); } catch {}
+        try {
+          // supabase-js v2: error.context is the Response, try to read body
+          if ((aiError as any)?.context) {
+            const ctx = (aiError as any).context;
+            if (typeof ctx.json === 'function') {
+              parsedError = await ctx.json();
+            } else if (typeof ctx.body === 'string') {
+              parsedError = JSON.parse(ctx.body);
+            } else if (ctx.body) {
+              parsedError = ctx.body;
+            }
+          }
+          // Fallback: try parsing the error message itself
+          if (!parsedError && aiError.message) {
+            try { parsedError = JSON.parse(aiError.message); } catch {}
+          }
+        } catch (e) {
+          console.error('Error parsing AI error:', e);
+        }
+
         if (parsedError?.error === 'insufficient_credits' || parsedError?.error === 'no_credits') {
           showUpsell();
           toast({ title: 'Créditos insuficientes', description: parsedError.message || 'Seus créditos acabaram!', variant: 'destructive' });
         } else {
           toast({ title: 'Erro do agente', description: 'O agente não conseguiu responder. Tente novamente.', variant: 'destructive' });
         }
-        await refetchMessages();
-        return;
       }
 
-      const contentType = response.headers.get('Content-Type') || '';
-
-      if (contentType.includes('text/event-stream') && response.body) {
-        // STREAMING RESPONSE
-        const streamingMsgId = `streaming-${Date.now()}`;
-        setStreaming(true);
-        setMessages(prev => [...prev, {
-          id: streamingMsgId,
-          conversation_id: conversationId!,
-          role: 'assistant' as const,
-          content: '',
-          tokens_used: null,
-          created_at: new Date().toISOString(),
-        }]);
-
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let sseBuffer = '';
-        let streamedText = '';
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            sseBuffer += decoder.decode(value, { stream: true });
-            const sseLines = sseBuffer.split('\n');
-            sseBuffer = sseLines.pop() || '';
-
-            for (const line of sseLines) {
-              if (line.startsWith('data: ')) {
-                try {
-                  const data = JSON.parse(line.slice(6));
-                  if (data.t) {
-                    streamedText += data.t;
-                    setMessages(prev => prev.map(m =>
-                      m.id === streamingMsgId ? { ...m, content: streamedText } : m
-                    ));
-                  } else if (data.error) {
-                    toast({ title: 'Erro', description: data.error, variant: 'destructive' });
-                  }
-                } catch {}
-              }
-            }
-          }
-        } catch (streamErr) {
-          console.error('Stream read error:', streamErr);
-        } finally {
-          setStreaming(false);
-        }
-
-        await refetchMessages();
-      } else {
-        // NON-STREAMING FALLBACK (JSON response)
-        try {
-          const aiData = await response.json();
-          if (aiData.error) {
-            toast({ title: 'Erro do agente', description: 'O agente não conseguiu responder.', variant: 'destructive' });
-          }
-        } catch {}
-        await refetchMessages();
-      }
+      await refetchMessages();
 
       const userMessages = messages.filter((m) => m.role === 'user');
       if (userMessages.length === 0) {
@@ -326,42 +258,8 @@ export default function Chat() {
 
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-background flex">
-        <div className="hidden md:flex flex-col w-72 border-r border-border/50 p-4 gap-4">
-          <Skeleton className="h-10 w-full rounded-xl" />
-          <Skeleton className="h-8 w-3/4 rounded-lg" />
-          <Skeleton className="h-8 w-full rounded-lg" />
-          <Skeleton className="h-8 w-5/6 rounded-lg" />
-        </div>
-        <div className="flex-1 flex flex-col">
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50">
-            <Skeleton className="h-7 w-7 rounded-full" />
-            <Skeleton className="h-4 w-32" />
-          </div>
-          <div className="flex-1 px-4 py-6 max-w-3xl mx-auto w-full space-y-6">
-            <div className="flex gap-3">
-              <Skeleton className="h-7 w-7 rounded-full shrink-0" />
-              <div className="space-y-2 flex-1">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-3/4" />
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <Skeleton className="h-10 w-48 rounded-2xl" />
-            </div>
-            <div className="flex gap-3">
-              <Skeleton className="h-7 w-7 rounded-full shrink-0" />
-              <div className="space-y-2 flex-1">
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-5/6" />
-                <Skeleton className="h-4 w-2/3" />
-              </div>
-            </div>
-          </div>
-          <div className="p-4">
-            <Skeleton className="h-12 w-full max-w-3xl mx-auto rounded-2xl" />
-          </div>
-        </div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
@@ -386,7 +284,6 @@ export default function Chat() {
       />
 
       {/* Main Chat Area */}
-      <ErrorBoundary>
       <main className="flex-1 flex flex-col h-screen">
         {/* Minimal Header */}
         <header className="flex items-center justify-between px-4 py-2 border-b border-border/50 bg-background">
@@ -440,7 +337,7 @@ export default function Chat() {
               />
             )}
 
-            {sending && !streaming && <TypingIndicator />}
+            {sending && <TypingIndicator />}
             <div ref={messagesEndRef} />
           </div>
         </div>
@@ -505,7 +402,6 @@ export default function Chat() {
           </div>
         </div>
       </main>
-      </ErrorBoundary>
     </div>
   );
 }

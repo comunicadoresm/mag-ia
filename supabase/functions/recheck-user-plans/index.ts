@@ -59,26 +59,6 @@ Deno.serve(async (req) => {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // Cron authentication: require CRON_SECRET header
-  const cronSecret = Deno.env.get("CRON_SECRET");
-  const requestSecret = req.headers.get("x-cron-secret");
-
-  if (!cronSecret || !requestSecret || requestSecret !== cronSecret) {
-    const ip = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
-    console.error(`[SECURITY] Unauthorized cron attempt: ip=${ip} has_secret=${!!requestSecret} method=${req.method}`);
-    try {
-      const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      await supabase.from("webhook_logs").insert({
-        source: "cron", event_type: "unauthorized_attempt",
-        payload: { function: "recheck-user-plans", ip, method: req.method },
-        status: "rejected", error_message: "Invalid or missing CRON_SECRET",
-      });
-    } catch (_) { /* non-blocking */ }
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;

@@ -315,9 +315,9 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onSkip(); }}>
+    <Dialog open={open}>
       <DialogContent className="sm:max-w-lg p-0 overflow-hidden bg-card border-border/50 max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
-        <div className="relative bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4 pr-12">
+        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-foreground">
               {step === 'intro' && '🎯 Quiz de Formato Sustentável'}

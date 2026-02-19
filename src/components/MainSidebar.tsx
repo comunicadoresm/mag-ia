@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Home, MessageSquare, User, LogOut, LayoutGrid, Tag, ShieldCheck, Columns3, Bot, PanelLeftClose, PanelLeft, BarChart3 } from 'lucide-react';
+import { Home, MessageSquare, User, LogOut, LayoutGrid, Tag, ShieldCheck, Columns3, Bot, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { LucideProps } from 'lucide-react';
 import dynamicIconImports from 'lucide-react/dynamicIconImports';
 import { Logo } from './Logo';
@@ -69,7 +69,6 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
 
   const navItems = [
     { path: '/home', icon: Home, label: 'Home' },
-    { path: '/dashboard', icon: BarChart3, label: 'Dashboard' },
     { path: '/agents', icon: Bot, label: 'Agentes IA' },
     { path: '/kanban', icon: Columns3, label: 'Kanban' },
     { path: '/history', icon: MessageSquare, label: 'Histórico' },

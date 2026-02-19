@@ -86,9 +86,8 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
           contentType: 'audio/webm',
         });
         if (error) throw error;
-        const { data: signedData, error: signError } = await supabase.storage.from('voice-audios').createSignedUrl(path, 3600);
-        if (signError) throw signError;
-        urls[key] = signedData.signedUrl;
+        const { data } = supabase.storage.from('voice-audios').getPublicUrl(path);
+        urls[key] = data.publicUrl;
       }
 
       setUploading(false);
@@ -147,9 +146,9 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onSkip(); }}>
+    <Dialog open={open}>
       <DialogContent className="sm:max-w-lg p-0 overflow-hidden bg-card border-border/50 max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
-        <div className="relative bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4 pr-12">
+        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4">
           <DialogHeader>
             <DialogTitle className="text-lg font-bold text-foreground">
               {step === 'intro' && '🎤 DNA de Voz'}
@@ -200,7 +199,7 @@ Bora pro primeiro?`}
                 ))}
               </div>
 
-              <AudioRecorder key={audioStep} onAudioReady={handleAudioReady} maxDuration={60} />
+              <AudioRecorder onAudioReady={handleAudioReady} maxDuration={60} />
 
               <Button variant="ghost" onClick={handleSkipAudio} className="w-full rounded-xl text-muted-foreground text-sm">
                 Pular este áudio

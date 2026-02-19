@@ -8,21 +8,6 @@ interface AudioRecorderProps {
   disabled?: boolean;
 }
 
-// BUG 1 FIX: Detect best supported mimeType (Safari/iOS don't support audio/webm)
-const getSupportedMimeType = (): string => {
-  const types = [
-    'audio/webm;codecs=opus',
-    'audio/webm',
-    'audio/mp4',
-    'audio/ogg;codecs=opus',
-    'audio/wav',
-  ];
-  for (const type of types) {
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported(type)) return type;
-  }
-  return ''; // Let browser choose default
-};
-
 export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: AudioRecorderProps) {
   const [state, setState] = useState<'idle' | 'recording' | 'recorded' | 'playing'>('idle');
   const [duration, setDuration] = useState(0);
@@ -42,13 +27,7 @@ export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: Audi
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      
-      // Use detected mimeType with fallback
-      const mimeType = getSupportedMimeType();
-      const mediaRecorder = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
-      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
       chunksRef.current = [];
       mediaRecorderRef.current = mediaRecorder;
 
@@ -58,8 +37,7 @@ export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: Audi
 
       mediaRecorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop());
-        const recordedMime = mediaRecorder.mimeType || 'audio/webm';
-        const blob = new Blob(chunksRef.current, { type: recordedMime });
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         blobRef.current = blob;
         const url = URL.createObjectURL(blob);
         audioRef.current = new Audio(url);

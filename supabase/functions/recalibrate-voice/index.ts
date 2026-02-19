@@ -6,37 +6,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// BUG 4 FIX: Use OpenAI API directly (same as process-voice-dna) instead of Lovable API
-async function callOpenAI(systemPrompt: string, userContent: string): Promise<string> {
-  const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
-  if (!OPENAI_API_KEY) throw new Error("OPENAI_API_KEY not configured");
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${OPENAI_API_KEY}`,
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userContent },
-      ],
-      max_tokens: 1500,
-      temperature: 0.7,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("OpenAI API error:", errorText);
-    throw new Error("AI API error");
-  }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || "";
-}
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const LOVABLE_API_URL = "https://api.lovable.dev/v1/chat/completions";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -86,10 +57,26 @@ Posicionamento: "${profile.transcription_positioning || 'N/A'}"
 
 Ajuste o DNA considerando o feedback. Retorne APENAS o JSON atualizado com a mesma estrutura.`;
 
-    const rawResponse = await callOpenAI(
-      "Retorne APENAS JSON válido, sem markdown.",
-      recalibrationPrompt
-    );
+    const response = await fetch(LOVABLE_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-5-mini",
+        messages: [
+          { role: "system", content: "Retorne APENAS JSON válido, sem markdown." },
+          { role: "user", content: recalibrationPrompt },
+        ],
+        max_tokens: 1500,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!response.ok) throw new Error("AI API error");
+    const data = await response.json();
+    const rawResponse = data.choices?.[0]?.message?.content || "";
 
     let updatedDna: any;
     try {
@@ -106,10 +93,24 @@ Ajuste o DNA considerando o feedback. Retorne APENAS o JSON atualizado com a mes
     }).eq("user_id", user_id);
 
     // Generate new validation paragraph
-    const validationParagraph = await callOpenAI(
-      "Escreva no tom de voz descrito. Sem explicações, apenas o parágrafo.",
-      `Com base neste DNA: ${JSON.stringify(updatedDna)}\n\nEscreva um parágrafo curto (3-4 frases) sobre empreendedorismo, no tom desta pessoa.`
-    );
+    const validationResponse = await fetch(LOVABLE_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "openai/gpt-5-mini",
+        messages: [
+          { role: "system", content: "Escreva no tom de voz descrito. Sem explicações." },
+          { role: "user", content: `Com base neste DNA: ${JSON.stringify(updatedDna)}\n\nEscreva um parágrafo curto (3-4 frases) sobre empreendedorismo, no tom desta pessoa.` },
+        ],
+        max_tokens: 500,
+      }),
+    });
+
+    const valData = await validationResponse.json();
+    const validationParagraph = valData.choices?.[0]?.message?.content || "";
 
     return new Response(
       JSON.stringify({ success: true, voice_dna: updatedDna, validation_paragraph: validationParagraph }),

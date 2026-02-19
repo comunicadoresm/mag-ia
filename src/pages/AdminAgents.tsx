@@ -59,8 +59,8 @@ import { ScriptOptionsManagement } from '@/components/admin/ScriptOptionsManagem
 
 const AI_MODELS = [
   // Anthropic models (requires ANTHROPIC_API_KEY)
-  { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (Recomendado)', category: 'Claude', provider: 'anthropic' },
-  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Rápido)', category: 'Claude', provider: 'anthropic' },
+  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Recomendado)', category: 'Claude', provider: 'anthropic' },
+  { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet', category: 'Claude', provider: 'anthropic' },
   { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Rápido)', category: 'Claude', provider: 'anthropic' },
   // OpenAI models (requires OPENAI_API_KEY)
   { value: 'gpt-4o', label: 'GPT-4o', category: 'OpenAI', provider: 'openai' },
@@ -97,7 +97,7 @@ const defaultFormData: AgentFormData = {
   icon_emoji: '🤖',
   system_prompt: '',
   welcome_message: '',
-  model: 'claude-3-5-sonnet-20241022',
+  model: 'claude-sonnet-4-20250514',
   api_key: '',
   is_active: true,
   display_order: 0,
@@ -638,9 +638,6 @@ export default function AdminAgents() {
               display_order: a.display_order,
               ice_breakers: (a as any).ice_breakers || [],
               plan_access: (a as any).plan_access || 'magnetic',
-              credit_cost: a.credit_cost ?? null,
-              billing_type: a.billing_type ?? null,
-              message_package_size: a.message_package_size ?? null,
               created_at: a.created_at,
               updated_at: a.updated_at,
             }))} />

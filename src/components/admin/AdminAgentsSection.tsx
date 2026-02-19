@@ -27,21 +27,15 @@ import { SortableAgentList } from '@/components/admin/SortableAgentList';
 import { ScriptTemplateManagement } from '@/components/admin/ScriptTemplateManagement';
 
 const AI_MODELS = [
-  // Anthropic — IDs exatos da API
-  { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5 (Mais Poderoso)', category: 'Anthropic', provider: 'anthropic', cost: '$$$', apiKeyPlaceholder: 'sk-ant-api03-...' },
-  { value: 'claude-sonnet-4-5-20251021', label: 'Claude Sonnet 4.5 ⭐ Recomendado', category: 'Anthropic', provider: 'anthropic', cost: '$$', apiKeyPlaceholder: 'sk-ant-api03-...' },
-  { value: 'claude-haiku-4-5-20251021', label: 'Claude Haiku 4.5 (Rápido/Econômico)', category: 'Anthropic', provider: 'anthropic', cost: '$', apiKeyPlaceholder: 'sk-ant-api03-...' },
-  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Estável)', category: 'Anthropic', provider: 'anthropic', cost: '$$', apiKeyPlaceholder: 'sk-ant-api03-...' },
-  // OpenAI — IDs exatos da API
-  { value: 'gpt-4.1', label: 'GPT-4.1 (Mais Avançado)', category: 'OpenAI', provider: 'openai', cost: '$$$', apiKeyPlaceholder: 'sk-proj-...' },
-  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini ⭐ Recomendado', category: 'OpenAI', provider: 'openai', cost: '$$', apiKeyPlaceholder: 'sk-proj-...' },
-  { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano (Ultra Rápido)', category: 'OpenAI', provider: 'openai', cost: '$', apiKeyPlaceholder: 'sk-proj-...' },
-  { value: 'gpt-4o', label: 'GPT-4o (Multimodal)', category: 'OpenAI', provider: 'openai', cost: '$$', apiKeyPlaceholder: 'sk-proj-...' },
-  // Google Gemini — IDs exatos da API
-  { value: 'gemini-2.5-pro-preview-05-06', label: 'Gemini 2.5 Pro (Mais Poderoso)', category: 'Gemini', provider: 'google', cost: '$$$', apiKeyPlaceholder: 'AIzaSy...' },
-  { value: 'gemini-2.5-flash-preview-05-20', label: 'Gemini 2.5 Flash ⭐ Recomendado', category: 'Gemini', provider: 'google', cost: '$$', apiKeyPlaceholder: 'AIzaSy...' },
-  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Estável)', category: 'Gemini', provider: 'google', cost: '$', apiKeyPlaceholder: 'AIzaSy...' },
-  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Legado)', category: 'Gemini', provider: 'google', cost: '$$', apiKeyPlaceholder: 'AIzaSy...' },
+  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Recomendado)', category: 'Claude', provider: 'anthropic' },
+  { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet', category: 'Claude', provider: 'anthropic' },
+  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Rápido)', category: 'Claude', provider: 'anthropic' },
+  { value: 'gpt-4o', label: 'GPT-4o', category: 'OpenAI', provider: 'openai' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Econômico)', category: 'OpenAI', provider: 'openai' },
+  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', category: 'OpenAI', provider: 'openai' },
+  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', category: 'Gemini', provider: 'google' },
+  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', category: 'Gemini', provider: 'google' },
+  { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Rápido)', category: 'Gemini', provider: 'google' },
 ];
 
 interface PlanTypeOption {
@@ -74,7 +68,7 @@ interface AgentFormData {
 
 const defaultFormData: AgentFormData = {
   name: '', slug: '', description: '', icon_emoji: '🤖',
-  system_prompt: '', welcome_message: '', model: 'claude-sonnet-4-5-20251021',
+  system_prompt: '', welcome_message: '', model: 'claude-sonnet-4-20250514',
   api_key: '', is_active: true, display_order: 0, selectedTags: [],
   ice_breakers: ['', '', ''], billing_type: 'per_messages',
   credit_cost: 1, message_package_size: 5, plan_access: 'magnetic',
@@ -324,9 +318,6 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         model: a.model, is_active: a.is_active, display_order: a.display_order,
         ice_breakers: (a as any).ice_breakers || [],
         plan_access: (a as any).plan_access || 'magnetic',
-        credit_cost: a.credit_cost ?? null,
-        billing_type: a.billing_type ?? null,
-        message_package_size: a.message_package_size ?? null,
         created_at: a.created_at, updated_at: a.updated_at,
       }))} />
     );
@@ -384,39 +375,14 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
                 <Select value={formData.model} onValueChange={(value) => setFormData((prev) => ({ ...prev, model: value }))}>
                   <SelectTrigger><SelectValue placeholder="Selecione o modelo" /></SelectTrigger>
                   <SelectContent>
-                    <div className="px-2 py-1 text-xs text-muted-foreground font-semibold uppercase tracking-wide">🟣 Anthropic (Claude)</div>
-                    {AI_MODELS.filter(m => m.category === 'Anthropic').map((model) => (
-                      <SelectItem key={model.value} value={model.value}>
-                        <span>{model.label}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{model.cost}</span>
-                      </SelectItem>
-                    ))}
-                    <div className="px-2 py-1 text-xs text-muted-foreground font-semibold uppercase tracking-wide mt-2">🟢 OpenAI (GPT)</div>
-                    {AI_MODELS.filter(m => m.category === 'OpenAI').map((model) => (
-                      <SelectItem key={model.value} value={model.value}>
-                        <span>{model.label}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{model.cost}</span>
-                      </SelectItem>
-                    ))}
-                    <div className="px-2 py-1 text-xs text-muted-foreground font-semibold uppercase tracking-wide mt-2">🔵 Google (Gemini)</div>
-                    {AI_MODELS.filter(m => m.category === 'Gemini').map((model) => (
-                      <SelectItem key={model.value} value={model.value}>
-                        <span>{model.label}</span>
-                        <span className="ml-2 text-xs text-muted-foreground">{model.cost}</span>
-                      </SelectItem>
-                    ))}
+                    <div className="px-2 py-1 text-xs text-muted-foreground font-semibold">OpenAI</div>
+                    {AI_MODELS.filter(m => m.category === 'OpenAI').map((model) => (<SelectItem key={model.value} value={model.value}>{model.label}</SelectItem>))}
+                    <div className="px-2 py-1 text-xs text-muted-foreground font-semibold mt-2">Anthropic (Claude)</div>
+                    {AI_MODELS.filter(m => m.category === 'Claude').map((model) => (<SelectItem key={model.value} value={model.value}>{model.label}</SelectItem>))}
+                    <div className="px-2 py-1 text-xs text-muted-foreground font-semibold mt-2">Google (Gemini)</div>
+                    {AI_MODELS.filter(m => m.category === 'Gemini').map((model) => (<SelectItem key={model.value} value={model.value}>{model.label}</SelectItem>))}
                   </SelectContent>
                 </Select>
-                {(() => {
-                  const selected = AI_MODELS.find(m => m.value === formData.model);
-                  if (!selected) return null;
-                  const providerEmoji: Record<string, string> = { Anthropic: '🟣', OpenAI: '🟢', Gemini: '🔵' };
-                  return (
-                    <p className="text-xs font-medium text-muted-foreground">
-                      {providerEmoji[selected.category] || '🤖'} {selected.category} · Custo relativo: {selected.cost}
-                    </p>
-                  );
-                })()}
               </div>
             </div>
 
@@ -458,24 +424,9 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="api_key">
-                API Key — {AI_MODELS.find(m => m.value === formData.model)?.category || 'Provedor'}
-                {!formData.api_key && <span className="ml-2 text-xs text-destructive font-normal">⚠ Obrigatória para funcionar</span>}
-                {formData.api_key && <span className="ml-2 text-xs text-primary font-normal">✓ Configurada</span>}
-              </Label>
-              <Input
-                id="api_key"
-                type="password"
-                value={formData.api_key}
-                onChange={(e) => setFormData((prev) => ({ ...prev, api_key: e.target.value }))}
-                placeholder={AI_MODELS.find(m => m.value === formData.model)?.apiKeyPlaceholder || 'Cole a API Key aqui...'}
-              />
-              <p className="text-xs text-muted-foreground">
-                Cada agente usa a API Key do provedor do modelo selecionado. Obtenha em:
-                {AI_MODELS.find(m => m.value === formData.model)?.provider === 'anthropic' && ' console.anthropic.com'}
-                {AI_MODELS.find(m => m.value === formData.model)?.provider === 'openai' && ' platform.openai.com/api-keys'}
-                {AI_MODELS.find(m => m.value === formData.model)?.provider === 'google' && ' aistudio.google.com'}
-              </p>
+              <Label htmlFor="api_key">API Key do Provedor</Label>
+              <Input id="api_key" type="password" value={formData.api_key} onChange={(e) => setFormData((prev) => ({ ...prev, api_key: e.target.value }))} placeholder="sk-... ou AIza..." />
+              <p className="text-xs text-muted-foreground">Cada agente pode usar uma chave diferente.</p>
             </div>
 
             <div className="space-y-2">
