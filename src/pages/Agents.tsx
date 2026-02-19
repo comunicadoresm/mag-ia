@@ -179,8 +179,14 @@ export default function Agents() {
                     {agentTags[agent.id]?.map((tagId) => {
                       const tag = tags.find((t) => t.id === tagId);
                       if (!tag) return null;
+                      const hex = (tag.color || '#6B7280').replace('#', '');
+                      const r = parseInt(hex.substring(0, 2), 16);
+                      const g = parseInt(hex.substring(2, 4), 16);
+                      const b = parseInt(hex.substring(4, 6), 16);
+                      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                      const textColor = luminance > 0.55 ? tag.color : '#ffffff';
                       return (
-                        <span key={tagId} className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide text-white" style={{ backgroundColor: tag.color || '#6B7280' }}>
+                        <span key={tagId} className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide" style={{ backgroundColor: tag.color || '#6B7280', color: textColor }}>
                           {tag.name}
                         </span>
                       );
