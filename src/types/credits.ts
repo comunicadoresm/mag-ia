@@ -1,5 +1,6 @@
 // Credit system types
-export type PlanType = 'none' | 'basic' | 'magnetic';
+// PlanType is now dynamic (slug string from plan_types table), not a fixed union
+export type PlanType = string; // e.g. 'none' | 'basic' | 'magnetic' | 'magnetic_pro' | ...
 
 export type CreditAction = 'script_generation' | 'script_adjustment' | 'chat_messages';
 
@@ -38,3 +39,17 @@ export type FeatureFlag =
   | 'chat_history'
   | 'script_ai_write'
   | 'script_ai_adjust';
+
+// Dynamic plan info (from plan_types table)
+export interface DynamicPlan {
+  id: string;
+  slug: string;
+  name: string;
+  display_order: number;
+  can_buy_extra_credits: boolean;
+  has_monthly_renewal: boolean;
+  show_as_upsell: boolean;
+  color: string | null;
+  initial_credits: number | null;
+  monthly_credits: number | null;
+}
