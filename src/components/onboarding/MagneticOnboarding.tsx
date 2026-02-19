@@ -17,6 +17,8 @@ import { cn } from '@/lib/utils';
 
 interface MagneticOnboardingProps {
   open: boolean;
+  onClose?: () => void;
+  initialStep?: OnboardingStep;
 }
 
 type OnboardingStep = 'profile' | 'voice_dna' | 'format_quiz' | 'narrative' | 'done';
@@ -28,11 +30,11 @@ const STEPS = [
   { id: 'narrative',   icon: BookOpen,   label: 'Narrativa' },
 ];
 
-export function MagneticOnboarding({ open }: MagneticOnboardingProps) {
+export function MagneticOnboarding({ open, onClose, initialStep }: MagneticOnboardingProps) {
   const { user, refreshProfile } = useAuth();
   const { toast } = useToast();
 
-  const [step, setStep] = useState<OnboardingStep>('profile');
+  const [step, setStep] = useState<OnboardingStep>(initialStep ?? 'profile');
   const [name, setName] = useState('');
   const [handle, setHandle] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
@@ -72,9 +74,9 @@ export function MagneticOnboarding({ open }: MagneticOnboardingProps) {
       await supabase.from('profiles').update({ name: name.trim() } as any).eq('id', user.id);
       await refreshProfile();
     }
-    // Store session flag so the modal doesn't reappear within THIS tab session only
     sessionStorage.setItem('setup_skipped_this_session', '1');
     await refreshProfile();
+    onClose?.();
   };
 
   // ── Mark setup complete ─────────────────────────────────────────────
@@ -117,7 +119,7 @@ export function MagneticOnboarding({ open }: MagneticOnboardingProps) {
             <p className="text-sm text-muted-foreground">
               Sua IA já sabe quem você é. Agora é só criar conteúdo magnético.
             </p>
-            <Button onClick={() => window.location.reload()} className="w-full">
+            <Button onClick={() => { onClose?.(); window.location.reload(); }} className="w-full">
               Começar a criar
             </Button>
           </div>
