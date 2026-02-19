@@ -42,6 +42,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Agent } from '@/types';
 import { ScriptTemplate, ScriptStructure, DEFAULT_SCRIPT_STRUCTURE } from '@/types/kanban';
 import { ScriptStructureEditor } from './ScriptStructureEditor';
+import { FormatMultiSelect } from '@/components/kanban/FormatMultiSelect';
 
 interface ScriptStyle {
   id: string;
@@ -541,21 +542,12 @@ export function ScriptTemplateManagement({ agents }: ScriptTemplateManagementPro
 
               <div className="space-y-2">
                 <Label htmlFor="format">Formato</Label>
-                <Select
+                <FormatMultiSelect
+                  options={formats}
                   value={formData.format}
-                  onValueChange={(value) => setFormData({ ...formData, format: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {formats.map((format) => (
-                      <SelectItem key={format.value} value={format.value}>
-                        {format.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(val) => setFormData({ ...formData, format: val })}
+                  placeholder="Selecione formatos..."
+                />
               </div>
             </div>
 

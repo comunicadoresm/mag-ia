@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCredits } from '@/hooks/useCredits';
 import { useCreditsModals } from '@/contexts/CreditsModalContext';
 import { AIScriptChat } from './AIScriptChat';
+import { FormatMultiSelect } from './FormatMultiSelect';
 
 interface ScriptEditorProps {
   script: UserScript | null;
@@ -221,24 +222,15 @@ export function ScriptEditor({
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1.5 block">Formato</label>
-                  <Select
-                    value={editedScript.format || ''}
-                    onValueChange={(value) => setEditedScript({ ...editedScript, format: value })}
-                    disabled={isMetadataLocked || isReadOnly}
-                  >
-                    <SelectTrigger className={`bg-input ${isMetadataLocked || isReadOnly ? 'opacity-60' : ''}`}>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {dbFormats.map((format) => (
-                        <SelectItem key={format.value} value={format.value}>
-                          {format.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                   <label className="text-sm text-muted-foreground mb-1.5 block">Formato</label>
+                   <FormatMultiSelect
+                     options={dbFormats}
+                     value={editedScript.format}
+                     onChange={(val) => setEditedScript({ ...editedScript, format: val || null })}
+                     disabled={isMetadataLocked || isReadOnly}
+                     placeholder="Selecione formatos..."
+                   />
+                 </div>
 
                 <div>
                   <label className="text-sm text-muted-foreground mb-1.5 block">Objetivo</label>
