@@ -27,9 +27,9 @@ import { SortableAgentList } from '@/components/admin/SortableAgentList';
 import { ScriptTemplateManagement } from '@/components/admin/ScriptTemplateManagement';
 
 const AI_MODELS = [
-  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Recomendado)', category: 'Claude', provider: 'anthropic' },
-  { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet', category: 'Claude', provider: 'anthropic' },
+  { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet (Recomendado)', category: 'Claude', provider: 'anthropic' },
   { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Rápido)', category: 'Claude', provider: 'anthropic' },
+  { value: 'claude-3-opus-20240229', label: 'Claude 3 Opus (Mais Poderoso)', category: 'Claude', provider: 'anthropic' },
   { value: 'gpt-4o', label: 'GPT-4o', category: 'OpenAI', provider: 'openai' },
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Econômico)', category: 'OpenAI', provider: 'openai' },
   { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', category: 'OpenAI', provider: 'openai' },
@@ -68,7 +68,7 @@ interface AgentFormData {
 
 const defaultFormData: AgentFormData = {
   name: '', slug: '', description: '', icon_emoji: '🤖',
-  system_prompt: '', welcome_message: '', model: 'claude-sonnet-4-20250514',
+  system_prompt: '', welcome_message: '', model: 'claude-3-5-sonnet-20241022',
   api_key: '', is_active: true, display_order: 0, selectedTags: [],
   ice_breakers: ['', '', ''], billing_type: 'per_messages',
   credit_cost: 1, message_package_size: 5, plan_access: 'magnetic',
