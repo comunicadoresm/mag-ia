@@ -160,12 +160,22 @@ Deno.serve(async (req) => {
       if (!error) agent = data;
     }
 
-    if (!agent?.api_key) {
+    // Resolve API key: use agent's own key first, then fallback to env secrets
+    const agentModel = agent?.model || "claude-haiku-3-5-20241022";
+    const provider = getProvider(agentModel);
+    let resolvedApiKey = agent?.api_key;
+    if (!resolvedApiKey) {
+      if (provider === "anthropic") resolvedApiKey = Deno.env.get("ANTHROPIC_API_KEY") || null;
+      else if (provider === "openai") resolvedApiKey = Deno.env.get("OPENAI_API_KEY") || null;
+      else if (provider === "google") resolvedApiKey = Deno.env.get("GOOGLE_API_KEY") || null;
+    }
+    if (!resolvedApiKey) {
       return new Response(
         JSON.stringify({ error: "Este agente não tem uma API Key configurada." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    if (agent) agent.api_key = resolvedApiKey;
 
     // === CREDIT CONSUMPTION (script_generation = 3 credits default) ===
     const creditCost = agent.credit_cost || 3;
@@ -308,10 +318,9 @@ Por favor, escreva o roteiro seguindo a estrutura IDF:
 
 Lembre-se: o roteiro deve ser natural para falar, não para ler.`;
 
-    const provider = getProvider(agent.model);
-    console.log(`Provider: ${provider}, model: ${agent.model}`);
+    console.log(`Provider: ${provider}, model: ${agentModel}`);
 
-    const generatedScript = await callAI(provider, agent.model, agent.api_key, enrichedSystemPrompt, userPrompt);
+    const generatedScript = await callAI(provider, agentModel, agent.api_key, enrichedSystemPrompt, userPrompt);
     console.log(`Script generated, length: ${generatedScript.length}`);
 
     return new Response(

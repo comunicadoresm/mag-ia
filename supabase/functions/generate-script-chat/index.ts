@@ -240,12 +240,22 @@ Deno.serve(async (req) => {
       if (!error) agent = data;
     }
 
-    if (!agent?.api_key) {
+    // Resolve API key: use agent's own key first, then fallback to env secrets
+    const agentModel = agent?.model || "claude-haiku-3-5-20241022";
+    const provider = getProvider(agentModel);
+    let resolvedApiKey = agent?.api_key;
+    if (!resolvedApiKey) {
+      if (provider === "anthropic") resolvedApiKey = Deno.env.get("ANTHROPIC_API_KEY") || null;
+      else if (provider === "openai") resolvedApiKey = Deno.env.get("OPENAI_API_KEY") || null;
+      else if (provider === "google") resolvedApiKey = Deno.env.get("GOOGLE_API_KEY") || null;
+    }
+    if (!resolvedApiKey) {
       return new Response(
         JSON.stringify({ error: "Este agente não tem uma API Key configurada." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+    if (agent) agent.api_key = resolvedApiKey;
 
     // === CREDIT CONSUMPTION: moved to frontend (AIScriptChat) ===
     // Credits are NOT charged here. The frontend calls consume-credits separately
@@ -453,11 +463,10 @@ Após entregar, pergunte se quer ajustar algo.`;
     }
 
     if (action === "start") {
-      const provider = getProvider(agent.model);
       const openingPrompt = is_from_template
         ? `O usuário selecionou o template "${script.title}" no Kanban. Faça sua abertura contextualizada ao template seguindo as instruções do modo template.`
         : `O usuário criou um roteiro do zero chamado "${script.title}". Cumprimente-o de forma natural e pergunte sobre o que ele quer comunicar nesse vídeo para você ajudá-lo a criar o roteiro.`;
-      const openingResponse = await callAI(provider, agent.model, agent.api_key, systemPrompt, [
+      const openingResponse = await callAI(provider, agentModel, agent.api_key, systemPrompt, [
         { role: "user", content: openingPrompt }
       ]);
 
@@ -467,10 +476,9 @@ Após entregar, pergunte se quer ajustar algo.`;
       );
     }
 
-    const provider = getProvider(agent.model);
-    console.log(`Provider: ${provider}, model: ${agent.model}`);
+    console.log(`Provider: ${provider}, model: ${agentModel}`);
 
-    const aiResponse = await callAI(provider, agent.model, agent.api_key, systemPrompt, messages);
+    const aiResponse = await callAI(provider, agentModel, agent.api_key, systemPrompt, messages);
 
     let scriptContent = null;
     const hasScriptStructure =
