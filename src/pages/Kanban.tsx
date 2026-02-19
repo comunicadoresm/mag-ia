@@ -20,7 +20,7 @@ export default function Kanban() {
   useEffect(() => {
     const fetchAgents = async () => {
       try {
-        const { data } = await supabase.from('agents').select('*').eq('is_active', true);
+        const { data } = await supabase.from('agents_public').select('*').eq('is_active', true).order('display_order');
         setAgents((data || []) as Agent[]);
       } catch (error) { console.error('Error fetching agents:', error); }
       finally { setIsLoading(false); }
