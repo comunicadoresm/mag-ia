@@ -375,7 +375,19 @@ Deno.serve(async (req) => {
     }
     // === END CREDIT CONSUMPTION ===
 
-    if (!agent.api_key) {
+    // Resolve API key: use agent's own key if set, otherwise fall back to environment secrets
+    const provider = getProvider(agent.model || "claude-sonnet-4-20250514");
+    let resolvedApiKey = agent.api_key;
+    if (!resolvedApiKey) {
+      if (provider === "anthropic") {
+        resolvedApiKey = Deno.env.get("ANTHROPIC_API_KEY") || null;
+      } else if (provider === "openai") {
+        resolvedApiKey = Deno.env.get("OPENAI_API_KEY") || null;
+      } else if (provider === "google") {
+        resolvedApiKey = Deno.env.get("GOOGLE_API_KEY") || null;
+      }
+    }
+    if (!resolvedApiKey) {
       return new Response(
         JSON.stringify({ error: "Este agente não tem uma API Key configurada." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -460,7 +472,6 @@ Use estas informações para contextualizar respostas e roteiros.`;
     }
     // === END IDENTITY INJECTION ===
 
-    const provider = getProvider(agent.model || "claude-sonnet-4-20250514");
     console.log(`Provider: ${provider}, Model: ${agent.model}`);
 
     // Helper: persist assistant message + deferred billing + update conversation
@@ -517,7 +528,7 @@ Use estas informações para contextualizar respostas e roteiros.`;
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": agent.api_key,
+          "x-api-key": resolvedApiKey,
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
@@ -598,7 +609,7 @@ Use estas informações para contextualizar respostas e roteiros.`;
 
       const oaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${agent.api_key}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${resolvedApiKey}` },
         body: JSON.stringify({ model: agent.model, messages: oaiMsgs, max_tokens: 2048, temperature: 0.7, stream: true }),
       });
 
@@ -667,7 +678,7 @@ Use estas informações para contextualizar respostas e roteiros.`;
       }));
 
       const geminiRes = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${agent.model}:streamGenerateContent?key=${agent.api_key}&alt=sse`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${agent.model}:streamGenerateContent?key=${resolvedApiKey}&alt=sse`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -737,12 +748,11 @@ Use estas informações para contextualizar respostas e roteiros.`;
     let result: { text: string; tokens: number | null };
 
     if (provider === "anthropic") {
-      // For Anthropic, pass knowledge separately for caching — use systemPrompt NOT agent.system_prompt
-      result = await callAnthropic(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
+      result = await callAnthropic(resolvedApiKey, agent.model, systemPrompt, knowledgeContext, conversationHistory);
     } else if (provider === "openai") {
-      result = await callOpenAI(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
+      result = await callOpenAI(resolvedApiKey, agent.model, systemPrompt, knowledgeContext, conversationHistory);
     } else {
-      result = await callGemini(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
+      result = await callGemini(resolvedApiKey, agent.model, systemPrompt, knowledgeContext, conversationHistory);
     }
 
     console.log(`AI response: ${result.tokens} tokens`);
