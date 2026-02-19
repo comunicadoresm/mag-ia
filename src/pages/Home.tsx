@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Sparkles, Bot, BarChart3, UserCircle, Coins, ChevronRight,
-  CheckCircle2, Circle, FileText, Home as HomeIcon,
+  Sparkles, Bot, UserCircle, ChevronRight,
+  CheckCircle2, Circle, FileText,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,8 +10,9 @@ import { useCredits } from '@/hooks/useCredits';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { MagneticOnboarding } from '@/components/onboarding/MagneticOnboarding';
+import { VoiceDNASetup } from '@/components/onboarding/VoiceDNASetup';
+import { FormatQuizSetup } from '@/components/onboarding/FormatQuizSetup';
+import { NarrativeSetup } from '@/components/onboarding/NarrativeSetup';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -33,24 +34,6 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   posted: { label: 'Publicado', className: 'bg-green-500/10 text-green-400' },
 };
 
-// ─── CreditsPill ──────────────────────────────────────────────
-function CreditsPill({ credits, onClick }: { credits: number; onClick: () => void }) {
-  const isLow = credits < 5;
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200',
-        isLow
-          ? 'bg-destructive/10 text-destructive animate-pulse-subtle'
-          : 'bg-primary/10 text-primary hover:bg-primary/20'
-      )}
-    >
-      <Coins className="w-3.5 h-3.5" />
-      {credits}
-    </button>
-  );
-}
 
 // ─── QuickActionCard ──────────────────────────────────────────
 function QuickActionCard({
@@ -253,9 +236,8 @@ export default function Home() {
   const [scripts, setScripts] = useState<any[]>([]);
   const [identity, setIdentity] = useState({ voiceDna: false, narrative: false, formatProfile: false });
   const [agentCount, setAgentCount] = useState(0);
-  const [photoUrl, setPhotoUrl] = useState('');
   const [loading, setLoading] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [activeOnboarding, setActiveOnboarding] = useState<'voice_dna' | 'format_quiz' | 'narrative' | null>(null);
 
   const greeting = useMemo(() => greetings[Math.floor(Math.random() * greetings.length)], []);
 
@@ -277,13 +259,12 @@ export default function Home() {
     const fetchAll = async () => {
       setLoading(true);
       try {
-        const [scriptsRes, voiceRes, narrativeRes, formatRes, agentsRes, photoRes] = await Promise.all([
+        const [scriptsRes, voiceRes, narrativeRes, formatRes, agentsRes] = await Promise.all([
           supabase.from('user_scripts').select('id, title, status, updated_at').eq('user_id', user.id).neq('status', 'posted').order('updated_at', { ascending: false }).limit(5),
           supabase.from('voice_profiles').select('is_calibrated').eq('user_id', user.id).maybeSingle(),
           supabase.from('user_narratives').select('is_completed').eq('user_id', user.id).maybeSingle(),
           supabase.from('user_format_profile').select('id').eq('user_id', user.id).maybeSingle(),
           supabase.from('agents_public').select('id', { count: 'exact', head: true }),
-          supabase.from('user_metrics').select('profile_photo_url').eq('user_id', user.id).maybeSingle(),
         ]);
         setScripts(scriptsRes.data || []);
         setIdentity({
@@ -292,7 +273,6 @@ export default function Home() {
           formatProfile: !!formatRes.data,
         });
         setAgentCount(agentsRes.count || 0);
-        if (photoRes.data?.profile_photo_url) setPhotoUrl(photoRes.data.profile_photo_url);
       } catch (err) {
         console.error('Home fetch error:', err);
       } finally {
@@ -302,12 +282,27 @@ export default function Home() {
     fetchAll();
   }, [user]);
 
+  // First pending onboarding step
+  const pendingStep = useMemo(() => {
+    if (!identity.voiceDna) return 'voice_dna' as const;
+    if (!identity.formatProfile) return 'format_quiz' as const;
+    if (!identity.narrative) return 'narrative' as const;
+    return null;
+  }, [identity]);
+
   const firstName = profile?.name?.split(' ')[0] || 'você';
 
   return (
     <AppLayout>
-      {showOnboarding && <MagneticOnboarding onboardingStep="voice_dna" />}
-
+      {activeOnboarding === 'voice_dna' && (
+        <VoiceDNASetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
+      )}
+      {activeOnboarding === 'format_quiz' && (
+        <FormatQuizSetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
+      )}
+      {activeOnboarding === 'narrative' && (
+        <NarrativeSetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
+      )}
 
       {/* ── Content (mesmo padrão do Kanban) ── */}
       <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
@@ -383,7 +378,7 @@ export default function Home() {
                 voiceDna={identity.voiceDna}
                 narrative={identity.narrative}
                 formatProfile={identity.formatProfile}
-                onComplete={() => setShowOnboarding(true)}
+                onComplete={() => setActiveOnboarding(pendingStep)}
                 onView={() => navigate('/profile')}
               />
             )}

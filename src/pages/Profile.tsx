@@ -11,6 +11,9 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { VoiceDNASetup } from '@/components/onboarding/VoiceDNASetup';
+import { FormatQuizSetup } from '@/components/onboarding/FormatQuizSetup';
+import { NarrativeSetup } from '@/components/onboarding/NarrativeSetup';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -27,6 +30,7 @@ export default function Profile() {
   const [voiceProfile, setVoiceProfile] = useState<any>(null);
   const [narrative, setNarrative] = useState<any>(null);
   const [formatProfile, setFormatProfile] = useState<any>(null);
+  const [activeOnboarding, setActiveOnboarding] = useState<'voice_dna' | 'format_quiz' | 'narrative' | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { if (!authLoading && !user) navigate('/login'); }, [user, authLoading, navigate]);
@@ -115,6 +119,17 @@ export default function Profile() {
 
   return (
     <AppLayout>
+      {/* Onboarding modals */}
+      {activeOnboarding === 'voice_dna' && (
+        <VoiceDNASetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
+      )}
+      {activeOnboarding === 'format_quiz' && (
+        <FormatQuizSetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
+      )}
+      {activeOnboarding === 'narrative' && (
+        <NarrativeSetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border/50">
         <div className="flex items-center gap-4 px-4 py-4 max-w-[1600px] mx-auto">
@@ -233,13 +248,9 @@ export default function Profile() {
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl">
-              <LogOut className="w-5 h-5" />Sair da conta
-            </Button>
-
-            {/* Identidade Magnética — always show for magnetic plans */}
+            {/* Identidade Magnética — above sign out */}
             {(profile?.plan_type === 'magnetic' || profile?.plan_type === 'magnetic_pro' || profile?.plan_type === 'magnetico' || profile?.plan_type === 'magnetico_pro' || voiceProfile || narrative || formatProfile) && (
-              <div className="pt-4">
+              <div className="pt-2">
                 <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-primary" />
                   Identidade Magnética
@@ -262,6 +273,12 @@ export default function Profile() {
                         )}
                       </p>
                     </div>
+                    <button
+                      onClick={() => setActiveOnboarding('voice_dna')}
+                      className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
+                    >
+                      {voiceProfile?.is_calibrated ? 'Reconfigurar' : 'Configurar'}
+                    </button>
                   </div>
 
                   {/* Narrative */}
@@ -279,6 +296,12 @@ export default function Profile() {
                         )}
                       </p>
                     </div>
+                    <button
+                      onClick={() => setActiveOnboarding('narrative')}
+                      className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
+                    >
+                      {narrative?.is_completed ? 'Reconfigurar' : 'Configurar'}
+                    </button>
                   </div>
 
                   {/* Format Profile */}
@@ -296,10 +319,20 @@ export default function Profile() {
                         )}
                       </p>
                     </div>
+                    <button
+                      onClick={() => setActiveOnboarding('format_quiz')}
+                      className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
+                    >
+                      {formatProfile?.recommended_format ? 'Reconfigurar' : 'Configurar'}
+                    </button>
                   </div>
                 </div>
               </div>
             )}
+
+            <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl">
+              <LogOut className="w-5 h-5" />Sair da conta
+            </Button>
           </div>
 
           <p className="text-center text-xs text-muted-foreground mt-8">CM Chat v1.0.0</p>
