@@ -243,11 +243,11 @@ export default function Home() {
   const [agentCount, setAgentCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Show mandatory setup modal if user hasn't completed setup
-  // AND hasn't skipped this session
+  // Show mandatory setup modal every time until identity is fully configured
+  // sessionStorage only prevents re-showing within same tab session (skip button)
   const hasCompletedSetup = profile?.has_completed_setup ?? false;
-  const skippedThisSession = sessionStorage.getItem('setup_skipped_this_session') === '1';
-  const showSetupModal = !loading && !!profile && !hasCompletedSetup && !skippedThisSession;
+  const skippedThisTab = sessionStorage.getItem('setup_skipped_this_session') === '1';
+  const showSetupModal = !loading && !!profile && !hasCompletedSetup && !skippedThisTab;
 
   const greeting = useMemo(() => greetings[Math.floor(Math.random() * greetings.length)], []);
 
