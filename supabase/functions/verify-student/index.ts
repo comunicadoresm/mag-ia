@@ -169,35 +169,39 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const detectedPlan = await detectPlanFromAC(baseUrl, acApiKey, normalizedEmail, planTypes);
 
     if (!detectedPlan) {
-      // Not in AC — check if they're already in the DB (allow existing users to login)
+      // Not in AC — only allow if the user was manually created by an admin
+      // (identified by having a plan_type_id but NO last_ac_verification record)
       const { data: existingProfile } = await supabase
         .from("profiles")
-        .select("id, plan_type, plan_type_id")
+        .select("id, plan_type, plan_type_id, last_ac_verification")
         .eq("email", normalizedEmail)
         .single();
 
-      if (existingProfile?.plan_type_id) {
-        // Already has a plan in DB — allow login but don't update plan
-        let planSlug = existingProfile.plan_type || "none";
+      const isManuallyCreated =
+        existingProfile?.plan_type_id &&
+        !existingProfile?.last_ac_verification;
+
+      if (isManuallyCreated) {
         const matchedPlan = planTypes.find(p => p.id === existingProfile.plan_type_id);
-        if (matchedPlan) planSlug = matchedPlan.slug;
+        const planSlug = matchedPlan?.slug || existingProfile.plan_type || "none";
 
         if (planSlug !== "none") {
-          console.log(`User ${normalizedEmail} not in AC but has existing plan ${planSlug} in DB - granting access`);
+          console.log(`User ${normalizedEmail} was manually created (no AC history) — granting access with plan ${planSlug}`);
           return new Response(
             JSON.stringify({
               isVerified: true,
-              source: "database",
+              source: "manual",
               planType: planSlug,
               planId: existingProfile.plan_type_id,
-              message: "Existing user - access granted from database",
+              message: "Manually created user - access granted",
             }),
             { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
       }
 
-      console.log(`No plan tag found for ${normalizedEmail}`);
+      // User either not in system, or was in AC before but tag was removed → block access
+      console.log(`No plan tag found for ${normalizedEmail} in ActiveCampaign — access denied`);
       return new Response(
         JSON.stringify({
           isVerified: false,
