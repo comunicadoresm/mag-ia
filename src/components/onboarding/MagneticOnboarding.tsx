@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,7 @@ interface MagneticOnboardingProps {
   initialStep?: OnboardingStep;
 }
 
-type OnboardingStep = 'profile' | 'voice_dna' | 'format_quiz' | 'narrative' | 'done';
+export type OnboardingStep = 'profile' | 'voice_dna' | 'format_quiz' | 'narrative' | 'done';
 
 const STEPS = [
   { id: 'profile',      icon: User,       label: 'Perfil' },
@@ -38,6 +38,15 @@ export function MagneticOnboarding({ open, onClose, initialStep }: MagneticOnboa
   const [name, setName] = useState('');
   const [handle, setHandle] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+
+  // Quando o modal reabre com um initialStep diferente, vai para a etapa correta
+  const prevOpen = useRef(false);
+  useEffect(() => {
+    if (open && !prevOpen.current && initialStep) {
+      setStep(initialStep);
+    }
+    prevOpen.current = open;
+  }, [open, initialStep]);
 
   const currentStepIndex = STEPS.findIndex(s => s.id === step);
 
