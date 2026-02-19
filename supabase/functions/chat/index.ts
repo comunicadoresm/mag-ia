@@ -460,7 +460,7 @@ Use estas informações para contextualizar respostas e roteiros.`;
     }
     // === END IDENTITY INJECTION ===
 
-    const provider = getProvider(agent.model || "claude-sonnet-4-20250514");
+    const provider = getProvider(agent.model || "claude-3-5-sonnet-20241022");
 
     // === STREAMING PATH (Anthropic only) ===
     if (stream && provider === "anthropic") {
