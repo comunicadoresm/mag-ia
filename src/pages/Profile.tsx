@@ -42,11 +42,21 @@ export default function Profile() {
   }, [user]);
 
   useEffect(() => {
-    if (!profile?.plan_type_id) return;
-    supabase.from('plan_types').select('name, color').eq('id', profile.plan_type_id).single().then(({ data }) => {
-      if (data) setPlanInfo(data);
-    });
-  }, [profile?.plan_type_id]);
+    if (!profile) return;
+    const planId = profile.plan_type_id;
+    const planSlug = profile.plan_type;
+
+    if (planId) {
+      supabase.from('plan_types').select('name, color').eq('id', planId).single().then(({ data }) => {
+        if (data) setPlanInfo(data);
+      });
+    } else if (planSlug && planSlug !== 'none') {
+      supabase.from('plan_types').select('name, color').eq('slug', planSlug).single().then(({ data }) => {
+        if (data) setPlanInfo(data);
+      });
+    }
+  }, [profile?.plan_type_id, profile?.plan_type]);
+
 
   useEffect(() => {
     if (!user) return;
