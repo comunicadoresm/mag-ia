@@ -1,380 +1,572 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Loader2, Users, DollarSign, Briefcase, Eye, Heart, MessageCircle,
-  Bookmark, Share2, FileText, RefreshCw, AtSign, Camera, BarChart3,
+  Sparkles, Bot, BarChart3, UserCircle, Coins, ChevronRight,
+  CheckCircle2, Circle, FileText,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { useCredits } from '@/hooks/useCredits';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { toast } from 'sonner';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-} from 'recharts';
 import { MagneticOnboarding } from '@/components/onboarding/MagneticOnboarding';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
-// ─── Currency Input Helper ───────────────────────────────────
-function CurrencyInput({ value, onChange, ...props }: { value: number; onChange: (v: number) => void } & Omit<React.ComponentProps<'input'>, 'value' | 'onChange'>) {
-  const [display, setDisplay] = useState(
-    value ? `R$ ${value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : ''
-  );
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/[^\d]/g, '');
-    const num = parseInt(raw || '0', 10) / 100;
-    setDisplay(num ? `R$ ${num.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '');
-    onChange(num);
-  };
-  return <Input {...props} type="text" inputMode="numeric" value={display} onChange={handleChange} onFocus={() => { if (!value) setDisplay(''); }} />;
-}
+// ─── Greeting phrases ────────────────────────────────────────
+const greetings = [
+  'Preparado para criar Conteúdos Magnéticos? 🧲',
+  'Seu público tá esperando. Bora?',
+  'Mais um dia pra dominar o magnetismo.',
+  'Conteúdo bom não se cria sozinho. Bora juntos?',
+  'Hoje é dia de conteúdo magnético.',
+];
 
-// ─── Number Input Helper ─────────────────────────────────────
-function NumericInput({ value, onChange, ...props }: { value: number; onChange: (v: number) => void } & Omit<React.ComponentProps<'input'>, 'value' | 'onChange'>) {
-  const [display, setDisplay] = useState(value ? value.toLocaleString('pt-BR') : '');
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '');
-    const num = parseInt(raw || '0', 10);
-    setDisplay(num ? num.toLocaleString('pt-BR') : '');
-    onChange(num);
-  };
-  return <Input {...props} type="text" inputMode="numeric" value={display} onChange={handleChange} onFocus={() => { if (!value) setDisplay(''); }} />;
-}
+// ─── Status config ────────────────────────────────────────────
+const statusConfig: Record<string, { label: string; className: string }> = {
+  idea: { label: 'Ideia', className: 'bg-yellow-500/10 text-yellow-400' },
+  scripting: { label: 'Roteirizando', className: 'bg-blue-500/10 text-blue-400' },
+  recording: { label: 'Gravando', className: 'bg-purple-500/10 text-purple-400' },
+  editing: { label: 'Editando', className: 'bg-orange-500/10 text-orange-400' },
+  posted: { label: 'Publicado', className: 'bg-green-500/10 text-green-400' },
+};
 
-// ─── Photo Upload Helper ─────────────────────────────────────
-function usePhotoUpload(userId: string | undefined) {
-  const [uploading, setUploading] = useState(false);
-  const upload = async (file: File): Promise<string | null> => {
-    if (!userId) return null;
-    setUploading(true);
-    try {
-      const ext = file.name.split('.').pop() || 'jpg';
-      const path = `${userId}/avatar.${ext}`;
-      const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
-      if (error) throw error;
-      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
-      return `${data.publicUrl}?t=${Date.now()}`;
-    } catch (err) {
-      console.error('Upload error:', err);
-      toast.error('Erro ao enviar foto');
-      return null;
-    } finally { setUploading(false); }
-  };
-  return { upload, uploading };
-}
-
-// ─── Initial Setup Modal ─────────────────────────────────────
-function InitialSetupModal({ open, onSubmit, onSkip, userName, userId }: { open: boolean; onSubmit: (data: any) => void; onSkip: () => void; userName: string; userId: string }) {
-  const [form, setForm] = useState({ name: userName || '', handle: '', profile_photo_url: '', current_followers: 0, current_revenue: 0, current_clients: 0 });
-  const [step, setStep] = useState(0);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const { upload, uploading } = usePhotoUpload(userId);
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = await upload(file);
-    if (url) setForm(p => ({ ...p, profile_photo_url: url }));
-  };
-
-  const handleSubmit = () => {
-    if (!form.name.trim()) {
-      return; // Name is required
-    }
-    onSubmit({ ...form, display_name: form.name, initial_followers: form.current_followers, initial_revenue: form.current_revenue, initial_clients: form.current_clients, initial_views: 0 });
-  };
-
+// ─── CreditsPill ──────────────────────────────────────────────
+function CreditsPill({ credits, onClick }: { credits: number; onClick: () => void }) {
+  const isLow = credits < 5;
   return (
-    <Dialog open={open}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-card border-border/50" onPointerDownOutside={(e) => e.preventDefault()}>
-        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-foreground">
-              {step === 0 ? '👋 Bem-vindo! Configure seu perfil' : '📊 Seus números atuais'}
-            </DialogTitle>
-          </DialogHeader>
-        </div>
-        {step === 0 ? (
-          <div className="space-y-4 px-6 pb-6 pt-2">
-            <div className="flex flex-col items-center gap-2">
-              <div className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
-                <Avatar className="w-20 h-20 border-2 border-primary">
-                  <AvatarImage src={form.profile_photo_url} />
-                  <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">{(form.name || userName)?.charAt(0) || 'U'}</AvatarFallback>
-                </Avatar>
-                <div className="absolute bottom-0 right-0 w-7 h-7 bg-primary rounded-full flex items-center justify-center">
-                  {uploading ? <Loader2 className="w-3.5 h-3.5 text-primary-foreground animate-spin" /> : <Camera className="w-3.5 h-3.5 text-primary-foreground" />}
-                </div>
-              </div>
-              <input ref={fileRef} type="file" accept="image/jpeg,image/jpg,image/png" className="hidden" onChange={handleFileChange} />
-              <p className="text-xs text-muted-foreground">Toque para enviar uma foto</p>
-            </div>
-            <div>
-              <Label className="text-sm text-muted-foreground">Nome *</Label>
-              <Input value={form.name} onChange={(e) => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Seu nome completo" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
-            </div>
-            <div>
-              <Label className="text-sm text-muted-foreground">@ do Instagram</Label>
-              <Input value={form.handle} onChange={(e) => setForm(p => ({ ...p, handle: e.target.value }))} placeholder="@seuarroba" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
-            </div>
-            <Button onClick={() => { if (form.name.trim()) setStep(1); }} disabled={!form.name.trim()} className="w-full rounded-xl">Próximo</Button>
-            <Button variant="ghost" onClick={onSkip} className="w-full rounded-xl text-muted-foreground">Configurar Depois</Button>
-          </div>
-        ) : (
-          <div className="space-y-4 px-6 pb-6 pt-2">
-            <p className="text-sm text-muted-foreground">Informe seus números atuais para compararmos sua evolução.</p>
-            <div>
-              <Label className="text-sm text-muted-foreground">Seguidores atuais</Label>
-              <NumericInput value={form.current_followers} onChange={(v) => setForm(p => ({ ...p, current_followers: v }))} placeholder="0" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
-            </div>
-            <div>
-              <Label className="text-sm text-muted-foreground">Faturamento atual</Label>
-              <CurrencyInput value={form.current_revenue} onChange={(v) => setForm(p => ({ ...p, current_revenue: v }))} placeholder="R$ 0,00" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
-            </div>
-            <div>
-              <Label className="text-sm text-muted-foreground">Clientes atuais</Label>
-              <NumericInput value={form.current_clients} onChange={(v) => setForm(p => ({ ...p, current_clients: v }))} placeholder="0" className="mt-1 bg-muted/30 border-border/30 rounded-xl" />
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-3">
-                <Button variant="outline" onClick={() => setStep(0)} className="flex-1 rounded-xl">Voltar</Button>
-                <Button onClick={handleSubmit} className="flex-1 rounded-xl">Salvar e começar</Button>
-              </div>
-              <Button variant="ghost" onClick={onSkip} className="w-full rounded-xl text-muted-foreground">Configurar Depois</Button>
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200',
+        isLow
+          ? 'bg-red-500/10 text-red-400 animate-pulse-subtle'
+          : 'bg-primary/10 text-primary hover:bg-primary/20'
+      )}
+    >
+      <Coins className="w-3.5 h-3.5" />
+      {credits}
+    </button>
   );
 }
 
-// ─── Update Manual Metrics Modal ─────────────────────────────
-function UpdateMetricsModal({ open, onClose, currentValues, onSave }: {
-  open: boolean; onClose: () => void;
-  currentValues: { followers: number; revenue: number; clients: number };
-  onSave: (data: { current_followers: number; current_revenue: number; current_clients: number }) => void;
+// ─── QuickActionCard ──────────────────────────────────────────
+function QuickActionCard({
+  icon: Icon,
+  label,
+  sub,
+  accent,
+  onClick,
+  delay = 0,
+}: {
+  icon: React.ElementType;
+  label: string;
+  sub?: string;
+  accent?: boolean;
+  onClick: () => void;
+  delay?: number;
 }) {
-  const [form, setForm] = useState(currentValues);
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-card border-border/50">
-        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4">
-          <DialogHeader><DialogTitle className="text-lg font-bold text-foreground">📊 Atualizar métricas</DialogTitle></DialogHeader>
-        </div>
-        <div className="space-y-4 px-6 pb-2 pt-2">
-          <div><Label className="text-sm text-muted-foreground">Seguidores atuais</Label><NumericInput value={form.followers} onChange={(v) => setForm(p => ({ ...p, followers: v }))} className="mt-1 bg-muted/30 border-border/30 rounded-xl" /></div>
-          <div><Label className="text-sm text-muted-foreground">Faturamento atual</Label><CurrencyInput value={form.revenue} onChange={(v) => setForm(p => ({ ...p, revenue: v }))} className="mt-1 bg-muted/30 border-border/30 rounded-xl" /></div>
-          <div><Label className="text-sm text-muted-foreground">Clientes atuais</Label><NumericInput value={form.clients} onChange={(v) => setForm(p => ({ ...p, clients: v }))} className="mt-1 bg-muted/30 border-border/30 rounded-xl" /></div>
-        </div>
-        <div className="flex gap-3 px-6 pb-6">
-          <Button variant="outline" onClick={onClose} className="flex-1 rounded-xl">Cancelar</Button>
-          <Button onClick={() => onSave({ current_followers: form.followers, current_revenue: form.revenue, current_clients: form.clients })} className="flex-1 rounded-xl">Salvar</Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <button
+      onClick={onClick}
+      style={{ animationDelay: `${delay}ms` }}
+      className={cn(
+        'min-w-[120px] p-4 rounded-2xl border transition-all duration-200 text-left shrink-0',
+        'hover:scale-[1.03] active:scale-[0.98] section-animate',
+        accent
+          ? 'bg-primary/10 border-primary/20 hover:bg-primary/15'
+          : 'bg-white/[0.04] border-white/[0.06] hover:bg-white/[0.08] hover:border-white/[0.12]'
+      )}
+    >
+      <Icon className={cn('w-6 h-6', accent ? 'text-primary' : 'text-foreground/70')} />
+      <p className="text-sm font-medium text-foreground mt-3">{label}</p>
+      {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+    </button>
   );
 }
 
-// ─── Metric Card ─────────────────────────────────────────────
-function MetricCard({ title, value, icon }: { title: string; value: number | string; icon: React.ReactNode }) {
+// ─── SectionHeader ────────────────────────────────────────────
+function SectionHeader({
+  title,
+  action,
+  onAction,
+}: {
+  title: string;
+  action?: string;
+  onAction?: () => void;
+}) {
   return (
-    <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 hover:border-primary/40 transition-all duration-200">
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">{icon}</div>
-        <div className="min-w-0">
-          <p className="text-[11px] text-muted-foreground truncate">{title}</p>
-          <p className="text-base font-bold text-foreground leading-tight">{typeof value === 'number' ? value.toLocaleString('pt-BR') : value}</p>
-        </div>
-      </div>
+    <div className="flex items-center justify-between px-6 mb-4">
+      <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+      {action && (
+        <button
+          onClick={onAction}
+          className="text-sm text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5"
+        >
+          {action} <ChevronRight className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }
 
-// ─── Comparison Chart ─────────────────────────────────────────
-function ComparisonChart({ data }: { data: { label: string; before: number; current: number }[] }) {
-  const chartData = data.map(d => ({ name: d.label, Antes: d.before, Atual: d.current }));
+// ─── ScriptCard ───────────────────────────────────────────────
+function ScriptCard({
+  script,
+  onClick,
+}: {
+  script: { id: string; title: string; status: string; updated_at: string };
+  onClick: () => void;
+}) {
+  const st = statusConfig[script.status] || statusConfig.idea;
+  const relative = formatDistanceToNow(new Date(script.updated_at), {
+    addSuffix: true,
+    locale: ptBR,
+  });
+
   return (
-    <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4">
-      <h3 className="text-sm font-medium text-muted-foreground mb-3">Antes vs Atual</h3>
-      <div className="h-64">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} barGap={4}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-            <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
-            <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '12px', fontSize: '12px' }} />
-            <Bar dataKey="Antes" fill="hsl(var(--muted-foreground))" radius={[6, 6, 0, 0]} />
-            <Bar dataKey="Atual" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
+    <div
+      onClick={onClick}
+      className="min-w-[280px] max-w-[320px] p-5 rounded-2xl bg-white/[0.04] border border-white/[0.06] hover:bg-white/[0.08] hover:border-white/[0.12] transition-all duration-200 snap-start cursor-pointer shrink-0"
+    >
+      <h3 className="text-base font-medium text-foreground line-clamp-2">
+        {script.title || 'Sem título'}
+      </h3>
+      <div className="mt-3">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium',
+            st.className
+          )}
+        >
+          <span className="w-1.5 h-1.5 rounded-full bg-current" />
+          {st.label}
+        </span>
       </div>
+      <p className="text-xs text-muted-foreground mt-2">{relative}</p>
+      <p className="text-sm text-primary font-medium mt-4 hover:text-primary/80 transition-colors">
+        Continuar →
+      </p>
     </div>
   );
 }
 
-// ─── Main Home Dashboard ──────────────────────────────────────
-export default function Home() {
-  const navigate = useNavigate();
-  const { user, profile, loading: authLoading } = useAuth();
-  const { metrics, postAggregates, isLoading, initializeMetrics, updateManualMetrics } = useDashboardMetrics();
-  const [updateModalOpen, setUpdateModalOpen] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-  const { upload, uploading } = usePhotoUpload(user?.id);
+// ─── EmptyScripts ─────────────────────────────────────────────
+function EmptyScripts({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="mx-6 p-8 rounded-2xl border border-dashed border-white/10 flex flex-col items-center text-center">
+      <FileText className="w-10 h-10 text-muted-foreground/40 mb-3" />
+      <p className="text-sm font-medium text-foreground mb-1">Nenhum roteiro ainda</p>
+      <p className="text-xs text-muted-foreground mb-4">
+        Crie seu primeiro conteúdo magnético e ele aparece aqui.
+      </p>
+      <Button onClick={onCreate} size="sm" className="rounded-full">
+        Criar primeiro roteiro
+      </Button>
+    </div>
+  );
+}
 
-  const needsSetup = !isLoading && (!metrics?.initial_setup_done || profile?.has_completed_setup === false);
-  const [showSetupModal, setShowSetupModal] = useState(true);
+// ─── IdentityCard ─────────────────────────────────────────────
+function IdentityCard({
+  voiceDna,
+  narrative,
+  formatProfile,
+  onComplete,
+  onView,
+}: {
+  voiceDna: boolean;
+  narrative: boolean;
+  formatProfile: boolean;
+  onComplete: () => void;
+  onView: () => void;
+}) {
+  const steps = [
+    { label: 'DNA de Voz', done: voiceDna, sub: voiceDna ? 'Calibrado' : 'Pendente' },
+    { label: 'Formato', done: formatProfile, sub: formatProfile ? 'Definido' : 'Pendente' },
+    { label: 'Narrativa', done: narrative, sub: narrative ? 'Definida' : 'Pendente' },
+  ];
+  const completedCount = steps.filter((s) => s.done).length;
+  const isComplete = completedCount === 3;
 
-  const handleSkipSetup = () => {
-    setShowSetupModal(false);
-    toast.info("Você pode configurar seu perfil a qualquer momento no menu Perfil.");
-  };
-
-  const handleInitialSetup = async (data: any) => {
-    // Remove fields that don't exist in user_metrics table
-    const { name, current_followers, current_revenue, current_clients, ...metricsData } = data;
-    const error = await initializeMetrics({
-      ...metricsData,
-      current_followers,
-      current_revenue,
-      current_clients,
-    });
-    if (error) {
-      console.error('Onboarding save error:', error);
-      toast.error('Erro ao salvar');
-    } else {
-      // Update profile name and mark setup as completed
-      if (user) {
-        await supabase.from('profiles').update({ 
-          name: name || data.display_name,
-          has_completed_setup: true 
-        }).eq('id', user.id);
-      }
-      toast.success('Perfil configurado!');
-    }
-  };
-
-  const handleUpdateMetrics = async (data: { current_followers: number; current_revenue: number; current_clients: number }) => {
-    const error = await updateManualMetrics(data);
-    if (error) toast.error('Erro ao atualizar');
-    else { toast.success('Métricas atualizadas!'); setUpdateModalOpen(false); }
-  };
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const url = await upload(file);
-    if (url) { await updateManualMetrics({ profile_photo_url: url } as any); toast.success('Foto atualizada!'); }
-  };
-
-  if (authLoading || !user) {
-    return <div className="min-h-screen bg-background flex items-center justify-center"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>;
+  if (isComplete) {
+    return (
+      <div className="mx-6 p-5 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+        <div className="grid grid-cols-3 gap-4 mb-4">
+          {steps.map((step) => (
+            <div key={step.label} className="flex flex-col items-center text-center">
+              <CheckCircle2 className="w-5 h-5 text-green-400 mb-1.5" />
+              <p className="text-xs font-medium text-foreground">{step.label}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">{step.sub}</p>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={onView}
+          className="w-full text-center text-sm text-primary hover:text-primary/80 transition-colors"
+        >
+          Ver detalhes →
+        </button>
+      </div>
+    );
   }
 
-  const m = metrics;
-  const pa = postAggregates;
-  const displayName = profile?.name || m?.display_name || 'Usuário';
-  const totalFollowers = (m?.current_followers || 0) + pa.total_followers_from_posts;
+  return (
+    <div className="mx-6 p-5 rounded-2xl bg-primary/5 border border-primary/15">
+      <div className="flex items-start gap-3 mb-4">
+        <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+          <Sparkles className="w-4 h-4 text-primary" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            Complete sua Identidade Magnética
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Falta pouco pra IA entender SEU jeito de criar conteúdo. Bora finalizar?
+          </p>
+        </div>
+      </div>
 
-  const comparisonData = m ? [
-    { label: 'Seguidores', before: m.initial_followers, current: totalFollowers },
-    { label: 'Clientes', before: m.initial_clients, current: m.current_clients },
-    { label: 'Faturamento', before: Number(m.initial_revenue), current: Number(m.current_revenue) },
-    { label: 'Visualizações', before: m.initial_views, current: pa.total_views },
-  ] : [];
+      <div className="flex gap-2 mb-3">
+        {steps.map((step) => (
+          <div key={step.label} className="flex items-center gap-1.5 flex-1">
+            {step.done ? (
+              <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />
+            ) : (
+              <Circle className="w-4 h-4 text-muted-foreground/40 shrink-0" />
+            )}
+            <p className="text-[11px] text-muted-foreground truncate">{step.label}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="h-1.5 rounded-full bg-white/10 mb-4 overflow-hidden">
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-500"
+          style={{ width: `${(completedCount / 3) * 100}%` }}
+        />
+      </div>
+
+      <p className="text-xs text-muted-foreground mb-3">
+        {completedCount} de 3 etapas concluídas
+      </p>
+
+      <Button onClick={onComplete} size="sm" className="w-full rounded-xl">
+        Continuar configuração
+      </Button>
+    </div>
+  );
+}
+
+// ─── MetricsSummary ───────────────────────────────────────────
+function MetricsSummary({
+  followers,
+  revenue,
+  clients,
+  onDetails,
+}: {
+  followers: number;
+  revenue: number;
+  clients: number;
+  onDetails: () => void;
+}) {
+  const hasData = followers > 0 || revenue > 0 || clients > 0;
+
+  if (!hasData) {
+    return (
+      <div className="mx-6 p-6 rounded-2xl bg-white/[0.04] border border-white/[0.06] text-center">
+        <BarChart3 className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+        <p className="text-sm text-muted-foreground">Nenhuma métrica ainda</p>
+        <button
+          onClick={onDetails}
+          className="text-xs text-primary mt-2 hover:text-primary/80 transition-colors"
+        >
+          Configurar métricas →
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-6 p-5 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+      <div className="grid grid-cols-3 gap-6 mb-4">
+        <div>
+          <p className="text-2xl font-semibold text-foreground tabular-nums">
+            {followers.toLocaleString('pt-BR')}
+          </p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">
+            seguidores
+          </p>
+        </div>
+        <div>
+          <p className="text-2xl font-semibold text-foreground tabular-nums">
+            {revenue.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">
+            faturamento
+          </p>
+        </div>
+        <div>
+          <p className="text-2xl font-semibold text-foreground tabular-nums">{clients}</p>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wider mt-1">
+            clientes
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={onDetails}
+        className="text-sm text-primary hover:text-primary/80 transition-colors"
+      >
+        Ver dashboard completo →
+      </button>
+    </div>
+  );
+}
+
+// ─── Main Home ────────────────────────────────────────────────
+export default function Home() {
+  const navigate = useNavigate();
+  const { user, profile } = useAuth();
+  const { balance, isLoading: creditsLoading } = useCredits();
+
+  const [scripts, setScripts] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<any>(null);
+  const [identity, setIdentity] = useState({
+    voiceDna: false,
+    narrative: false,
+    formatProfile: false,
+  });
+  const [agentCount, setAgentCount] = useState(0);
+  const [photoUrl, setPhotoUrl] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Random greeting
+  const greeting = useMemo(() => greetings[Math.floor(Math.random() * greetings.length)], []);
+
+  // Contextual summary
+  const pendingScripts = scripts.filter((s) => s.status !== 'posted').length;
+  const totalCredits = balance.total;
+  const contextualSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (pendingScripts > 0) parts.push(`${pendingScripts} roteiros pendentes`);
+    if (totalCredits > 0) parts.push(`${totalCredits} créditos disponíveis`);
+    if (parts.length > 0) return `Você tem ${parts.join(' e ')}.`;
+    if (totalCredits === 0 && !creditsLoading) return 'Seus créditos acabaram. Recarregue para continuar criando.';
+    return 'Tudo pronto pra começar.';
+  }, [pendingScripts, totalCredits, creditsLoading]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchAll = async () => {
+      setLoading(true);
+      try {
+        const [scriptsRes, metricsRes, voiceRes, narrativeRes, formatRes, agentsRes, photoRes] =
+          await Promise.all([
+            supabase
+              .from('user_scripts')
+              .select('id, title, status, updated_at')
+              .eq('user_id', user.id)
+              .neq('status', 'posted')
+              .order('updated_at', { ascending: false })
+              .limit(5),
+            supabase
+              .from('user_metrics')
+              .select('current_followers, current_revenue, current_clients, profile_photo_url')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+            supabase
+              .from('voice_profiles')
+              .select('is_calibrated')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+            supabase
+              .from('user_narratives')
+              .select('is_completed')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+            supabase
+              .from('user_format_profile')
+              .select('id')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+            supabase.from('agents_public').select('id', { count: 'exact', head: true }),
+            supabase
+              .from('user_metrics')
+              .select('profile_photo_url')
+              .eq('user_id', user.id)
+              .maybeSingle(),
+          ]);
+
+        setScripts(scriptsRes.data || []);
+        setMetrics(metricsRes.data);
+        setIdentity({
+          voiceDna: !!voiceRes.data?.is_calibrated,
+          narrative: !!narrativeRes.data?.is_completed,
+          formatProfile: !!formatRes.data,
+        });
+        setAgentCount(agentsRes.count || 0);
+        if (photoRes.data?.profile_photo_url) setPhotoUrl(photoRes.data.profile_photo_url);
+      } catch (err) {
+        console.error('Home fetch error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAll();
+  }, [user]);
+
+  const firstName = profile?.name?.split(' ')[0] || 'você';
 
   return (
     <AppLayout>
-      {/* Header */}
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border/50">
-        <div className="flex items-center gap-4 px-4 py-4 max-w-[1600px] mx-auto">
-          <div className="flex items-center gap-3 flex-1">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground">Dashboard</h1>
-              <p className="text-xs text-muted-foreground">Métricas de performance</p>
+      {/* Onboarding overlay */}
+      {showOnboarding && (
+        <MagneticOnboarding onboardingStep="voice_dna" />
+      )}
+
+      <div className="home-container flex-1 overflow-auto">
+        {/* ── Top Bar ──────────────────────────────── */}
+        <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-white/5">
+          <div className="flex items-center justify-between px-6 h-14">
+            <p className="text-sm font-semibold text-foreground tracking-tight">Magnetic.IA</p>
+            <div className="flex items-center gap-3">
+              {!creditsLoading && (
+                <CreditsPill
+                  credits={totalCredits}
+                  onClick={() => navigate('/profile/credits')}
+                />
+              )}
+              <button onClick={() => navigate('/profile')}>
+                <Avatar className="w-8 h-8">
+                  <AvatarImage src={photoUrl} className="object-cover" />
+                  <AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs">
+                    {profile?.name?.charAt(0)?.toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5 rounded-xl border-border/50" onClick={() => setUpdateModalOpen(true)}>
-            <RefreshCw className="w-3.5 h-3.5" />Atualizar
-          </Button>
-        </div>
-      </header>
+        </header>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-24"><Loader2 className="w-8 h-8 text-primary animate-spin" /></div>
-        ) : (
-          <div className="max-w-[1600px] mx-auto space-y-5 animate-fade-in">
-            {/* Profile Header */}
-            <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 md:p-5">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="relative cursor-pointer shrink-0" onClick={() => fileRef.current?.click()}>
-                  <Avatar className="w-12 h-12 border-2 border-primary">
-                    <AvatarImage src={m?.profile_photo_url || ''} className="object-cover" />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-base font-bold">{displayName.charAt(0).toUpperCase()}</AvatarFallback>
-                  </Avatar>
-                  <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
-                    {uploading ? <Loader2 className="w-2.5 h-2.5 text-primary-foreground animate-spin" /> : <Camera className="w-2.5 h-2.5 text-primary-foreground" />}
-                  </div>
-                  <input ref={fileRef} type="file" accept="image/jpeg,image/jpg,image/png" className="hidden" onChange={handlePhotoUpload} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-lg font-bold text-foreground truncate">{displayName}</h1>
-                  {m?.handle && <p className="text-sm text-muted-foreground flex items-center gap-1"><AtSign className="w-3.5 h-3.5" />{m.handle}</p>}
-                </div>
-                <div className="flex flex-wrap gap-5 text-center">
-                  <div><p className="text-lg font-bold text-foreground">{totalFollowers.toLocaleString('pt-BR')}</p><p className="text-[11px] text-muted-foreground">Seguidores</p></div>
-                  <div><p className="text-lg font-bold text-foreground">R${Number(m?.current_revenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p><p className="text-[11px] text-muted-foreground">Faturamento</p></div>
-                  <div><p className="text-lg font-bold text-foreground">{(m?.current_clients || 0).toLocaleString('pt-BR')}</p><p className="text-[11px] text-muted-foreground">Clientes</p></div>
-                </div>
-              </div>
-            </div>
-
-            {/* Consolidated Metrics */}
-            <div>
-              <h2 className="text-base font-semibold text-foreground mb-3">Métricas Consolidadas</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-                <MetricCard title="Posts Realizados" value={pa.total_posts} icon={<FileText className="w-4 h-4" />} />
-                <MetricCard title="Novos Seguidores" value={pa.total_followers_from_posts} icon={<Users className="w-4 h-4" />} />
-                <MetricCard title="Visualizações" value={pa.total_views} icon={<Eye className="w-4 h-4" />} />
-                <MetricCard title="Curtidas" value={pa.total_likes} icon={<Heart className="w-4 h-4" />} />
-                <MetricCard title="Comentários" value={pa.total_comments} icon={<MessageCircle className="w-4 h-4" />} />
-                <MetricCard title="Salvos" value={pa.total_saves} icon={<Bookmark className="w-4 h-4" />} />
-                <MetricCard title="Compartilhamentos" value={pa.total_shares} icon={<Share2 className="w-4 h-4" />} />
-                <MetricCard title="Novos Clientes" value={m?.current_clients || 0} icon={<Briefcase className="w-4 h-4" />} />
-                <MetricCard title="Faturamento" value={`R$${Number(m?.current_revenue || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`} icon={<DollarSign className="w-4 h-4" />} />
-              </div>
-            </div>
-
-            {/* Comparison Charts */}
-            {m && (
-              <div>
-                <h2 className="text-base font-semibold text-foreground mb-3">Antes vs Atual</h2>
-                <ComparisonChart data={comparisonData} />
-              </div>
+        <main className="max-w-3xl mx-auto pb-24 md:pb-8">
+          {/* ── Seção 1: Welcome Hero ─────────────── */}
+          <section className="px-6 pt-8 pb-4 section-animate" style={{ animationDelay: '0ms' }}>
+            <h1 className="text-3xl font-light text-foreground tracking-tight">
+              Simboraa, {firstName}! 🧲
+            </h1>
+            <p className="text-lg text-muted-foreground font-normal mt-1">{greeting}</p>
+            {!loading && (
+              <p className="text-sm text-muted-foreground mt-2">{contextualSummary}</p>
             )}
-          </div>
-        )}
-      </div>
+          </section>
 
-      {needsSetup && showSetupModal && <InitialSetupModal open onSubmit={handleInitialSetup} onSkip={handleSkipSetup} userName={profile?.name || ''} userId={user.id} />}
-      {updateModalOpen && m && (
-        <UpdateMetricsModal open={updateModalOpen} onClose={() => setUpdateModalOpen(false)}
-          currentValues={{ followers: m.current_followers, revenue: Number(m.current_revenue), clients: m.current_clients }}
-          onSave={handleUpdateMetrics} />
-      )}
-      {/* Magnetic Onboarding (voice DNA, format quiz, narrative) */}
-      {profile?.onboarding_step && !needsSetup && (
-        <MagneticOnboarding onboardingStep={profile.onboarding_step} />
-      )}
+          {/* ── Seção 2: Quick Actions ─────────────── */}
+          <section className="mt-4 section-animate" style={{ animationDelay: '100ms' }}>
+            <div className="flex gap-3 overflow-x-auto px-6 pb-2 scrollbar-thin snap-x snap-mandatory">
+              <QuickActionCard
+                icon={Sparkles}
+                label="Novo Roteiro"
+                sub="3 créditos"
+                accent
+                onClick={() => navigate('/kanban')}
+                delay={0}
+              />
+              <QuickActionCard
+                icon={Bot}
+                label="Meus Agentes"
+                sub={`${agentCount} agentes`}
+                onClick={() => navigate('/agents')}
+                delay={50}
+              />
+              <QuickActionCard
+                icon={BarChart3}
+                label="Métricas"
+                sub="Dashboard"
+                onClick={() => navigate('/dashboard')}
+                delay={100}
+              />
+              <QuickActionCard
+                icon={UserCircle}
+                label="Meu Perfil"
+                sub="Identidade"
+                onClick={() => navigate('/profile')}
+                delay={150}
+              />
+            </div>
+          </section>
+
+          {/* ── Seção 3: Próximos Conteúdos ────────── */}
+          <section className="mt-8 section-animate" style={{ animationDelay: '200ms' }}>
+            <SectionHeader
+              title="Próximos conteúdos"
+              action="Ver todos"
+              onAction={() => navigate('/kanban')}
+            />
+            {loading ? (
+              <div className="px-6 flex gap-3">
+                {[1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="min-w-[280px] h-36 rounded-2xl bg-white/[0.04] animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : scripts.length > 0 ? (
+              <div className="flex gap-4 overflow-x-auto px-6 pb-4 snap-x snap-mandatory scrollbar-thin">
+                {scripts.map((script) => (
+                  <ScriptCard
+                    key={script.id}
+                    script={script}
+                    onClick={() => navigate('/kanban')}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyScripts onCreate={() => navigate('/kanban')} />
+            )}
+          </section>
+
+          {/* ── Seção 4: Performance Resumida ─────── */}
+          <section className="mt-8 section-animate" style={{ animationDelay: '300ms' }}>
+            <SectionHeader
+              title="Esta semana"
+              action="Detalhes"
+              onAction={() => navigate('/dashboard')}
+            />
+            {loading ? (
+              <div className="mx-6 h-28 rounded-2xl bg-white/[0.04] animate-pulse" />
+            ) : (
+              <MetricsSummary
+                followers={metrics?.current_followers || 0}
+                revenue={metrics?.current_revenue || 0}
+                clients={metrics?.current_clients || 0}
+                onDetails={() => navigate('/dashboard')}
+              />
+            )}
+          </section>
+
+          {/* ── Seção 5: Identidade Magnética ─────── */}
+          <section className="mt-8 section-animate" style={{ animationDelay: '400ms' }}>
+            <SectionHeader title="Sua Identidade Magnética" />
+            {loading ? (
+              <div className="mx-6 h-36 rounded-2xl bg-white/[0.04] animate-pulse" />
+            ) : (
+              <IdentityCard
+                voiceDna={identity.voiceDna}
+                narrative={identity.narrative}
+                formatProfile={identity.formatProfile}
+                onComplete={() => setShowOnboarding(true)}
+                onView={() => navigate('/profile')}
+              />
+            )}
+          </section>
+        </main>
+      </div>
     </AppLayout>
   );
 }

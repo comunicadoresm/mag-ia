@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Verify from "./pages/Verify";
 import AccessDenied from "./pages/AccessDenied";
 import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
 import Agents from "./pages/Agents";
 import Chat from "./pages/Chat";
 import History from "./pages/History";
@@ -31,6 +32,7 @@ function AppRoutes() {
       <Route path="/verify" element={<Verify />} />
       <Route path="/access-denied" element={<AccessDenied />} />
       <Route path="/home" element={<Home />} />
+      <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/agents" element={<Agents />} />
       <Route path="/chat/:conversationId" element={<Chat />} />
       <Route path="/history" element={<History />} />
