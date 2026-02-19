@@ -10,7 +10,7 @@ import { useCredits } from '@/hooks/useCredits';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { MagneticOnboarding } from '@/components/onboarding/MagneticOnboarding';
+import { MagneticOnboarding, OnboardingStep } from '@/components/onboarding/MagneticOnboarding';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -255,6 +255,15 @@ export default function Home() {
   const totalCredits = balance.total;
   const pendingScripts = scripts.length;
 
+  // Determina exatamente em qual etapa o usuário parou
+  const onboardingInitialStep = useMemo((): OnboardingStep => {
+    if (!profile?.name) return 'profile';
+    if (!identity.voiceDna) return 'voice_dna';
+    if (!identity.formatProfile) return 'format_quiz';
+    if (!identity.narrative) return 'narrative';
+    return 'done';
+  }, [identity, profile?.name]);
+
   const contextualSummary = useMemo(() => {
     if (creditsLoading) return '';
     const parts: string[] = [];
@@ -303,6 +312,7 @@ export default function Home() {
       <MagneticOnboarding
         open={showSetupModal || showOnboardingManual}
         onClose={() => setShowOnboardingManual(false)}
+        initialStep={onboardingInitialStep}
       />
 
       {/* ── Content (mesmo padrão do Kanban) ── */}
