@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Plus, Trash2, Save, X, Sparkles } from 'lucide-react';
+import { Loader2, Plus, Trash2, Save, X, Sparkles, LayoutGrid, List, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -100,6 +100,7 @@ export function ScriptTemplateManagement({ agents }: ScriptTemplateManagementPro
   const [editingTemplate, setEditingTemplate] = useState<ScriptTemplate | null>(null);
   const [deleteTemplate, setDeleteTemplate] = useState<ScriptTemplate | null>(null);
   const [formData, setFormData] = useState<TemplateFormData>(defaultFormData);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
   
   // Dynamic options from database
   const [styles, setStyles] = useState<ScriptStyle[]>([]);
@@ -327,10 +328,28 @@ export function ScriptTemplateManagement({ agents }: ScriptTemplateManagementPro
             Gerencie os templates disponíveis na coluna "Ideias Magnéticas" do Kanban.
           </p>
         </div>
-        <Button onClick={() => handleOpenForm()} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Novo Template
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center border border-border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 transition-colors ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+              aria-label="Visualização em lista"
+            >
+              <List className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 transition-colors ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+              aria-label="Visualização em grade"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+          <Button onClick={() => handleOpenForm()} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Novo Template
+          </Button>
+        </div>
       </div>
 
       {templates.length === 0 ? (
@@ -338,6 +357,70 @@ export function ScriptTemplateManagement({ agents }: ScriptTemplateManagementPro
           <Sparkles className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <p className="text-muted-foreground mb-4">Nenhum template cadastrado ainda.</p>
           <Button onClick={() => handleOpenForm()}>Criar primeiro template</Button>
+        </div>
+      ) : viewMode === 'list' ? (
+        <div className="grid gap-3">
+          {templates.map((template) => {
+            const objectiveInfo = getObjectiveInfo(template.objective);
+            return (
+              <div
+                key={template.id}
+                className="bg-card border border-border rounded-xl p-4 flex items-center gap-4"
+              >
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-2xl shrink-0">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <h3 className="font-semibold text-foreground">{template.title}</h3>
+                    {!template.is_active && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                        Inativo
+                      </span>
+                    )}
+                  </div>
+                  {template.theme && (
+                    <p className="text-sm text-muted-foreground truncate">
+                      Tema: {template.theme}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span className="text-xs px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+                      {getStyleLabel(template.style)}
+                    </span>
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full border"
+                      style={{ borderColor: objectiveInfo.color, color: objectiveInfo.color }}
+                    >
+                      {objectiveInfo.label}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {getAgentName(template.agent_id)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleOpenForm(template)}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setDeleteTemplate(template)}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
