@@ -77,14 +77,9 @@ export function MagneticOnboarding({ open, onClose, initialStep }: MagneticOnboa
     }
   };
 
-  // ── Skip (closes modal but shows again next login) ──────────────────
-  const handleSkipSession = async () => {
-    if (user && name.trim()) {
-      await supabase.from('profiles').update({ name: name.trim() } as any).eq('id', user.id);
-      await refreshProfile();
-    }
+  // ── Skip (closes modal, stays closed this session) ──────────────────
+  const handleSkipSession = () => {
     sessionStorage.setItem('setup_skipped_this_session', '1');
-    await refreshProfile();
     onClose?.();
   };
 
@@ -281,14 +276,6 @@ export function MagneticOnboarding({ open, onClose, initialStep }: MagneticOnboa
             }
           </Button>
 
-          <Button
-            variant="ghost"
-            onClick={handleSkipSession}
-            disabled={savingProfile}
-            className="w-full text-muted-foreground text-sm"
-          >
-            Preencher depois
-          </Button>
         </div>
       </DialogContent>
     </Dialog>

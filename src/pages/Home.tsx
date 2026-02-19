@@ -187,20 +187,19 @@ function IdentityCard({
     );
   }
 
+  // Incompleto
   return (
-    <div className="p-4 rounded-2xl bg-primary/5 border border-primary/20">
+    <div className="p-4 rounded-2xl border border-warning/30 bg-warning/5">
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-8 h-8 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
-          <Sparkles className="w-4 h-4 text-primary" />
+        <div className="w-8 h-8 rounded-xl bg-warning/15 flex items-center justify-center shrink-0">
+          <Circle className="w-4 h-4 text-warning" />
         </div>
         <div>
           <p className="text-sm font-semibold text-foreground">
-            {completedCount === 0 ? 'Configure sua Identidade Magnética' : 'Complete sua Identidade Magnética'}
+            ⚠️ Identidade Magnética incompleta
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {completedCount === 0
-              ? 'A IA precisa te conhecer pra criar conteúdo no seu jeito.'
-              : 'Falta pouco pra IA entender SEU jeito de criar conteúdo.'}
+            Preencha assim que possível — a IA não consegue criar conteúdo no seu jeito sem isso.
           </p>
         </div>
       </div>
@@ -210,22 +209,28 @@ function IdentityCard({
           <div key={step.label} className="flex items-center gap-1 flex-1 min-w-0">
             {step.done
               ? <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
-              : <Circle className="w-3.5 h-3.5 text-muted-foreground/40 shrink-0" />}
-            <p className="text-[11px] text-muted-foreground truncate">{step.label}</p>
+              : <Circle className="w-3.5 h-3.5 text-warning/50 shrink-0" />}
+            <p className={cn('text-[11px] truncate', step.done ? 'text-muted-foreground' : 'text-warning/80')}>
+              {step.label}
+            </p>
           </div>
         ))}
       </div>
 
-      <div className="h-1.5 rounded-full bg-border/50 mb-3 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-warning/20 mb-3 overflow-hidden">
         <div
-          className="h-full rounded-full bg-primary transition-all duration-500"
+          className="h-full rounded-full bg-warning transition-all duration-500"
           style={{ width: `${(completedCount / 3) * 100}%` }}
         />
       </div>
 
       <p className="text-xs text-muted-foreground mb-3">{completedCount} de 3 etapas concluídas</p>
 
-      <Button onClick={onComplete} size="sm" className="w-full rounded-xl h-8 text-xs">
+      <Button
+        onClick={onComplete}
+        size="sm"
+        className="w-full rounded-xl h-8 text-xs bg-warning hover:bg-warning/90 text-warning-foreground border-0"
+      >
         {completedCount === 0 ? 'Começar configuração' : 'Continuar configuração'}
       </Button>
     </div>
