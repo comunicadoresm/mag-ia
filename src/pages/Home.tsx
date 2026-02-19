@@ -189,10 +189,10 @@ function IdentityCard({
 
   // Incompleto
   return (
-    <div className="p-4 rounded-2xl border border-warning/30 bg-warning/5">
+    <div className="p-4 rounded-2xl border border-primary/30 bg-primary/5">
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-8 h-8 rounded-xl bg-warning/15 flex items-center justify-center shrink-0">
-          <Circle className="w-4 h-4 text-warning" />
+        <div className="w-8 h-8 rounded-xl bg-primary/15 flex items-center justify-center shrink-0">
+          <Circle className="w-4 h-4 text-primary" />
         </div>
         <div>
           <p className="text-sm font-semibold text-foreground">
@@ -209,17 +209,17 @@ function IdentityCard({
           <div key={step.label} className="flex items-center gap-1 flex-1 min-w-0">
             {step.done
               ? <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
-              : <Circle className="w-3.5 h-3.5 text-warning/50 shrink-0" />}
-            <p className={cn('text-[11px] truncate', step.done ? 'text-muted-foreground' : 'text-warning/80')}>
+              : <Circle className="w-3.5 h-3.5 text-primary/40 shrink-0" />}
+            <p className={cn('text-[11px] truncate', step.done ? 'text-muted-foreground' : 'text-primary/70')}>
               {step.label}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="h-1.5 rounded-full bg-warning/20 mb-3 overflow-hidden">
+      <div className="h-1.5 rounded-full bg-primary/20 mb-3 overflow-hidden">
         <div
-          className="h-full rounded-full bg-warning transition-all duration-500"
+          className="h-full rounded-full bg-primary transition-all duration-500"
           style={{ width: `${(completedCount / 3) * 100}%` }}
         />
       </div>
@@ -229,7 +229,7 @@ function IdentityCard({
       <Button
         onClick={onComplete}
         size="sm"
-        className="w-full rounded-xl h-8 text-xs bg-warning hover:bg-warning/90 text-warning-foreground border-0"
+        className="w-full rounded-xl h-8 text-xs"
       >
         {completedCount === 0 ? 'Começar configuração' : 'Continuar configuração'}
       </Button>
@@ -260,14 +260,14 @@ export default function Home() {
   const totalCredits = balance.total;
   const pendingScripts = scripts.length;
 
-  // Determina exatamente em qual etapa o usuário parou
-  const onboardingInitialStep = useMemo((): OnboardingStep => {
-    if (!profile?.name) return 'profile';
+  // Modal automático (primeiro acesso): sempre começa do step 1 (profile + @)
+  // Botão manual da Home: começa da próxima etapa pendente
+  const onboardingManualInitialStep = useMemo((): OnboardingStep => {
     if (!identity.voiceDna) return 'voice_dna';
     if (!identity.formatProfile) return 'format_quiz';
     if (!identity.narrative) return 'narrative';
-    return 'done';
-  }, [identity, profile?.name]);
+    return 'voice_dna';
+  }, [identity]);
 
   const contextualSummary = useMemo(() => {
     if (creditsLoading) return '';
@@ -317,7 +317,7 @@ export default function Home() {
       <MagneticOnboarding
         open={showSetupModal || showOnboardingManual}
         onClose={() => setShowOnboardingManual(false)}
-        initialStep={onboardingInitialStep}
+        initialStep={showSetupModal ? 'profile' : onboardingManualInitialStep}
       />
 
       {/* ── Content (mesmo padrão do Kanban) ── */}
