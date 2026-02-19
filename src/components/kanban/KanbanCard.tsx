@@ -70,7 +70,7 @@ export function KanbanCard({
       {/* Tags: Objetivo, Estilo, Formato */}
       <div className="flex flex-wrap gap-1.5 mb-3">
         {item.objective && (
-          <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide bg-red-500/80 text-white">
+          <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full tracking-wide bg-red-500 text-white">
             {formatLabel(item.objective)}
           </span>
         )}
@@ -80,7 +80,7 @@ export function KanbanCard({
           </span>
         )}
         {item.format && (
-          <span className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-blue-500/70 text-white">
+          <span className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-blue-600 text-white">
             {formatLabel(item.format)}
           </span>
         )}
