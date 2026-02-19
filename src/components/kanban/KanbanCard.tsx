@@ -79,11 +79,11 @@ export function KanbanCard({
             {formatLabel(item.style)}
           </span>
         )}
-        {item.format && (
-          <span className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-blue-600 text-white">
-            {formatLabel(item.format)}
+        {item.format && item.format.split(',').map(f => f.trim()).filter(Boolean).map(f => (
+          <span key={f} className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-blue-600 text-white">
+            {formatLabel(f)}
           </span>
-        )}
+        ))}
       </div>
 
       {/* Theme */}
