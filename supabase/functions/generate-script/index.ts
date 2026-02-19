@@ -17,7 +17,7 @@ interface GenerateScriptRequest {
 
 function getProvider(model: string): "anthropic" | "openai" | "google" {
   if (model.startsWith("claude")) return "anthropic";
-  if (model.startsWith("gpt-") || model.startsWith("o1")) return "openai";
+  if (model.startsWith("gpt-") || model.startsWith("o1") || model.startsWith("o3")) return "openai";
   if (model.startsWith("gemini")) return "google";
   return "anthropic";
 }
