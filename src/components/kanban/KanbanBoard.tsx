@@ -205,14 +205,7 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
     const newStatus = targetColumnId as ScriptStatus;
     if (script.status === newStatus) return;
 
-    // AJUSTE 12: Validate movement — no skipping columns
-    const statusOrder: ScriptStatus[] = ['scripting', 'recording', 'editing', 'posted'];
-    const currentIdx = statusOrder.indexOf(script.status);
-    const targetIdx = statusOrder.indexOf(newStatus);
-    if (currentIdx >= 0 && targetIdx >= 0 && Math.abs(targetIdx - currentIdx) > 1) {
-      toast({ title: 'Mova o card para a próxima coluna antes', variant: 'destructive' });
-      return;
-    }
+
 
     // AJUSTE 4: If moving to "posted", open PostedModal first
     if (newStatus === 'posted') {
