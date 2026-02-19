@@ -308,34 +308,6 @@ export default function Home() {
     <AppLayout>
       {showOnboarding && <MagneticOnboarding onboardingStep="voice_dna" />}
 
-      {/* ── Header (mesmo padrão do Kanban) ─── */}
-      <header className="sticky top-0 z-30 bg-background/95 backdrop-blur border-b border-border/50">
-        <div className="flex items-center justify-between px-4 py-4 max-w-[1600px] mx-auto">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <HomeIcon className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground">Home</h1>
-              <p className="text-xs text-muted-foreground">Seu command center</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {!creditsLoading && (
-              <CreditsPill credits={totalCredits} onClick={() => navigate('/profile/credits')} />
-            )}
-            <button onClick={() => navigate('/profile')}>
-              <Avatar className="w-8 h-8 border border-border/50">
-                <AvatarImage src={photoUrl} className="object-cover" />
-                <AvatarFallback className="bg-primary text-primary-foreground font-bold text-xs">
-                  {profile?.name?.charAt(0)?.toUpperCase() || 'U'}
-                </AvatarFallback>
-              </Avatar>
-            </button>
-          </div>
-        </div>
-      </header>
 
       {/* ── Content (mesmo padrão do Kanban) ── */}
       <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
