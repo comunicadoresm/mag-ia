@@ -460,9 +460,45 @@ Use estas informações para contextualizar respostas e roteiros.`;
     }
     // === END IDENTITY INJECTION ===
 
-    const provider = getProvider(agent.model || "claude-3-5-sonnet-20241022");
+    const provider = getProvider(agent.model || "claude-sonnet-4-20250514");
+    console.log(`Provider: ${provider}, Model: ${agent.model}`);
 
-    // === STREAMING PATH (Anthropic only) ===
+    // Helper: persist assistant message + deferred billing + update conversation
+    async function finalizeStream(fullText: string, tokens: number) {
+      await supabaseClient.from("messages").insert({
+        conversation_id, role: "assistant", content: fullText, tokens_used: tokens,
+      });
+      if (deferCharge) {
+        const nText = fullText.replace(/\*\*/g, "").replace(/##\s*/g, "");
+        const hasOutput =
+          nText.includes("🎯 INÍCIO") || nText.includes("📚 DESENVOLVIMENTO") ||
+          nText.includes("🎬 ROTEIRO FINAL") || nText.includes("📍 DESENVOLVIMENTO") ||
+          nText.includes("✅ FECHAMENTO");
+        if (hasOutput) {
+          const { data: dc } = await supabaseClient.from("user_credits").select("*").eq("user_id", user.id).single();
+          if (dc) {
+            const dt = (dc.plan_credits || 0) + (dc.subscription_credits || 0) + (dc.bonus_credits || 0);
+            if (dt >= creditCost) {
+              let rem = creditCost, nP = dc.plan_credits || 0, nS = dc.subscription_credits || 0, nB = dc.bonus_credits || 0;
+              if (rem > 0 && nP > 0) { const d = Math.min(rem, nP); nP -= d; rem -= d; }
+              if (rem > 0 && nS > 0) { const d = Math.min(rem, nS); nS -= d; rem -= d; }
+              if (rem > 0 && nB > 0) { const d = Math.min(rem, nB); nB -= d; rem -= d; }
+              await supabaseClient.from("user_credits").update({ plan_credits: nP, subscription_credits: nS, bonus_credits: nB }).eq("user_id", user.id);
+              await supabaseClient.from("credit_transactions").insert({
+                user_id: user.id, type: "consumption", amount: -creditCost, source: "chat_output",
+                balance_after: nP + nS + nB, metadata: { agent_id, conversation_id },
+              });
+            }
+          }
+        }
+      }
+      await supabaseClient.from("conversations").update({
+        last_message_at: new Date().toISOString(),
+        message_count: (conversation.message_count || 0) + 2,
+      }).eq("id", conversation_id);
+    }
+
+    // === STREAMING PATH — Anthropic ===
     if (stream && provider === "anthropic") {
       const sysBlocks = [
         { type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } },
@@ -496,7 +532,7 @@ Use estas informações para contextualizar respostas e roteiros.`;
       if (!anthropicRes.ok) {
         const errText = await anthropicRes.text();
         console.error("Anthropic streaming error:", errText);
-        throw new Error("Erro na API Anthropic.");
+        throw new Error(`Erro na API Anthropic: ${errText}`);
       }
 
       let fullText = "";
@@ -514,11 +550,9 @@ Use estas informações para contextualizar respostas e roteiros.`;
             while (true) {
               const { done, value } = await reader.read();
               if (done) break;
-
               buf += dec.decode(value, { stream: true });
               const lines = buf.split("\n");
               buf = lines.pop() || "";
-
               for (const line of lines) {
                 if (line.startsWith("data: ")) {
                   const jsonStr = line.slice(6).trim();
@@ -537,48 +571,11 @@ Use estas informações para contextualizar respostas e roteiros.`;
                 }
               }
             }
-
-            // Stream complete — persist to DB
-            const totalTokens = inTok + outTok;
-            await supabaseClient.from("messages").insert({
-              conversation_id, role: "assistant", content: fullText, tokens_used: totalTokens,
-            });
-
-            // Deferred per_output billing
-            if (deferCharge) {
-              const nText = fullText.replace(/\*\*/g, "").replace(/##\s*/g, "");
-              const hasOutput =
-                nText.includes("🎯 INÍCIO") || nText.includes("📚 DESENVOLVIMENTO") ||
-                nText.includes("🎬 ROTEIRO FINAL") || nText.includes("📍 DESENVOLVIMENTO") ||
-                nText.includes("✅ FECHAMENTO");
-              if (hasOutput) {
-                const { data: dc } = await supabaseClient.from("user_credits").select("*").eq("user_id", user.id).single();
-                if (dc) {
-                  const dt = (dc.plan_credits || 0) + (dc.subscription_credits || 0) + (dc.bonus_credits || 0);
-                  if (dt >= creditCost) {
-                    let rem = creditCost, nP = dc.plan_credits || 0, nS = dc.subscription_credits || 0, nB = dc.bonus_credits || 0;
-                    if (rem > 0 && nP > 0) { const d = Math.min(rem, nP); nP -= d; rem -= d; }
-                    if (rem > 0 && nS > 0) { const d = Math.min(rem, nS); nS -= d; rem -= d; }
-                    if (rem > 0 && nB > 0) { const d = Math.min(rem, nB); nB -= d; rem -= d; }
-                    await supabaseClient.from("user_credits").update({ plan_credits: nP, subscription_credits: nS, bonus_credits: nB }).eq("user_id", user.id);
-                    await supabaseClient.from("credit_transactions").insert({
-                      user_id: user.id, type: "consumption", amount: -creditCost, source: "chat_output",
-                      balance_after: nP + nS + nB, metadata: { agent_id, conversation_id },
-                    });
-                  }
-                }
-              }
-            }
-
-            await supabaseClient.from("conversations").update({
-              last_message_at: new Date().toISOString(),
-              message_count: (conversation.message_count || 0) + 2,
-            }).eq("id", conversation_id);
-
+            await finalizeStream(fullText, inTok + outTok);
             controller.enqueue(enc.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
             controller.close();
           } catch (err) {
-            console.error("Stream error:", err);
+            console.error("Anthropic stream error:", err);
             controller.enqueue(enc.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
             controller.close();
           }
@@ -589,7 +586,153 @@ Use estas informações para contextualizar respostas e roteiros.`;
         headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
       });
     }
-    // === END STREAMING — NON-STREAMING PATH BELOW ===
+
+    // === STREAMING PATH — OpenAI ===
+    if (stream && provider === "openai") {
+      const oaiMsgs: any[] = [{ role: "system", content: systemPrompt }];
+      if (knowledgeContext) {
+        oaiMsgs.push({ role: "user", content: `Contexto da base de conhecimento:\n${knowledgeContext}` });
+        oaiMsgs.push({ role: "assistant", content: "Entendido, vou usar essas informações como contexto." });
+      }
+      oaiMsgs.push(...conversationHistory.map((m) => ({ role: m.role, content: m.content })));
+
+      const oaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${agent.api_key}` },
+        body: JSON.stringify({ model: agent.model, messages: oaiMsgs, max_tokens: 2048, temperature: 0.7, stream: true }),
+      });
+
+      if (!oaiRes.ok) {
+        const errText = await oaiRes.text();
+        console.error("OpenAI streaming error:", errText);
+        throw new Error(`Erro na API OpenAI: ${errText}`);
+      }
+
+      let fullText = "";
+      const enc = new TextEncoder();
+
+      const responseStream = new ReadableStream({
+        async start(controller) {
+          try {
+            const reader = oaiRes.body!.getReader();
+            const dec = new TextDecoder();
+            let buf = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buf += dec.decode(value, { stream: true });
+              const lines = buf.split("\n");
+              buf = lines.pop() || "";
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  const jsonStr = line.slice(6).trim();
+                  if (!jsonStr || jsonStr === "[DONE]") continue;
+                  try {
+                    const ev = JSON.parse(jsonStr);
+                    const delta = ev.choices?.[0]?.delta?.content;
+                    if (delta) {
+                      fullText += delta;
+                      controller.enqueue(enc.encode(`data: ${JSON.stringify({ t: delta })}\n\n`));
+                    }
+                  } catch {}
+                }
+              }
+            }
+            await finalizeStream(fullText, 0);
+            controller.enqueue(enc.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+            controller.close();
+          } catch (err) {
+            console.error("OpenAI stream error:", err);
+            controller.enqueue(enc.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(responseStream, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+      });
+    }
+
+    // === STREAMING PATH — Google Gemini ===
+    if (stream && provider === "google") {
+      const fullSystemPrompt = knowledgeContext
+        ? `${systemPrompt}\n\n## Base de Conhecimento\n${knowledgeContext}`
+        : systemPrompt;
+
+      const contents = conversationHistory.map((m) => ({
+        role: m.role === "assistant" ? "model" : "user",
+        parts: [{ text: m.content }],
+      }));
+
+      const geminiRes = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${agent.model}:streamGenerateContent?key=${agent.api_key}&alt=sse`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents,
+            systemInstruction: { parts: [{ text: fullSystemPrompt }] },
+            generationConfig: { maxOutputTokens: 2048, temperature: 0.7 },
+          }),
+        }
+      );
+
+      if (!geminiRes.ok) {
+        const errText = await geminiRes.text();
+        console.error("Gemini streaming error:", errText);
+        throw new Error(`Erro na API Gemini: ${errText}`);
+      }
+
+      let fullText = "";
+      const enc = new TextEncoder();
+
+      const responseStream = new ReadableStream({
+        async start(controller) {
+          try {
+            const reader = geminiRes.body!.getReader();
+            const dec = new TextDecoder();
+            let buf = "";
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buf += dec.decode(value, { stream: true });
+              const lines = buf.split("\n");
+              buf = lines.pop() || "";
+              for (const line of lines) {
+                if (line.startsWith("data: ")) {
+                  const jsonStr = line.slice(6).trim();
+                  if (!jsonStr) continue;
+                  try {
+                    const ev = JSON.parse(jsonStr);
+                    const delta = ev.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (delta) {
+                      fullText += delta;
+                      controller.enqueue(enc.encode(`data: ${JSON.stringify({ t: delta })}\n\n`));
+                    }
+                  } catch {}
+                }
+              }
+            }
+            await finalizeStream(fullText, 0);
+            controller.enqueue(enc.encode(`data: ${JSON.stringify({ done: true })}\n\n`));
+            controller.close();
+          } catch (err) {
+            console.error("Gemini stream error:", err);
+            controller.enqueue(enc.encode(`data: ${JSON.stringify({ error: String(err) })}\n\n`));
+            controller.close();
+          }
+        },
+      });
+
+      return new Response(responseStream, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+      });
+    }
+
+    // === NON-STREAMING PATH ===
 
     let result: { text: string; tokens: number | null };
 

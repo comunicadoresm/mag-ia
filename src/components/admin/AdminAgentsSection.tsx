@@ -27,19 +27,19 @@ import { SortableAgentList } from '@/components/admin/SortableAgentList';
 import { ScriptTemplateManagement } from '@/components/admin/ScriptTemplateManagement';
 
 const AI_MODELS = [
-  // Anthropic — 4 mais recentes
-  { value: 'claude-opus-4-5', label: 'Claude Opus 4.5 (Mais Poderoso)', category: 'Anthropic', provider: 'anthropic', cost: '$$$', apiKeyPlaceholder: 'sk-ant-api03-...' },
-  { value: 'claude-sonnet-4-5', label: 'Claude Sonnet 4.5 ⭐ Recomendado', category: 'Anthropic', provider: 'anthropic', cost: '$$', apiKeyPlaceholder: 'sk-ant-api03-...' },
-  { value: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (Rápido/Econômico)', category: 'Anthropic', provider: 'anthropic', cost: '$', apiKeyPlaceholder: 'sk-ant-api03-...' },
+  // Anthropic — IDs exatos da API
+  { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5 (Mais Poderoso)', category: 'Anthropic', provider: 'anthropic', cost: '$$$', apiKeyPlaceholder: 'sk-ant-api03-...' },
+  { value: 'claude-sonnet-4-5-20251021', label: 'Claude Sonnet 4.5 ⭐ Recomendado', category: 'Anthropic', provider: 'anthropic', cost: '$$', apiKeyPlaceholder: 'sk-ant-api03-...' },
+  { value: 'claude-haiku-4-5-20251021', label: 'Claude Haiku 4.5 (Rápido/Econômico)', category: 'Anthropic', provider: 'anthropic', cost: '$', apiKeyPlaceholder: 'sk-ant-api03-...' },
   { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Estável)', category: 'Anthropic', provider: 'anthropic', cost: '$$', apiKeyPlaceholder: 'sk-ant-api03-...' },
-  // OpenAI — 4 mais recentes
+  // OpenAI — IDs exatos da API
   { value: 'gpt-4.1', label: 'GPT-4.1 (Mais Avançado)', category: 'OpenAI', provider: 'openai', cost: '$$$', apiKeyPlaceholder: 'sk-proj-...' },
   { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini ⭐ Recomendado', category: 'OpenAI', provider: 'openai', cost: '$$', apiKeyPlaceholder: 'sk-proj-...' },
   { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano (Ultra Rápido)', category: 'OpenAI', provider: 'openai', cost: '$', apiKeyPlaceholder: 'sk-proj-...' },
   { value: 'gpt-4o', label: 'GPT-4o (Multimodal)', category: 'OpenAI', provider: 'openai', cost: '$$', apiKeyPlaceholder: 'sk-proj-...' },
-  // Google Gemini — 4 mais recentes
-  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Mais Poderoso)', category: 'Gemini', provider: 'google', cost: '$$$', apiKeyPlaceholder: 'AIzaSy...' },
-  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash ⭐ Recomendado', category: 'Gemini', provider: 'google', cost: '$$', apiKeyPlaceholder: 'AIzaSy...' },
+  // Google Gemini — IDs exatos da API
+  { value: 'gemini-2.5-pro-preview-05-06', label: 'Gemini 2.5 Pro (Mais Poderoso)', category: 'Gemini', provider: 'google', cost: '$$$', apiKeyPlaceholder: 'AIzaSy...' },
+  { value: 'gemini-2.5-flash-preview-05-20', label: 'Gemini 2.5 Flash ⭐ Recomendado', category: 'Gemini', provider: 'google', cost: '$$', apiKeyPlaceholder: 'AIzaSy...' },
   { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Estável)', category: 'Gemini', provider: 'google', cost: '$', apiKeyPlaceholder: 'AIzaSy...' },
   { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Legado)', category: 'Gemini', provider: 'google', cost: '$$', apiKeyPlaceholder: 'AIzaSy...' },
 ];
@@ -74,7 +74,7 @@ interface AgentFormData {
 
 const defaultFormData: AgentFormData = {
   name: '', slug: '', description: '', icon_emoji: '🤖',
-  system_prompt: '', welcome_message: '', model: 'claude-sonnet-4-5',
+  system_prompt: '', welcome_message: '', model: 'claude-sonnet-4-5-20251021',
   api_key: '', is_active: true, display_order: 0, selectedTags: [],
   ice_breakers: ['', '', ''], billing_type: 'per_messages',
   credit_cost: 1, message_package_size: 5, plan_access: 'magnetic',
