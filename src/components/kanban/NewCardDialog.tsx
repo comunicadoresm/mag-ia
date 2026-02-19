@@ -3,6 +3,7 @@ import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { FormatMultiSelect } from './FormatMultiSelect';
 import {
   Dialog,
   DialogContent,
@@ -124,29 +125,25 @@ export function NewCardDialog({ isOpen, onClose, onCreated, agents }: NewCardDia
             <Input value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="Ex: Marketing, Lifestyle..." className="bg-input" />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-sm text-muted-foreground mb-1.5 block">Estilo *</label>
-              <Select value={style} onValueChange={setStyle}>
-                <SelectTrigger className="bg-input"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {dbStyles.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-sm text-muted-foreground mb-1.5 block">Formato</label>
-              <Select value={format} onValueChange={setFormat}>
-                <SelectTrigger className="bg-input"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                <SelectContent>
-                  {dbFormats.map((f) => (
-                    <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div>
+            <label className="text-sm text-muted-foreground mb-1.5 block">Estilo *</label>
+            <Select value={style} onValueChange={setStyle}>
+              <SelectTrigger className="bg-input"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <SelectContent>
+                {dbStyles.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <label className="text-sm text-muted-foreground mb-1.5 block">Formato</label>
+            <FormatMultiSelect
+              options={dbFormats}
+              value={format}
+              onChange={setFormat}
+              placeholder="Selecione formatos..."
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
