@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, CheckCircle } from 'lucide-react';
+import { Loader2, CheckCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,86 +19,87 @@ const AUDIO_PROMPTS = [
     key: 'casual',
     title: 'Áudio 1 — Falando com um AMIGO',
     text: 'Imagina o seguinte: você tá indo encontrar um amigo e aconteceu um perrengue no caminho. Você vai atrasar uns 20 minutos.\n\nGrava um áudio como se tivesse mandando pra ele no WhatsApp — explicando o que aconteceu e que vai chegar atrasado.\n\nFala do jeito que você falaria de verdade. Sem filtro, sem pensar demais. Solta o áudio.',
+    field: 'audio_casual_url',
   },
   {
     key: 'professional',
     title: 'Áudio 2 — Falando com um CLIENTE/SEGUIDOR',
     text: 'Agora muda o cenário. Imagina que alguém te mandou uma DM assim:\n\n"Oi, tô pensando em contratar você / comprar seu produto, mas ainda tô na dúvida se é pra mim."\n\nGrava um áudio respondendo essa pessoa. Como você responderia de verdade — no direct, sem roteiro, no improviso.',
+    field: 'audio_professional_url',
   },
   {
     key: 'positioning',
     title: 'Áudio 3 — Falando com alguém que DISCORDA',
     text: 'Último áudio. Esse é o mais gostoso.\n\nImagina que alguém postou nos comentários algo tipo: "Isso aí não funciona, é tudo a mesma coisa, qualquer um faz isso."\n\nGrava um áudio como se fosse responder essa pessoa. Pode ser firme, pode ser irônico, pode ser didático — do jeito que VOCÊ responderia.\n\nNão segura. Fala o que pensa.',
+    field: 'audio_positioning_url',
   },
 ];
 
 export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) {
   const { user } = useAuth();
-  const [step, setStep] = useState<'intro' | 'audio' | 'processing' | 'validation'>('intro');
+  const [step, setStep] = useState<'intro' | 'audio' | 'uploading' | 'processing' | 'validation'>('intro');
   const [audioStep, setAudioStep] = useState(0);
-  const [audios, setAudios] = useState<Record<string, Blob>>({});
-  const [uploading, setUploading] = useState(false);
-  
+  const [uploadedUrls, setUploadedUrls] = useState<Record<string, string>>({});
+
   const [processing, setProcessing] = useState(false);
   const [validationText, setValidationText] = useState('');
   const [score, setScore] = useState(7);
   const [feedback, setFeedback] = useState('');
   const [recalibrating, setRecalibrating] = useState(false);
 
+  // Upload individual audio right after confirmation, then advance step
   const handleAudioReady = async (blob: Blob) => {
-    const key = AUDIO_PROMPTS[audioStep].key;
-    setAudios(prev => ({ ...prev, [key]: blob }));
-
-    if (audioStep < 2) {
-      setAudioStep(prev => prev + 1);
-    } else {
-      // All 3 audios done, upload and process
-      const allAudios = { ...audios, [key]: blob };
-      await uploadAndProcess(allAudios);
-    }
-  };
-
-  const handleSkipAudio = () => {
-    if (audioStep < 2) {
-      setAudioStep(prev => prev + 1);
-    } else {
-      // If at least 1 audio recorded, process
-      if (Object.keys(audios).length > 0) {
-        uploadAndProcess(audios);
-      } else {
-        onSkip();
-      }
-    }
-  };
-
-  const uploadAndProcess = async (audioBlobs: Record<string, Blob>) => {
     if (!user) return;
-    setStep('processing');
-    setUploading(true);
+    const prompt = AUDIO_PROMPTS[audioStep];
+    setStep('uploading');
 
     try {
-      const urls: Record<string, string> = {};
+      // Detect best supported MIME type
+      const mimeType = blob.type || 'audio/webm';
+      const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('wav') ? 'wav' : 'webm';
+      const path = `${user.id}/${prompt.key}.${ext}`;
 
-      for (const [key, blob] of Object.entries(audioBlobs)) {
-        const path = `${user.id}/${key}.webm`;
-        const { error } = await supabase.storage.from('voice-audios').upload(path, blob, {
-          upsert: true,
-          contentType: 'audio/webm',
-        });
-        if (error) throw error;
-        const { data } = supabase.storage.from('voice-audios').getPublicUrl(path);
-        urls[key] = data.publicUrl;
+      const { error: uploadError } = await supabase.storage
+        .from('voice-audios')
+        .upload(path, blob, { upsert: true, contentType: mimeType });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('voice-audios').getPublicUrl(path);
+      const url = data.publicUrl;
+
+      // Persist URL to voice_profiles after each audio
+      const upsertData: Record<string, string> = { user_id: user.id, [prompt.field]: url };
+      await supabase.from('voice_profiles' as any).upsert(upsertData as any, { onConflict: 'user_id' });
+
+      const newUrls = { ...uploadedUrls, [prompt.key]: url };
+      setUploadedUrls(newUrls);
+
+      toast.success(`Áudio ${audioStep + 1} salvo!`);
+
+      if (audioStep < 2) {
+        // Advance to next audio
+        setAudioStep(prev => prev + 1);
+        setStep('audio');
+      } else {
+        // All 3 done → process
+        await processVoiceDNA(newUrls);
       }
+    } catch (err) {
+      console.error('Upload error:', err);
+      toast.error('Erro ao salvar áudio. Tente novamente.');
+      setStep('audio');
+    }
+  };
 
-      setUploading(false);
-      setProcessing(true);
+  const processVoiceDNA = async (urls: Record<string, string>) => {
+    if (!user) return;
+    setStep('processing');
+    setProcessing(true);
 
-      // Call process-voice-dna edge function
+    try {
       const { data, error } = await supabase.functions.invoke('process-voice-dna', {
-        body: {
-          audio_urls: urls,
-          user_id: user.id,
-        },
+        body: { audio_urls: urls, user_id: user.id },
       });
 
       if (error) throw error;
@@ -110,7 +111,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
       toast.error('Erro ao processar áudios. Tente novamente.');
       setStep('audio');
     } finally {
-      setUploading(false);
       setProcessing(false);
     }
   };
@@ -119,7 +119,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
     if (!user) return;
 
     if (score >= 7) {
-      // Accepted - mark as calibrated
       await supabase
         .from('voice_profiles' as any)
         .update({ is_calibrated: true, calibration_score: score } as any)
@@ -127,7 +126,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
       toast.success('DNA de Voz calibrado!');
       onComplete();
     } else {
-      // Need recalibration
       setRecalibrating(true);
       try {
         const { data, error } = await supabase.functions.invoke('recalibrate-voice', {
@@ -145,14 +143,28 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
     }
   };
 
+  const totalAudios = Object.keys(uploadedUrls).length;
+
   return (
     <Dialog open={open}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden bg-card border-border/50 max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
-        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4">
+      <DialogContent
+        className="sm:max-w-lg p-0 overflow-hidden bg-card border-border/50 max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
+        {/* Header with X button */}
+        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4 relative">
+          <button
+            onClick={onSkip}
+            className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            title="Configurar depois"
+          >
+            <X className="w-4 h-4" />
+          </button>
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-foreground">
+            <DialogTitle className="text-lg font-bold text-foreground pr-8">
               {step === 'intro' && '🎤 DNA de Voz'}
               {step === 'audio' && AUDIO_PROMPTS[audioStep].title}
+              {step === 'uploading' && '⏫ Salvando áudio...'}
               {step === 'processing' && '⏳ Processando seus áudios...'}
               {step === 'validation' && '✅ Validação do DNA de Voz'}
             </DialogTitle>
@@ -160,6 +172,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
         </div>
 
         <div className="px-6 pb-6 pt-2 space-y-4">
+          {/* INTRO */}
           {step === 'intro' && (
             <>
               <p className="text-sm text-muted-foreground whitespace-pre-line">
@@ -182,36 +195,58 @@ Bora pro primeiro?`}
             </>
           )}
 
+          {/* AUDIO RECORDING — sem botão de pular */}
           {step === 'audio' && (
             <>
               <p className="text-sm text-muted-foreground whitespace-pre-line">
                 {AUDIO_PROMPTS[audioStep].text}
               </p>
 
-              <div className="flex items-center gap-2 mb-2">
+              {/* Progress dots */}
+              <div className="flex items-center gap-2">
                 {[0, 1, 2].map(i => (
                   <div
                     key={i}
                     className={`h-1.5 flex-1 rounded-full transition-colors ${
-                      i < audioStep ? 'bg-primary' : i === audioStep ? 'bg-primary/50' : 'bg-muted'
+                      i < audioStep
+                        ? 'bg-primary'
+                        : i === audioStep
+                        ? 'bg-primary/50'
+                        : 'bg-muted'
                     }`}
                   />
                 ))}
               </div>
 
-              <AudioRecorder onAudioReady={handleAudioReady} maxDuration={60} />
+              <p className="text-xs text-muted-foreground text-center">
+                Áudio {audioStep + 1} de 3 — todos os áudios são obrigatórios
+              </p>
 
-              <Button variant="ghost" onClick={handleSkipAudio} className="w-full rounded-xl text-muted-foreground text-sm">
-                Pular este áudio
-              </Button>
+              <AudioRecorder
+                onAudioReady={handleAudioReady}
+                maxDuration={60}
+                key={audioStep} // Reset recorder between steps
+              />
+              {/* Sem botão de pular — obrigatório gravar os 3 */}
             </>
           )}
 
+          {/* UPLOADING */}
+          {step === 'uploading' && (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <Loader2 className="w-10 h-10 text-primary animate-spin" />
+              <p className="text-sm text-muted-foreground text-center">
+                Salvando áudio {audioStep + 1}...
+              </p>
+            </div>
+          )}
+
+          {/* PROCESSING */}
           {step === 'processing' && (
             <div className="flex flex-col items-center gap-4 py-8">
               <Loader2 className="w-10 h-10 text-primary animate-spin" />
               <p className="text-sm text-muted-foreground text-center">
-                {uploading ? 'Enviando áudios...' : 'Analisando seu tom de voz com IA...'}
+                Analisando seu tom de voz com IA...
               </p>
               <p className="text-xs text-muted-foreground text-center">
                 Isso pode levar até 1 minuto
@@ -219,6 +254,7 @@ Bora pro primeiro?`}
             </div>
           )}
 
+          {/* VALIDATION */}
           {step === 'validation' && (
             <>
               <p className="text-sm text-muted-foreground mb-2">

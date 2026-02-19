@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, Send } from 'lucide-react';
+import { X, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -167,9 +167,16 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
   return (
     <Dialog open={open}>
       <DialogContent className="sm:max-w-lg p-0 overflow-hidden bg-card border-border/50 max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
-        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4 shrink-0">
+        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4 shrink-0 relative">
+          <button
+            onClick={onSkip}
+            className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            title="Configurar depois"
+          >
+            <X className="w-4 h-4" />
+          </button>
           <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-foreground">
+            <DialogTitle className="text-lg font-bold text-foreground pr-8">
               {step === 'intro' ? '📝 Narrativa Primária' : '💬 Construindo sua Narrativa'}
             </DialogTitle>
           </DialogHeader>
