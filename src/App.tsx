@@ -12,6 +12,7 @@ import Login from "./pages/Login";
 import Verify from "./pages/Verify";
 import AccessDenied from "./pages/AccessDenied";
 import Home from "./pages/Home";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 import Dashboard from "./pages/Dashboard";
 import Agents from "./pages/Agents";
 import Chat from "./pages/Chat";
@@ -31,15 +32,15 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/verify" element={<Verify />} />
       <Route path="/access-denied" element={<AccessDenied />} />
-      <Route path="/home" element={<Home />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/agents" element={<Agents />} />
-      <Route path="/chat/:conversationId" element={<Chat />} />
-      <Route path="/history" element={<History />} />
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/profile/credits" element={<Credits />} />
-      <Route path="/kanban" element={<Kanban />} />
-      <Route path="/admin" element={<Admin />} />
+      <Route path="/home" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/agents" element={<ProtectedRoute><Agents /></ProtectedRoute>} />
+      <Route path="/chat/:conversationId" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+      <Route path="/history" element={<ProtectedRoute><History /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/profile/credits" element={<ProtectedRoute><Credits /></ProtectedRoute>} />
+      <Route path="/kanban" element={<ProtectedRoute><Kanban /></ProtectedRoute>} />
+      <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
       {/* Legacy routes redirect to unified admin */}
       <Route path="/admin/agents" element={<Navigate to="/admin?section=agents" replace />} />
       <Route path="/admin/credits" element={<Navigate to="/admin?section=credits-overview" replace />} />
