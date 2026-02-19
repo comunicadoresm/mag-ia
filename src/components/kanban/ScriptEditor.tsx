@@ -342,7 +342,7 @@ export function ScriptEditor({
                         value={content[section.id] || ''}
                         onChange={(e) => setContent({ ...content, [section.id]: e.target.value })}
                         placeholder={section.placeholder}
-                        className="bg-card min-h-[100px]"
+                        className={`min-h-[100px] ${isReadOnly ? 'bg-muted/20 text-muted-foreground border-border/30' : 'bg-card'}`}
                         disabled={isReadOnly}
                       />
                     </div>
@@ -364,7 +364,7 @@ export function ScriptEditor({
                         value={content[section.id] || ''}
                         onChange={(e) => setContent({ ...content, [section.id]: e.target.value })}
                         placeholder={section.placeholder}
-                        className="bg-card min-h-[100px]"
+                        className={`min-h-[100px] ${isReadOnly ? 'bg-muted/20 text-muted-foreground border-border/30' : 'bg-card'}`}
                         disabled={isReadOnly}
                       />
                     </div>
@@ -386,7 +386,7 @@ export function ScriptEditor({
                         value={content[section.id] || ''}
                         onChange={(e) => setContent({ ...content, [section.id]: e.target.value })}
                         placeholder={section.placeholder}
-                        className="bg-card min-h-[100px]"
+                        className={`min-h-[100px] ${isReadOnly ? 'bg-muted/20 text-muted-foreground border-border/30' : 'bg-card'}`}
                         disabled={isReadOnly}
                       />
                     </div>
