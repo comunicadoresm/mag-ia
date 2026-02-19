@@ -196,9 +196,13 @@ function IdentityCard({
           <Sparkles className="w-4 h-4 text-primary" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">Complete sua Identidade Magnética</p>
+          <p className="text-sm font-semibold text-foreground">
+            {completedCount === 0 ? 'Configure sua Identidade Magnética' : 'Complete sua Identidade Magnética'}
+          </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Falta pouco pra IA entender SEU jeito de criar conteúdo.
+            {completedCount === 0
+              ? 'A IA precisa te conhecer pra criar conteúdo no seu jeito.'
+              : 'Falta pouco pra IA entender SEU jeito de criar conteúdo.'}
           </p>
         </div>
       </div>
@@ -224,7 +228,7 @@ function IdentityCard({
       <p className="text-xs text-muted-foreground mb-3">{completedCount} de 3 etapas concluídas</p>
 
       <Button onClick={onComplete} size="sm" className="w-full rounded-xl h-8 text-xs">
-        Continuar configuração
+        {completedCount === 0 ? 'Começar configuração' : 'Continuar configuração'}
       </Button>
     </div>
   );
