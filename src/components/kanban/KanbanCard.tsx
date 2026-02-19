@@ -23,6 +23,14 @@ const COLUMN_COLORS: Record<string, string> = {
   posted: 'from-green-500/20 to-green-500/5',
 };
 
+function getFormatColor(format: string): string {
+  const key = format.toLowerCase().replace(/[\s-]/g, '');
+  if (key.includes('lofi') || key.includes('lo_fi')) return 'bg-violet-500 text-white';
+  if (key.includes('hifi') || key.includes('hi_fi') || key.includes('highfi')) return 'bg-emerald-500 text-white';
+  // mid-fi and anything else: blue (current)
+  return 'bg-blue-600 text-white';
+}
+
 // Capitalize first letter of each word
 function formatLabel(value: string): string {
   return value
@@ -80,7 +88,7 @@ export function KanbanCard({
           </span>
         )}
         {item.format && item.format.split(',').map(f => f.trim()).filter(Boolean).map(f => (
-          <span key={f} className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-blue-600 text-white">
+          <span key={f} className={`text-[10px] font-medium px-2.5 py-1 rounded-full ${getFormatColor(f)}`}>
             {formatLabel(f)}
           </span>
         ))}
