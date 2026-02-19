@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
-  Sparkles, User, AtSign, Loader2, CheckCircle2,
+  Sparkles, User, Loader2, CheckCircle2,
   ChevronRight, Mic, LayoutGrid, BookOpen
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -66,12 +66,13 @@ export function MagneticOnboarding({ open }: MagneticOnboardingProps) {
     }
   };
 
-  // ── Skip (session only) ─────────────────────────────────────────────
+  // ── Skip (closes modal but shows again next login) ──────────────────
   const handleSkipSession = async () => {
     if (user && name.trim()) {
       await supabase.from('profiles').update({ name: name.trim() } as any).eq('id', user.id);
       await refreshProfile();
     }
+    // Store session flag so the modal doesn't reappear within THIS tab session only
     sessionStorage.setItem('setup_skipped_this_session', '1');
     await refreshProfile();
   };
@@ -227,21 +228,35 @@ export function MagneticOnboarding({ open }: MagneticOnboardingProps) {
 
           <div className="space-y-1.5">
             <Label htmlFor="setup-handle" className="text-sm font-medium">
-              Seu @ nas redes sociais
+              Seu @ do Instagram
               <span className="text-xs text-muted-foreground font-normal ml-1">(opcional)</span>
             </Label>
             <div className="relative">
-              <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              {/* Instagram logo prefix */}
+              <div className="absolute left-0 top-0 bottom-0 flex items-center pl-3 pr-2.5 border-r border-border/50 pointer-events-none">
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
+                  <rect width="24" height="24" rx="6" fill="url(#ig-grad)" />
+                  <circle cx="12" cy="12" r="4.5" stroke="white" strokeWidth="1.5" fill="none" />
+                  <circle cx="17" cy="7" r="1" fill="white" />
+                  <defs>
+                    <linearGradient id="ig-grad" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse">
+                      <stop stopColor="#F58529" />
+                      <stop offset="0.5" stopColor="#DD2A7B" />
+                      <stop offset="1" stopColor="#8134AF" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+              <div className="absolute left-11 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none select-none">@</div>
               <Input
                 id="setup-handle"
                 placeholder="seuperfil"
                 value={handle}
                 onChange={(e) => setHandle(e.target.value.replace(/^@/, ''))}
-                className="pl-10"
+                className="pl-[3.75rem]"
                 onKeyDown={(e) => e.key === 'Enter' && name.trim() && handleSaveProfile()}
               />
             </div>
-            <p className="text-xs text-muted-foreground">Instagram, TikTok ou YouTube — coloque o principal.</p>
           </div>
 
           <Button

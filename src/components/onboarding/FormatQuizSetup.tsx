@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { X, CheckCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+
 
 interface FormatQuizSetupProps {
   open: boolean;
@@ -314,31 +316,55 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
     hi_fi: { emoji: '🎥', name: 'HI-FI Magnético', desc: 'Conteúdo com produção completa. Qualidade de canal grande.' },
   };
 
+  const ONBOARDING_STEPS = [
+    { label: 'Perfil' }, { label: 'DNA de Voz' }, { label: 'Formato' }, { label: 'Narrativa' },
+  ];
+  const currentOnboardingStep = 2; // format_quiz is index 2
+
   return (
     <Dialog open={open}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden bg-card border-border/50 max-h-[90vh] overflow-y-auto" onPointerDownOutside={(e) => e.preventDefault()}>
-        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4 relative">
+      <DialogContent
+        className="max-w-md [&>button.absolute]:hidden max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        {/* Progress bar */}
+        <div className="flex items-center gap-1.5 mb-1">
+          {ONBOARDING_STEPS.map((s, i) => (
+            <div key={s.label} className="flex-1 flex flex-col items-center gap-1">
+              <div className={`w-full h-1 rounded-full transition-all duration-300 ${
+                i < currentOnboardingStep ? 'bg-primary' :
+                i === currentOnboardingStep ? 'bg-primary/50' : 'bg-muted'
+              }`} />
+              <span className={`text-[10px] font-medium hidden sm:block ${
+                i === currentOnboardingStep ? 'text-primary' : 'text-muted-foreground/60'
+              }`}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Header */}
+        <div className="flex items-start justify-between mt-2">
+          <h2 className="text-lg font-bold text-foreground">
+            {step === 'intro' && '🎯 Quiz de Formato Sustentável'}
+            {step === 0 && '📹 Experiência com Gravação'}
+            {step === 1 && '⏱️ Tempo de Roteiro'}
+            {step === 2 && '🎬 Tempo de Gravação'}
+            {step === 3 && '✂️ Tempo de Edição'}
+            {step === 4 && '📅 Frequência'}
+            {step === 'result' && '🎉 Seu Formato Sustentável'}
+          </h2>
           <button
             onClick={onSkip}
-            className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors shrink-0 ml-2"
             title="Configurar depois"
           >
             <X className="w-4 h-4" />
           </button>
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-foreground pr-8">
-              {step === 'intro' && '🎯 Quiz de Formato Sustentável'}
-              {step === 0 && '📹 Experiência com Gravação'}
-              {step === 1 && '⏱️ Tempo de Roteiro'}
-              {step === 2 && '🎬 Tempo de Gravação'}
-              {step === 3 && '✂️ Tempo de Edição'}
-              {step === 4 && '📅 Frequência'}
-              {step === 'result' && '🎉 Seu Formato Sustentável'}
-            </DialogTitle>
-          </DialogHeader>
         </div>
 
-        <div className="px-6 pb-6 pt-2 space-y-3">
+        <div className="space-y-3 mt-1">
+
           {step === 'intro' && (
             <>
               <p className="text-sm text-muted-foreground whitespace-pre-line">

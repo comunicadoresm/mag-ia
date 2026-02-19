@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { Loader2, CheckCircle, X } from 'lucide-react';
+import { Loader2, CheckCircle, X, Mic, LayoutGrid, BookOpen, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AudioRecorder } from './AudioRecorder';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 interface VoiceDNASetupProps {
   open: boolean;
@@ -35,17 +36,25 @@ const AUDIO_PROMPTS = [
   },
 ];
 
+const STEPS = [
+  { id: 'profile',      icon: User,       label: 'Perfil' },
+  { id: 'voice_dna',   icon: Mic,        label: 'DNA de Voz' },
+  { id: 'format_quiz', icon: LayoutGrid, label: 'Formato' },
+  { id: 'narrative',   icon: BookOpen,   label: 'Narrativa' },
+];
+
 export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) {
   const { user } = useAuth();
   const [step, setStep] = useState<'intro' | 'audio' | 'uploading' | 'processing' | 'validation'>('intro');
   const [audioStep, setAudioStep] = useState(0);
   const [uploadedUrls, setUploadedUrls] = useState<Record<string, string>>({});
 
-  const [processing, setProcessing] = useState(false);
   const [validationText, setValidationText] = useState('');
   const [score, setScore] = useState(7);
   const [feedback, setFeedback] = useState('');
   const [recalibrating, setRecalibrating] = useState(false);
+
+  const currentOnboardingStep = 1; // voice_dna is index 1
 
   // Upload individual audio right after confirmation, then advance step
   const handleAudioReady = async (blob: Blob) => {
@@ -54,7 +63,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
     setStep('uploading');
 
     try {
-      // Detect best supported MIME type
       const mimeType = blob.type || 'audio/webm';
       const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('wav') ? 'wav' : 'webm';
       const path = `${user.id}/${prompt.key}.${ext}`;
@@ -68,7 +76,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
       const { data } = supabase.storage.from('voice-audios').getPublicUrl(path);
       const url = data.publicUrl;
 
-      // Persist URL to voice_profiles after each audio
       const upsertData: Record<string, string> = { user_id: user.id, [prompt.field]: url };
       await supabase.from('voice_profiles' as any).upsert(upsertData as any, { onConflict: 'user_id' });
 
@@ -78,11 +85,9 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
       toast.success(`Áudio ${audioStep + 1} salvo!`);
 
       if (audioStep < 2) {
-        // Advance to next audio
         setAudioStep(prev => prev + 1);
         setStep('audio');
       } else {
-        // All 3 done → process
         await processVoiceDNA(newUrls);
       }
     } catch (err) {
@@ -95,7 +100,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
   const processVoiceDNA = async (urls: Record<string, string>) => {
     if (!user) return;
     setStep('processing');
-    setProcessing(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('process-voice-dna', {
@@ -110,8 +114,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
       console.error('Voice DNA error:', err);
       toast.error('Erro ao processar áudios. Tente novamente.');
       setStep('audio');
-    } finally {
-      setProcessing(false);
     }
   };
 
@@ -135,7 +137,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
         setValidationText(data.validation_paragraph || '');
         setFeedback('');
         setScore(7);
-      } catch (err) {
+      } catch {
         toast.error('Erro na recalibração');
       } finally {
         setRecalibrating(false);
@@ -143,48 +145,58 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
     }
   };
 
-  const totalAudios = Object.keys(uploadedUrls).length;
-
   return (
     <Dialog open={open}>
       <DialogContent
-        className="sm:max-w-lg p-0 overflow-hidden bg-card border-border/50 max-h-[90vh] overflow-y-auto"
+        className="max-w-md [&>button.absolute]:hidden"
         onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        {/* Header with X button */}
-        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4 relative">
-          <button
-            onClick={onSkip}
-            className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-            title="Configurar depois"
-          >
-            <X className="w-4 h-4" />
-          </button>
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-foreground pr-8">
+        {/* Progress bar — same as MagneticOnboarding step 1 */}
+        <div className="flex items-center gap-1.5 mb-1">
+          {STEPS.map((s, i) => (
+            <div key={s.id} className="flex-1 flex flex-col items-center gap-1">
+              <div className={cn(
+                'w-full h-1 rounded-full transition-all duration-300',
+                i < currentOnboardingStep ? 'bg-primary' :
+                i === currentOnboardingStep ? 'bg-primary/50' : 'bg-muted'
+              )} />
+              <span className={cn(
+                'text-[10px] font-medium hidden sm:block',
+                i === currentOnboardingStep ? 'text-primary' : 'text-muted-foreground/60'
+              )}>
+                {s.label}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {/* Header */}
+        <div className="flex items-start justify-between mt-2">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">
               {step === 'intro' && '🎤 DNA de Voz'}
               {step === 'audio' && AUDIO_PROMPTS[audioStep].title}
               {step === 'uploading' && '⏫ Salvando áudio...'}
               {step === 'processing' && '⏳ Processando seus áudios...'}
               {step === 'validation' && '✅ Validação do DNA de Voz'}
-            </DialogTitle>
-          </DialogHeader>
+            </h2>
+          </div>
+          <button
+            onClick={onSkip}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors shrink-0 ml-2"
+            title="Configurar depois"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <div className="px-6 pb-6 pt-2 space-y-4">
+        <div className="space-y-4 mt-1">
           {/* INTRO */}
           {step === 'intro' && (
             <>
               <p className="text-sm text-muted-foreground whitespace-pre-line">
-                {`Agora vem a parte mais importante da sua Magnética.
-
-Eu vou te pedir 3 áudios curtinhos — de no máximo 1 minuto cada.
-Pode parecer estranho, mas confia: é assim que a IA vai aprender a escrever do SEU jeito, com as SUAS palavras.
-
-Não precisa pensar muito. Não precisa ser bonito.
-Quanto mais natural, melhor.
-
-Bora pro primeiro?`}
+                {`Agora vem a parte mais importante da sua Magnética.\n\nEu vou te pedir 3 áudios curtinhos — de no máximo 1 minuto cada.\nPode parecer estranho, mas confia: é assim que a IA vai aprender a escrever do SEU jeito, com as SUAS palavras.\n\nNão precisa pensar muito. Não precisa ser bonito.\nQuanto mais natural, melhor.\n\nBora pro primeiro?`}
               </p>
               <Button onClick={() => setStep('audio')} className="w-full rounded-xl">
                 Começar
@@ -195,7 +207,7 @@ Bora pro primeiro?`}
             </>
           )}
 
-          {/* AUDIO RECORDING — sem botão de pular */}
+          {/* AUDIO RECORDING */}
           {step === 'audio' && (
             <>
               <p className="text-sm text-muted-foreground whitespace-pre-line">
@@ -207,13 +219,10 @@ Bora pro primeiro?`}
                 {[0, 1, 2].map(i => (
                   <div
                     key={i}
-                    className={`h-1.5 flex-1 rounded-full transition-colors ${
-                      i < audioStep
-                        ? 'bg-primary'
-                        : i === audioStep
-                        ? 'bg-primary/50'
-                        : 'bg-muted'
-                    }`}
+                    className={cn(
+                      'h-1.5 flex-1 rounded-full transition-colors',
+                      i < audioStep ? 'bg-primary' : i === audioStep ? 'bg-primary/50' : 'bg-muted'
+                    )}
                   />
                 ))}
               </div>
@@ -225,9 +234,8 @@ Bora pro primeiro?`}
               <AudioRecorder
                 onAudioReady={handleAudioReady}
                 maxDuration={60}
-                key={audioStep} // Reset recorder between steps
+                key={audioStep}
               />
-              {/* Sem botão de pular — obrigatório gravar os 3 */}
             </>
           )}
 
@@ -271,11 +279,12 @@ Bora pro primeiro?`}
                     <button
                       key={n}
                       onClick={() => setScore(n)}
-                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-colors ${
+                      className={cn(
+                        'w-8 h-8 rounded-lg text-xs font-bold transition-colors',
                         n <= score
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
-                      }`}
+                      )}
                     >
                       {n}
                     </button>
