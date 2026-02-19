@@ -7,6 +7,7 @@ import dynamicIconImports from 'lucide-react/dynamicIconImports';
 import { Logo } from './Logo';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCredits } from '@/hooks/useCredits';
+import { useCycleProgress } from '@/hooks/useCycleProgress';
 import { useSidebarContext } from '@/contexts/SidebarContext';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
@@ -55,6 +56,7 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
   const [photoUrl, setPhotoUrl] = useState('');
   const { balance, isLoading: creditsLoading } = useCredits();
   const { collapsed, toggle } = useSidebarContext();
+  const { totalMonthly } = useCycleProgress();
 
   useEffect(() => {
     if (!user) return;
@@ -82,9 +84,10 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
 
   // Credits card
   const totalCredits = balance.plan + balance.subscription + balance.bonus;
-  const planMax = balance.plan > 0 ? 30 : (balance.bonus > 0 ? balance.bonus : 10);
-  const estimatedMax = Math.max(planMax, totalCredits);
-  const progressPercent = Math.round((totalCredits / estimatedMax) * 100);
+  // Use totalMonthly (plan + subscription consumed+remaining) as the denominator;
+  // fall back to bonus credits or totalCredits when there's no monthly cycle
+  const creditMax = totalMonthly > 0 ? totalMonthly : (balance.bonus > 0 ? balance.bonus : totalCredits || 10);
+  const progressPercent = creditMax > 0 ? Math.round((totalCredits / creditMax) * 100) : 0;
 
   const NavButton = ({ path, icon: Icon, label }: { path: string; icon: React.ElementType; label: string }) => {
     const isActive = location.pathname === path;
@@ -207,7 +210,7 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
                 className="h-2 mb-1.5 [&>div]:bg-primary"
               />
               <p className="text-[11px] text-muted-foreground">
-                {totalCredits} de {estimatedMax} restantes
+                {totalCredits} de {creditMax} restantes
               </p>
             </button>
           )}
