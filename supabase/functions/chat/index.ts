@@ -22,9 +22,9 @@ const MAX_HISTORY_MESSAGES = 20;
 
 // Determine provider based on model name
 function getProvider(model: string): "anthropic" | "openai" | "google" {
-  if (model.startsWith("claude")) return "anthropic";
-  if (model.startsWith("gpt-") || model.startsWith("o1")) return "openai";
-  if (model.startsWith("gemini")) return "google";
+  if (model.startsWith("claude-")) return "anthropic";
+  if (model.startsWith("gpt-") || model.startsWith("o1") || model.startsWith("o3")) return "openai";
+  if (model.startsWith("gemini-")) return "google";
   return "anthropic"; // fallback
 }
 
@@ -375,7 +375,7 @@ Deno.serve(async (req) => {
     // === END CREDIT CONSUMPTION ===
 
     // Determine provider from model name
-    const provider = getProvider(agent.model || "claude-haiku-3-5-20241022");
+    const provider = getProvider(agent.model || "claude-sonnet-4-20250514");
 
     // Resolve API key: use agent's own key first, then fallback to env secrets
     let resolvedApiKey = agent.api_key;
@@ -474,13 +474,16 @@ Use estas informações para contextualizar respostas e roteiros.`;
 
     let result: { text: string; tokens: number | null };
 
+    const agentModel = agent.model || "claude-sonnet-4-20250514";
+    console.log(`Using model: ${agentModel}, provider: ${provider}`);
+
     if (provider === "anthropic") {
-      // For Anthropic, pass knowledge separately for caching
-      result = await callAnthropic(agent.api_key, agent.model, agent.system_prompt, knowledgeContext, conversationHistory);
+      // For Anthropic, pass enriched systemPrompt (with voice DNA / narrative) and knowledge separately for caching
+      result = await callAnthropic(agent.api_key, agentModel, systemPrompt, knowledgeContext, conversationHistory);
     } else if (provider === "openai") {
-      result = await callOpenAI(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
+      result = await callOpenAI(agent.api_key, agentModel, systemPrompt, knowledgeContext, conversationHistory);
     } else {
-      result = await callGemini(agent.api_key, agent.model, systemPrompt, knowledgeContext, conversationHistory);
+      result = await callGemini(agent.api_key, agentModel, systemPrompt, knowledgeContext, conversationHistory);
     }
 
     console.log(`AI response: ${result.tokens} tokens`);
