@@ -242,6 +242,7 @@ export default function Home() {
   const [identity, setIdentity] = useState({ voiceDna: false, narrative: false, formatProfile: false });
   const [agentCount, setAgentCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showOnboardingManual, setShowOnboardingManual] = useState(false);
 
   // Show mandatory setup modal every time until identity is fully configured
   // sessionStorage only prevents re-showing within same tab session (skip button)
@@ -298,8 +299,11 @@ export default function Home() {
 
   return (
     <AppLayout>
-      {/* ── Onboarding wizard (obrigatório até has_completed_setup = true) ── */}
-      <MagneticOnboarding open={showSetupModal} />
+      {/* ── Onboarding wizard ── */}
+      <MagneticOnboarding
+        open={showSetupModal || showOnboardingManual}
+        onClose={() => setShowOnboardingManual(false)}
+      />
 
       {/* ── Content (mesmo padrão do Kanban) ── */}
       <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
@@ -375,7 +379,7 @@ export default function Home() {
                 voiceDna={identity.voiceDna}
                 narrative={identity.narrative}
                 formatProfile={identity.formatProfile}
-                onComplete={() => navigate('/profile')}
+                onComplete={() => setShowOnboardingManual(true)}
                 onView={() => navigate('/profile')}
               />
             )}
