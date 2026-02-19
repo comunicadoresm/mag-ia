@@ -70,7 +70,7 @@ async function detectPlanFromAC(
   baseUrl: string,
   acApiKey: string,
   email: string,
-  planTypes: Array<{ id: string; slug: string; ac_tag: string; display_order: number; name: string }>
+  planTypes: Array<{ id: string; slug: string; ac_tag: string; display_order: number; name: string; initial_credits?: number; monthly_credits?: number; has_monthly_renewal?: boolean; credits_expire_days?: number | null }>
 ): Promise<{ slug: string; id: string; name: string } | null> {
   // Step 1: Find contact by email
   console.log(`Searching AC for contact: ${email}`);
@@ -147,7 +147,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
     // Step 1: Fetch ALL active plan_types from DB, ordered by display_order DESC (highest priority first)
     const { data: planTypes, error: ptError } = await supabase
       .from("plan_types")
-      .select("id, slug, ac_tag, display_order, name")
+      .select("id, slug, ac_tag, display_order, name, initial_credits, monthly_credits, has_monthly_renewal, credits_expire_days")
       .eq("is_active", true)
       .order("display_order", { ascending: false });
 
@@ -214,22 +214,84 @@ Deno.serve(async (req: Request): Promise<Response> => {
       );
     }
 
-    // Step 3: Plan detected in AC
-    // Update last_ac_verification and ac_tags for existing users
+    // Step 3: Plan detected in AC — update profile immediately (no localStorage dependency)
     const { data: existingProfile } = await supabase
       .from("profiles")
-      .select("id, plan_type_id")
+      .select("id, plan_type_id, plan_activated_at")
       .eq("email", normalizedEmail)
       .maybeSingle();
 
+    const now = new Date().toISOString();
+
     if (existingProfile) {
-      // Update verification timestamp on existing user
-      await supabase
-        .from("profiles")
-        .update({
-          last_ac_verification: new Date().toISOString(),
-        })
-        .eq("id", existingProfile.id);
+      const currentPlanId = existingProfile.plan_type_id;
+      const planChanged = currentPlanId !== detectedPlan.id;
+
+      // Fetch current plan order to avoid downgrade
+      let currentPlanOrder = 0;
+      if (currentPlanId) {
+        const { data: oldPlan } = await supabase
+          .from("plan_types")
+          .select("display_order")
+          .eq("id", currentPlanId)
+          .single();
+        currentPlanOrder = oldPlan?.display_order || 0;
+      }
+
+      const planConfig = planTypes.find(p => p.id === detectedPlan.id);
+      const newPlanOrder = planConfig?.display_order || 0;
+      const isUpgradeOrSame = newPlanOrder >= currentPlanOrder;
+
+      if (isUpgradeOrSame) {
+        const updateData: Record<string, any> = {
+          last_ac_verification: now,
+          plan_type: detectedPlan.slug,
+          plan_type_id: detectedPlan.id,
+        };
+        if (planChanged || !existingProfile.plan_activated_at) {
+          updateData.plan_activated_at = now;
+        }
+        await supabase.from("profiles").update(updateData).eq("id", existingProfile.id);
+        console.log(`Updated profile plan: ${detectedPlan.slug} (changed: ${planChanged})`);
+
+        // Set up credits if plan changed or no credits exist yet
+        if (planChanged || !currentPlanId) {
+          const { data: existingCredits } = await supabase
+            .from("user_credits")
+            .select("id")
+            .eq("user_id", existingProfile.id)
+            .maybeSingle();
+
+          if (!existingCredits && planConfig) {
+            const initialCredits = (planConfig as any).initial_credits || 0;
+            const cycleStart = new Date();
+            const cycleEnd = new Date();
+            cycleEnd.setDate(cycleEnd.getDate() + 30);
+
+            let expireAt: string | null = null;
+            if ((planConfig as any).credits_expire_days && !(planConfig as any).has_monthly_renewal) {
+              const expDate = new Date();
+              expDate.setDate(expDate.getDate() + (planConfig as any).credits_expire_days);
+              expireAt = expDate.toISOString();
+            }
+
+            await supabase.from("user_credits").insert({
+              user_id: existingProfile.id,
+              plan_credits: initialCredits,
+              subscription_credits: 0,
+              bonus_credits: 0,
+              cycle_start_date: (planConfig as any).has_monthly_renewal ? cycleStart.toISOString() : null,
+              cycle_end_date: (planConfig as any).has_monthly_renewal ? cycleEnd.toISOString() : (expireAt || null),
+              plan_credits_expire_at: expireAt,
+            });
+            console.log(`Created user_credits: ${initialCredits} credits for plan ${detectedPlan.slug}`);
+          }
+        }
+      } else {
+        // Current plan is higher — just update verification timestamp
+        await supabase.from("profiles").update({ last_ac_verification: now }).eq("id", existingProfile.id);
+        console.log(`Kept higher plan ${currentPlanId}, just updated last_ac_verification`);
+      }
     }
 
     console.log(`Verification result for ${normalizedEmail}: verified=true, plan=${detectedPlan.slug}`);
