@@ -30,7 +30,7 @@ export function PostedModal({ script, isOpen, onClose, onSave, onCancel }: Poste
       const postedAt = new Date(`${date}T${time}`).toISOString();
       const { error } = await supabase
         .from('user_scripts')
-        .update({ posted_at: postedAt, post_url: postUrl } as any)
+        .update({ status: 'posted', posted_at: postedAt, post_url: postUrl } as any)
         .eq('id', script.id);
 
       if (error) throw error;
