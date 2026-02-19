@@ -369,12 +369,6 @@ export default function Home() {
                 onClick={() => navigate('/agents')}
               />
               <QuickActionCard
-                icon={BarChart3}
-                label="Métricas"
-                sub="Dashboard"
-                onClick={() => navigate('/dashboard')}
-              />
-              <QuickActionCard
                 icon={UserCircle}
                 label="Meu Perfil"
                 sub="Identidade"
