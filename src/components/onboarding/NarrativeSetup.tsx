@@ -2,11 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
+
 
 interface NarrativeSetupProps {
   open: boolean;
@@ -164,32 +166,46 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
     }
   };
 
+  const ONBOARDING_STEPS = [
+    { label: 'Perfil' }, { label: 'DNA de Voz' }, { label: 'Formato' }, { label: 'Narrativa' },
+  ];
+  const currentOnboardingStep = 3;
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onSkip(); }}>
-      <DialogContent className="sm:max-w-lg p-0 overflow-hidden bg-card border-border/50 max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
-        <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-6 pb-4 shrink-0">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold text-foreground pr-8">
-              {step === 'intro' ? '📝 Narrativa Primária' : '💬 Construindo sua Narrativa'}
-            </DialogTitle>
-          </DialogHeader>
+      <DialogContent className="max-w-md [&>button.absolute]:hidden max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
+        {/* Progress bar */}
+        <div className="flex items-center gap-1.5 mb-1 shrink-0">
+          {ONBOARDING_STEPS.map((s, i) => (
+            <div key={s.label} className="flex-1 flex flex-col items-center gap-1">
+              <div className={`w-full h-1 rounded-full transition-all duration-300 ${
+                i < currentOnboardingStep ? 'bg-primary' :
+                i === currentOnboardingStep ? 'bg-primary/50' : 'bg-muted'
+              }`} />
+              <span className={`text-[10px] font-medium hidden sm:block ${
+                i === currentOnboardingStep ? 'text-primary' : 'text-muted-foreground/60'
+              }`}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Header */}
+        <div className="mt-2 shrink-0">
+          <h2 className="text-lg font-bold text-foreground">
+            {step === 'intro' ? '📝 Narrativa Primária' : '💬 Construindo sua Narrativa'}
+          </h2>
         </div>
 
         {step === 'intro' ? (
-          <div className="px-6 pb-6 pt-2 space-y-4">
+          <div className="space-y-4 mt-2">
             <p className="text-sm text-muted-foreground whitespace-pre-line">
-              {`Última etapa: vamos montar o seu posicionamento.
-
-A Narrativa Primária é o que faz seu conteúdo ter DIREÇÃO.
-É o que responde: por que alguém deveria te ouvir?
-
-São algumas perguntas. Leva uns 5-8 minutos.
-E o resultado vai guiar todo roteiro que a IA gerar pra você.`}
+              {`Última etapa: vamos montar o seu posicionamento.\n\nA Narrativa Primária é o que faz seu conteúdo ter DIREÇÃO.\nÉ o que responde: por que alguém deveria te ouvir?\n\nSão algumas perguntas. Leva uns 5-8 minutos.\nE o resultado vai guiar todo roteiro que a IA gerar pra você.`}
             </p>
             <Button onClick={startChat} className="w-full rounded-xl">Começar</Button>
             <Button variant="ghost" onClick={onSkip} className="w-full rounded-xl text-muted-foreground">Configurar Depois</Button>
           </div>
         ) : (
+
           <>
             {/* Chat area */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[300px] max-h-[400px]">
