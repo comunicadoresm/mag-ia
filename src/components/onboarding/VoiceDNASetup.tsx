@@ -47,6 +47,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
   const { user } = useAuth();
   const [step, setStep] = useState<'intro' | 'audio' | 'uploading' | 'processing' | 'validation'>('intro');
   const [audioStep, setAudioStep] = useState(0);
+  const [uploadedPaths, setUploadedPaths] = useState<Record<string, string>>({});
   const [uploadedUrls, setUploadedUrls] = useState<Record<string, string>>({});
 
   const [validationText, setValidationText] = useState('');
@@ -56,7 +57,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
 
   const currentOnboardingStep = 1; // voice_dna is index 1
 
-  // Upload individual audio right after confirmation, then advance step
   const handleAudioReady = async (blob: Blob) => {
     if (!user) return;
     const prompt = AUDIO_PROMPTS[audioStep];
@@ -73,14 +73,18 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
 
       if (uploadError) throw uploadError;
 
+      // Save the storage path (not public URL, since bucket is private)
+      const newPaths = { ...uploadedPaths, [prompt.key]: path };
+      setUploadedPaths(newPaths);
+
+      // Also save public URL for display purposes
       const { data } = supabase.storage.from('voice-audios').getPublicUrl(path);
-      const url = data.publicUrl;
-
-      const upsertData: Record<string, string> = { user_id: user.id, [prompt.field]: url };
-      await supabase.from('voice_profiles' as any).upsert(upsertData as any, { onConflict: 'user_id' });
-
-      const newUrls = { ...uploadedUrls, [prompt.key]: url };
+      const newUrls = { ...uploadedUrls, [prompt.key]: data.publicUrl };
       setUploadedUrls(newUrls);
+
+      // Save URL to profile for reference
+      const upsertData: Record<string, string> = { user_id: user.id, [prompt.field]: data.publicUrl };
+      await supabase.from('voice_profiles' as any).upsert(upsertData as any, { onConflict: 'user_id' });
 
       toast.success(`Áudio ${audioStep + 1} salvo!`);
 
@@ -88,7 +92,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
         setAudioStep(prev => prev + 1);
         setStep('audio');
       } else {
-        await processVoiceDNA(newUrls);
+        await processVoiceDNA(newPaths);
       }
     } catch (err) {
       console.error('Upload error:', err);
@@ -97,13 +101,13 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
     }
   };
 
-  const processVoiceDNA = async (urls: Record<string, string>) => {
+  const processVoiceDNA = async (paths: Record<string, string>) => {
     if (!user) return;
     setStep('processing');
 
     try {
       const { data, error } = await supabase.functions.invoke('process-voice-dna', {
-        body: { audio_urls: urls, user_id: user.id },
+        body: { audio_paths: paths, user_id: user.id },
       });
 
       if (error) throw error;

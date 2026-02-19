@@ -6,18 +6,17 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-const LOVABLE_API_URL = "https://api.lovable.dev/v1/chat/completions";
+const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
 
-async function callLovableAI(systemPrompt: string, messages: { role: string; content: string }[]): Promise<string> {
-  const response = await fetch(LOVABLE_API_URL, {
+async function callOpenAI(systemPrompt: string, messages: { role: string; content: string }[]): Promise<string> {
+  const response = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
     },
     body: JSON.stringify({
-      model: "openai/gpt-5-mini",
+      model: "gpt-4o-mini",
       messages: [
         { role: "system", content: systemPrompt },
         ...messages,
@@ -29,7 +28,7 @@ async function callLovableAI(systemPrompt: string, messages: { role: string; con
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error("Lovable AI error:", errorText);
+    console.error("OpenAI error:", errorText);
     throw new Error("Erro na API de IA");
   }
 
@@ -37,25 +36,34 @@ async function callLovableAI(systemPrompt: string, messages: { role: string; con
   return data.choices?.[0]?.message?.content || "";
 }
 
-async function transcribeAudio(audioUrl: string): Promise<string> {
-  // Download audio from Supabase Storage
-  const audioResponse = await fetch(audioUrl);
-  if (!audioResponse.ok) {
-    console.error("Failed to download audio:", audioUrl);
-    return "";
+async function transcribeAudioWithWhisper(audioData: Uint8Array, filename: string): Promise<string> {
+  if (!OPENAI_API_KEY) {
+    console.warn("No OPENAI_API_KEY - skipping transcription");
+    return "[transcrição indisponível]";
   }
-  const audioBlob = await audioResponse.blob();
 
-  // For transcription, we'll use Lovable AI to simulate transcription
-  // In production, you'd use OpenAI Whisper API
-  // Since we don't have OPENAI_API_KEY, we'll note this and use a workaround
-  
-  // Try to use the audio content with Lovable AI for analysis
-  // Since Lovable AI doesn't support audio directly, we'll return a placeholder
-  // and the DNA analysis will work with whatever audios are transcribed
-  console.log(`Audio downloaded from ${audioUrl}, size: ${audioBlob.size} bytes`);
-  
-  return `[Áudio de ${Math.round(audioBlob.size / 1024)}KB recebido - transcrição pendente de API Whisper]`;
+  const formData = new FormData();
+  const blob = new Blob([audioData], { type: "audio/webm" });
+  formData.append("file", blob, filename);
+  formData.append("model", "whisper-1");
+  formData.append("language", "pt");
+
+  const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Whisper error:", errorText);
+    return "[erro na transcrição]";
+  }
+
+  const data = await response.json();
+  return data.text || "[transcrição vazia]";
 }
 
 Deno.serve(async (req) => {
@@ -91,7 +99,7 @@ Deno.serve(async (req) => {
     // === NARRATIVE CHAT MODE ===
     if (body.action === "narrative_chat") {
       const { messages, system_prompt } = body;
-      const aiResponse = await callLovableAI(system_prompt, messages);
+      const aiResponse = await callOpenAI(system_prompt, messages);
       return new Response(
         JSON.stringify({ message: aiResponse }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -99,30 +107,53 @@ Deno.serve(async (req) => {
     }
 
     // === VOICE DNA PROCESSING ===
-    const { audio_urls, user_id } = body;
+    const { audio_paths, user_id } = body;
 
-    if (!audio_urls || typeof audio_urls !== "object") {
+    if (!audio_paths || typeof audio_paths !== "object") {
       return new Response(
-        JSON.stringify({ error: "audio_urls required" }),
+        JSON.stringify({ error: "audio_paths required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     console.log(`Processing voice DNA for user: ${user_id}`);
 
-    // Step 1: Transcribe audios
+    // Step 1: Download and transcribe audios using Storage SDK (handles private bucket)
     const transcriptions: Record<string, string> = {};
-    for (const [key, url] of Object.entries(audio_urls)) {
-      console.log(`Transcribing ${key}...`);
-      transcriptions[key] = await transcribeAudio(url as string);
+    const audioUrls: Record<string, string> = {};
+
+    for (const [key, storagePath] of Object.entries(audio_paths)) {
+      console.log(`Downloading ${key} from storage: ${storagePath}`);
+
+      const { data: fileData, error: downloadError } = await supabaseClient.storage
+        .from("voice-audios")
+        .download(storagePath as string);
+
+      if (downloadError || !fileData) {
+        console.error(`Failed to download ${key}:`, downloadError);
+        transcriptions[key] = "[arquivo não encontrado]";
+        continue;
+      }
+
+      const arrayBuffer = await fileData.arrayBuffer();
+      const uint8Array = new Uint8Array(arrayBuffer);
+
+      console.log(`Transcribing ${key} (${uint8Array.length} bytes)...`);
+      transcriptions[key] = await transcribeAudioWithWhisper(uint8Array, `${key}.webm`);
+
+      // Generate public URL for storage
+      const { data: urlData } = supabaseClient.storage
+        .from("voice-audios")
+        .getPublicUrl(storagePath as string);
+      audioUrls[key] = urlData.publicUrl;
     }
 
     // Step 2: Upsert voice profile with audio URLs and transcriptions
     const profileData: any = {
       user_id,
-      audio_casual_url: audio_urls.casual || null,
-      audio_professional_url: audio_urls.professional || null,
-      audio_positioning_url: audio_urls.positioning || null,
+      audio_casual_url: audioUrls.casual || null,
+      audio_professional_url: audioUrls.professional || null,
+      audio_positioning_url: audioUrls.positioning || null,
       transcription_casual: transcriptions.casual || null,
       transcription_professional: transcriptions.professional || null,
       transcription_positioning: transcriptions.positioning || null,
@@ -171,7 +202,7 @@ Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON v
   "resumo_tom": "Resumo de 2-3 linhas do tom geral"
 }`;
 
-    const dnaResponse = await callLovableAI(
+    const dnaResponse = await callOpenAI(
       "Você é um analisador de comunicação. Retorne APENAS JSON válido, sem markdown.",
       [{ role: "user", content: analysisPrompt }]
     );
@@ -193,9 +224,10 @@ Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON v
       };
     }
 
-    // Save DNA
+    // Save DNA and mark as calibrated
     await supabaseClient.from("voice_profiles").update({
       voice_dna: voiceDna,
+      is_calibrated: true,
     }).eq("user_id", user_id);
 
     // Step 4: Generate validation paragraph
@@ -204,7 +236,7 @@ Analise os áudios e extraia o DNA de Voz desta pessoa. Retorne APENAS um JSON v
 Escreva um parágrafo curto (3-4 frases) sobre empreendedorismo digital, como se ESTA PESSOA tivesse escrito.
 Use o vocabulário, ritmo, expressões e tom identificados. O parágrafo deve soar natural.`;
 
-    const validationParagraph = await callLovableAI(
+    const validationParagraph = await callOpenAI(
       "Escreva no tom de voz descrito. Sem explicações, apenas o parágrafo.",
       [{ role: "user", content: validationPrompt }]
     );
