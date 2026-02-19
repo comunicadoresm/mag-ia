@@ -27,16 +27,14 @@ import { SortableAgentList } from '@/components/admin/SortableAgentList';
 import { ScriptTemplateManagement } from '@/components/admin/ScriptTemplateManagement';
 
 const AI_MODELS = [
-  // Anthropic Claude
-  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4', category: 'Claude', provider: 'anthropic' },
-  { value: 'claude-sonnet-4-5-20251021', label: 'Claude Sonnet 4.5', category: 'Claude', provider: 'anthropic' },
-  { value: 'claude-haiku-4-5-20250714', label: 'Claude Haiku 4.5 (Rápido)', category: 'Claude', provider: 'anthropic' },
+  // Anthropic Claude (IDs oficiais confirmados)
+  { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Recomendado)', category: 'Claude', provider: 'anthropic' },
   { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet', category: 'Claude', provider: 'anthropic' },
-  { value: 'claude-3-5-haiku-20241022', label: 'Claude Haiku 3.5 (Econômico)', category: 'Claude', provider: 'anthropic' },
+  { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Econômico)', category: 'Claude', provider: 'anthropic' },
+  { value: 'claude-3-haiku-20240307', label: 'Claude 3 Haiku (Rápido/Barato)', category: 'Claude', provider: 'anthropic' },
   // OpenAI
   { value: 'gpt-4o', label: 'GPT-4o', category: 'OpenAI', provider: 'openai' },
   { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Econômico)', category: 'OpenAI', provider: 'openai' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', category: 'OpenAI', provider: 'openai' },
   // Google Gemini
   { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', category: 'Gemini', provider: 'google' },
   { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', category: 'Gemini', provider: 'google' },
