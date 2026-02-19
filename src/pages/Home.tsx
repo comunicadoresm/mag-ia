@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { VoiceDNASetup } from '@/components/onboarding/VoiceDNASetup';
 import { FormatQuizSetup } from '@/components/onboarding/FormatQuizSetup';
 import { NarrativeSetup } from '@/components/onboarding/NarrativeSetup';
+import { RequireSetupModal } from '@/components/onboarding/RequireSetupModal';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -246,6 +247,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [activeOnboarding, setActiveOnboarding] = useState<'voice_dna' | 'format_quiz' | 'narrative' | null>(null);
 
+  // Show mandatory setup modal if user hasn't completed setup
+  // AND hasn't skipped this session
+  const hasCompletedSetup = profile?.has_completed_setup ?? false;
+  const skippedThisSession = sessionStorage.getItem('setup_skipped_this_session') === '1';
+  const showSetupModal = !loading && !!profile && !hasCompletedSetup && !skippedThisSession;
+
   const greeting = useMemo(() => greetings[Math.floor(Math.random() * greetings.length)], []);
 
   const totalCredits = balance.total;
@@ -301,6 +308,9 @@ export default function Home() {
 
   return (
     <AppLayout>
+      {/* ── Mandatory setup modal ── */}
+      <RequireSetupModal open={showSetupModal} />
+
       {activeOnboarding === 'voice_dna' && (
         <VoiceDNASetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
       )}

@@ -375,7 +375,7 @@ Deno.serve(async (req) => {
     // === END CREDIT CONSUMPTION ===
 
     // Determine provider from model name
-    const provider = getProvider(agent.model || "claude-haiku-4-5-20251021");
+    const provider = getProvider(agent.model || "claude-haiku-4-5-20250714");
 
     // Resolve API key: use agent's own key first, then fallback to env secrets
     let resolvedApiKey = agent.api_key;
