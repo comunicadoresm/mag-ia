@@ -174,89 +174,9 @@ export default function Profile() {
             )}
           </div>
 
-          {/* ── Informações Gerais ── */}
-          <div className="mb-6">
-            <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
-              <User className="w-4 h-4 text-primary" />
-              Informações Gerais
-            </h2>
-            <div className="space-y-3">
-
-              {/* Instagram Handle */}
-              <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><AtSign className="w-5 h-5 text-primary" /></div>
-                {isEditingHandle ? (
-                  <div className="flex-1 flex items-center gap-2 min-w-0">
-                    <Input value={handleValue} onChange={(e) => setHandleValue(e.target.value)} className="text-sm" placeholder="@seuarroba" autoFocus />
-                    <Button size="icon" variant="ghost" onClick={handleSaveHandle} disabled={isSaving}>{isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}</Button>
-                    <Button size="icon" variant="ghost" onClick={() => { setHandleValue(currentHandle); setIsEditingHandle(false); }} disabled={isSaving}><X className="w-4 h-4" /></Button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground">@ do Instagram</p>
-                      <p className="text-sm font-medium text-foreground truncate">{currentHandle || 'Adicione seu @'}</p>
-                    </div>
-                    <Button size="icon" variant="ghost" onClick={() => setIsEditingHandle(true)} className="text-muted-foreground hover:text-foreground shrink-0"><Pencil className="w-4 h-4" /></Button>
-                  </>
-                )}
-              </div>
-
-              {/* Email */}
-              <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Mail className="w-5 h-5 text-primary" /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Email</p>
-                  <p className="text-sm font-medium text-foreground truncate">{profile?.email || user.email}</p>
-                  <button
-                    onClick={() => window.open('https://wa.me/5511999999999?text=Olá! Gostaria de alterar meu e-mail na Magnetic.IA', '_blank')}
-                    className="text-xs text-primary hover:underline mt-1 block"
-                  >
-                    Alterar e-mail →
-                  </button>
-                </div>
-              </div>
-
-              {/* Plan Info */}
-              {planInfo && (
-                <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${planInfo.color}20` }}>
-                    <Crown className="w-5 h-5" style={{ color: planInfo.color }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">Seu Plano</p>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="text-xs font-semibold" style={{ backgroundColor: `${planInfo.color}20`, color: planInfo.color }}>
-                        {planInfo.name}
-                      </Badge>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="ghost" onClick={() => navigate('/profile/credits')} className="text-xs text-primary shrink-0">
-                    Ver planos <ChevronRight className="w-3 h-3 ml-1" />
-                  </Button>
-                </div>
-              )}
-
-              {/* Credits */}
-              <button onClick={() => navigate('/profile/credits')} className="w-full bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-primary/40 transition-all">
-                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Coins className="w-5 h-5 text-primary" /></div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Créditos</p>
-                  <p className="text-sm font-medium text-foreground">Ver meus créditos e consumo</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              </button>
-
-              {/* Sign out */}
-              <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl">
-                <LogOut className="w-5 h-5" />Sair da conta
-              </Button>
-            </div>
-          </div>
-
           {/* ── Identidade Magnética ── */}
           {isMagnetic && (
-            <div>
+            <div className="mb-6">
               <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-primary" />
                 Identidade Magnética
@@ -336,6 +256,86 @@ export default function Profile() {
               </div>
             </div>
           )}
+
+          {/* ── Informações Gerais ── */}
+          <div className="mb-6">
+            <h2 className="text-base font-semibold text-foreground mb-3 flex items-center gap-2">
+              <User className="w-4 h-4 text-primary" />
+              Informações Gerais
+            </h2>
+            <div className="space-y-3">
+
+              {/* Instagram Handle */}
+              <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><AtSign className="w-5 h-5 text-primary" /></div>
+                {isEditingHandle ? (
+                  <div className="flex-1 flex items-center gap-2 min-w-0">
+                    <Input value={handleValue} onChange={(e) => setHandleValue(e.target.value)} className="text-sm" placeholder="@seuarroba" autoFocus />
+                    <Button size="icon" variant="ghost" onClick={handleSaveHandle} disabled={isSaving}>{isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}</Button>
+                    <Button size="icon" variant="ghost" onClick={() => { setHandleValue(currentHandle); setIsEditingHandle(false); }} disabled={isSaving}><X className="w-4 h-4" /></Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">@ do Instagram</p>
+                      <p className="text-sm font-medium text-foreground truncate">{currentHandle || 'Adicione seu @'}</p>
+                    </div>
+                    <Button size="icon" variant="ghost" onClick={() => setIsEditingHandle(true)} className="text-muted-foreground hover:text-foreground shrink-0"><Pencil className="w-4 h-4" /></Button>
+                  </>
+                )}
+              </div>
+
+              {/* Email */}
+              <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Mail className="w-5 h-5 text-primary" /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm font-medium text-foreground truncate">{profile?.email || user.email}</p>
+                  <button
+                    onClick={() => window.open('https://wa.me/5511999999999?text=Olá! Gostaria de alterar meu e-mail na Magnetic.IA', '_blank')}
+                    className="text-xs text-primary hover:underline mt-1 block"
+                  >
+                    Alterar e-mail →
+                  </button>
+                </div>
+              </div>
+
+              {/* Plan Info */}
+              {planInfo && (
+                <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${planInfo.color}20` }}>
+                    <Crown className="w-5 h-5" style={{ color: planInfo.color }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground">Seu Plano</p>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary" className="text-xs font-semibold" style={{ backgroundColor: `${planInfo.color}20`, color: planInfo.color }}>
+                        {planInfo.name}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => navigate('/profile/credits')} className="text-xs text-primary shrink-0">
+                    Ver planos <ChevronRight className="w-3 h-3 ml-1" />
+                  </Button>
+                </div>
+              )}
+
+              {/* Credits */}
+              <button onClick={() => navigate('/profile/credits')} className="w-full bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3 text-left hover:border-primary/40 transition-all">
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center"><Coins className="w-5 h-5 text-primary" /></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-muted-foreground">Créditos</p>
+                  <p className="text-sm font-medium text-foreground">Ver meus créditos e consumo</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground" />
+              </button>
+
+              {/* Sign out */}
+              <Button onClick={handleSignOut} variant="outline" className="w-full h-12 gap-2 border-destructive/20 text-destructive hover:bg-destructive/10 rounded-2xl">
+                <LogOut className="w-5 h-5" />Sair da conta
+              </Button>
+            </div>
+          </div>
 
           <p className="text-center text-xs text-muted-foreground mt-8">CM Chat v1.0.0</p>
         </div>
