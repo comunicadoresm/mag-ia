@@ -1,14 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, Send } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-
+import { Send } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
-
 
 interface NarrativeSetupProps {
   open: boolean;
@@ -21,7 +16,6 @@ interface ChatMsg {
   content: string;
 }
 
-// System prompt for the narrative agent
 const NARRATIVE_SYSTEM_PROMPT = `Você é o Agente de Narrativa Primária da plataforma Magnetic.IA.
 
 Seu papel é conduzir o usuário por uma entrevista estratégica, prática e guiada,
@@ -76,7 +70,6 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
     setLoading(true);
 
     try {
-      // Use Lovable AI to avoid needing an API key
       const systemPromptWithContext = NARRATIVE_SYSTEM_PROMPT + `\n\nDADOS DO USUÁRIO:\n- Nome: ${profile?.name || 'Usuário'}\n- Email: ${profile?.email || ''}`;
 
       const { data, error } = await supabase.functions.invoke('process-voice-dna', {
@@ -91,12 +84,10 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
       if (error) throw error;
       const aiMsg = data?.message || 'Olá! Vamos construir sua Narrativa Primária. Começando pela primeira pergunta...';
       setMessages([{ role: 'assistant', content: aiMsg }]);
-    } catch (err) {
-      console.error('Narrative start error:', err);
-      // Fallback opening message
+    } catch {
       setMessages([{
         role: 'assistant',
-        content: 'Olá! 👋 Vamos construir sua Narrativa Primária — o posicionamento que vai guiar todo o seu conteúdo.\n\nPrimeira pergunta:\n\n**O que você sabe fazer de verdade?**\n\nNão é cargo, nem título. É o que você entrega na prática.\n\n💡 Modelo: "Eu sei fazer ___ para ___ através de ___."'
+        content: `${profile?.name || 'Usuário'}, me conta: o que você sabe fazer de verdade? Aquilo que as pessoas te procuram pra resolver?`
       }]);
     } finally {
       setLoading(false);
@@ -113,7 +104,6 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
 
     try {
       const systemPromptWithContext = NARRATIVE_SYSTEM_PROMPT + `\n\nDADOS DO USUÁRIO:\n- Nome: ${profile?.name || 'Usuário'}`;
-
       const { data, error } = await supabase.functions.invoke('process-voice-dna', {
         body: {
           action: 'narrative_chat',
@@ -122,18 +112,15 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
           user_id: user.id,
         },
       });
-
       if (error) throw error;
       const aiResponse = data?.message || '';
       const updatedMessages = [...newMessages, { role: 'assistant' as const, content: aiResponse }];
       setMessages(updatedMessages);
 
-      // Check if narrative was generated
       if (aiResponse.includes('Eu sou uma pessoa que') && aiResponse.includes('Eu acredito que')) {
         setNarrativeDetected(true);
       }
-    } catch (err) {
-      console.error('Narrative chat error:', err);
+    } catch {
       toast.error('Erro ao enviar mensagem');
     } finally {
       setLoading(false);
@@ -143,110 +130,136 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
   const handleApproveNarrative = async () => {
     if (!user) return;
     setLoading(true);
-
     try {
-      // Find the narrative text from the last assistant message
       const lastAssistant = [...messages].reverse().find(m => m.role === 'assistant');
       const narrativeText = lastAssistant?.content || '';
-
-      // Save to user_narratives
       await supabase.from('user_narratives' as any).upsert({
         user_id: user.id,
         narrative_text: narrativeText,
         is_completed: true,
       } as any, { onConflict: 'user_id' });
-
       toast.success('Narrativa Primária salva!');
       onComplete();
-    } catch (err) {
-      console.error('Save narrative error:', err);
+    } catch {
       toast.error('Erro ao salvar narrativa');
     } finally {
       setLoading(false);
     }
   };
 
-  const ONBOARDING_STEPS = [
-    { label: 'Perfil' }, { label: 'DNA de Voz' }, { label: 'Formato' }, { label: 'Narrativa' },
-  ];
-  const currentOnboardingStep = 3;
+  if (!open) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onSkip(); }}>
-      <DialogContent className="max-w-md [&>button.absolute]:hidden max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
-        {/* Progress bar */}
-        <div className="flex items-center gap-1.5 mb-1 shrink-0">
-          {ONBOARDING_STEPS.map((s, i) => (
-            <div key={s.label} className="flex-1 flex flex-col items-center gap-1">
-              <div className={`w-full h-1 rounded-full transition-all duration-300 ${
-                i < currentOnboardingStep ? 'bg-primary' :
-                i === currentOnboardingStep ? 'bg-primary/50' : 'bg-muted'
-              }`} />
-              <span className={`text-[10px] font-medium hidden sm:block ${
-                i === currentOnboardingStep ? 'text-primary' : 'text-muted-foreground/60'
-              }`}>{s.label}</span>
-            </div>
-          ))}
-        </div>
-
+    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#0a0a0a' }}>
+      <div className="flex flex-col h-full max-w-md mx-auto w-full">
         {/* Header */}
-        <div className="mt-2 shrink-0">
-          <h2 className="text-lg font-bold text-foreground">
-            {step === 'intro' ? '📝 Narrativa Primária' : '💬 Construindo sua Narrativa'}
+        <div className="px-5 pt-8 pb-2 shrink-0">
+          {/* Progress bar — 3 segments */}
+          <div className="flex gap-1.5 mb-5">
+            <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
+            <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
+            <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
+          </div>
+
+          {/* Step header */}
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <div className="w-9 h-9 rounded-[10px] bg-[#FAFC59]/15 flex items-center justify-center text-lg">
+                📖
+              </div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#FAFC59]">
+                Etapa 3 · Narrativa Primária
+              </span>
+            </div>
+            <button
+              onClick={onSkip}
+              className="text-xs text-[#666] hover:text-[#999] transition-colors px-2 py-1 rounded-md"
+            >
+              Pular
+            </button>
+          </div>
+
+          <h2 className="text-2xl font-bold tracking-tight text-[#fafafa] mt-3 leading-tight">
+            Vamos construir sua história
           </h2>
+          <p className="text-sm text-[#999] mt-1 leading-relaxed">
+            Uma conversa guiada pra extrair seu posicionamento único.
+          </p>
         </div>
 
         {step === 'intro' ? (
-          <div className="space-y-4 mt-2">
-            <p className="text-sm text-muted-foreground whitespace-pre-line">
-              {`Última etapa: vamos montar o seu posicionamento.\n\nA Narrativa Primária é o que faz seu conteúdo ter DIREÇÃO.\nÉ o que responde: por que alguém deveria te ouvir?\n\nSão algumas perguntas. Leva uns 5-8 minutos.\nE o resultado vai guiar todo roteiro que a IA gerar pra você.`}
-            </p>
-            <Button onClick={startChat} className="w-full rounded-xl">Começar</Button>
-            <Button variant="ghost" onClick={onSkip} className="w-full rounded-xl text-muted-foreground">Configurar Depois</Button>
+          <div className="flex-1 flex flex-col px-5">
+            <div className="flex-1" />
+            <button
+              onClick={startChat}
+              className="w-full py-4 px-6 bg-[#FAFC59] text-[#141414] rounded-full font-bold text-[15px] shadow-[0_0_40px_-10px_rgba(250,252,89,0.4)] hover:bg-[#e8ea40] hover:-translate-y-0.5 transition-all duration-200 mb-3"
+            >
+              Começar conversa →
+            </button>
+            <button
+              onClick={onSkip}
+              className="w-full py-3 text-sm text-[#666] hover:text-[#999] transition-colors mb-4"
+            >
+              Configurar depois
+            </button>
           </div>
         ) : (
-
           <>
             {/* Chat area */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-[300px] max-h-[400px]">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] px-4 py-2.5 rounded-2xl text-sm ${
+                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
                     msg.role === 'user'
-                      ? 'bg-primary text-primary-foreground rounded-br-md'
-                      : 'bg-muted/40 text-foreground rounded-bl-md'
+                      ? 'bg-[#FAFC59] text-[#141414] rounded-br-md'
+                      : 'bg-[#1e1e1e] text-[#fafafa] rounded-bl-md'
                   }`}>
-                    {msg.role === 'assistant' ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    {msg.role === 'assistant' && (
+                      <div className="inline-flex items-center gap-1 px-2 py-0.5 mb-2 bg-[#FAFC59]/15 rounded text-[9px] font-bold uppercase tracking-wider text-[#FAFC59]">
+                        🧲 MAG-IA
                       </div>
-                    ) : msg.content}
+                    )}
+                    <div className={`text-[13px] leading-relaxed ${msg.role === 'user' ? '' : 'prose prose-sm prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0'}`}>
+                      {msg.role === 'assistant' ? <ReactMarkdown>{msg.content}</ReactMarkdown> : msg.content}
+                    </div>
                   </div>
                 </div>
               ))}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="bg-muted/40 px-4 py-2.5 rounded-2xl rounded-bl-md">
-                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  <div className="bg-[#1e1e1e] px-4 py-3 rounded-2xl rounded-bl-md">
+                    <div className="flex gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#666] animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-[#666] animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 rounded-full bg-[#666] animate-bounce" style={{ animationDelay: '300ms' }} />
+                    </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Input area */}
-            <div className="border-t border-border/30 p-3 shrink-0 space-y-2">
-              {narrativeDetected && (
-                <Button onClick={handleApproveNarrative} className="w-full rounded-xl gap-2" disabled={loading}>
+            {/* Approve button */}
+            {narrativeDetected && (
+              <div className="px-5 pb-2">
+                <button
+                  onClick={handleApproveNarrative}
+                  disabled={loading}
+                  className="w-full py-3 px-4 bg-[#22c55e] text-white rounded-full font-bold text-sm disabled:opacity-40 transition-all"
+                >
                   ✅ Aprovar Narrativa e Continuar
-                </Button>
-              )}
-              <div className="flex gap-2">
-                <Textarea
+                </button>
+              </div>
+            )}
+
+            {/* Input area */}
+            <div className="px-5 pb-6 pt-2 shrink-0">
+              <div className="flex items-center gap-2 bg-[#1e1e1e] border border-white/[0.06] rounded-full px-4 py-2">
+                <input
+                  type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Digite sua resposta..."
-                  className="rounded-xl bg-muted/30 border-border/30 resize-none min-h-[40px] max-h-[80px]"
-                  rows={1}
+                  className="flex-1 bg-transparent text-[#fafafa] text-sm placeholder:text-[#666] outline-none"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -254,14 +267,18 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
                     }
                   }}
                 />
-                <Button size="icon" onClick={sendMessage} disabled={!input.trim() || loading} className="rounded-xl shrink-0">
-                  <Send className="w-4 h-4" />
-                </Button>
+                <button
+                  onClick={sendMessage}
+                  disabled={!input.trim() || loading}
+                  className="w-8 h-8 rounded-full bg-[#FAFC59] flex items-center justify-center disabled:opacity-30 transition-opacity shrink-0"
+                >
+                  <Send className="w-4 h-4 text-[#141414]" />
+                </button>
               </div>
             </div>
           </>
         )}
-      </DialogContent>
-    </Dialog>
+      </div>
+    </div>
   );
 }
