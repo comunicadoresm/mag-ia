@@ -94,13 +94,6 @@ export type Database = {
             referencedRelation: "agents"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "agent_documents_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "agents_public"
-            referencedColumns: ["id"]
-          },
         ]
       }
       agent_plan_access: {
@@ -128,13 +121,6 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agent_plan_access_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
           {
@@ -171,13 +157,6 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "agent_tags_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
           {
@@ -289,13 +268,6 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "conversations_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
           {
@@ -554,13 +526,6 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "document_chunks_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
           {
@@ -912,13 +877,6 @@ export type Database = {
             columns: ["agent_id"]
             isOneToOne: false
             referencedRelation: "agents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "script_templates_agent_id_fkey"
-            columns: ["agent_id"]
-            isOneToOne: false
-            referencedRelation: "agents_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1422,69 +1380,7 @@ export type Database = {
       }
     }
     Views: {
-      agents_public: {
-        Row: {
-          billing_type: string | null
-          created_at: string | null
-          credit_cost: number | null
-          description: string | null
-          display_order: number | null
-          ice_breakers: Json | null
-          icon_emoji: string | null
-          icon_url: string | null
-          id: string | null
-          is_active: boolean | null
-          message_package_size: number | null
-          model: string | null
-          name: string | null
-          plan_access: string | null
-          slug: string | null
-          system_prompt: string | null
-          updated_at: string | null
-          welcome_message: string | null
-        }
-        Insert: {
-          billing_type?: string | null
-          created_at?: string | null
-          credit_cost?: number | null
-          description?: string | null
-          display_order?: number | null
-          ice_breakers?: Json | null
-          icon_emoji?: string | null
-          icon_url?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          message_package_size?: number | null
-          model?: string | null
-          name?: string | null
-          plan_access?: string | null
-          slug?: string | null
-          system_prompt?: string | null
-          updated_at?: string | null
-          welcome_message?: string | null
-        }
-        Update: {
-          billing_type?: string | null
-          created_at?: string | null
-          credit_cost?: number | null
-          description?: string | null
-          display_order?: number | null
-          ice_breakers?: Json | null
-          icon_emoji?: string | null
-          icon_url?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          message_package_size?: number | null
-          model?: string | null
-          name?: string | null
-          plan_access?: string | null
-          slug?: string | null
-          system_prompt?: string | null
-          updated_at?: string | null
-          welcome_message?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       consume_credits_atomic: {
@@ -1492,6 +1388,29 @@ export type Database = {
         Returns: Json
       }
       get_agent_api_key: { Args: { agent_uuid: string }; Returns: string }
+      get_agents_public: {
+        Args: { p_ids?: string[] }
+        Returns: {
+          billing_type: string
+          created_at: string
+          credit_cost: number
+          description: string
+          display_order: number
+          ice_breakers: Json
+          icon_emoji: string
+          icon_url: string
+          id: string
+          is_active: boolean
+          message_package_size: number
+          model: string
+          name: string
+          plan_access: string
+          slug: string
+          system_prompt: string
+          updated_at: string
+          welcome_message: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
