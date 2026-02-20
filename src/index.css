@@ -275,21 +275,6 @@
     50% { opacity: 0.8; }
   }
 
-  @keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
-
-  @keyframes typing {
-    0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
-    30% { opacity: 1; transform: translateY(-3px); }
-  }
-
-  @keyframes wave {
-    0%, 100% { transform: scaleY(0.5); opacity: 0.5; }
-    50% { transform: scaleY(1); opacity: 1; }
-  }
-
   /* Scrollbar Styling */
   .scrollbar-thin {
     scrollbar-width: thin;

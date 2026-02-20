@@ -1,152 +1,81 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlanPermissions } from '@/hooks/usePlanPermissions';
 import { supabase } from '@/integrations/supabase/client';
-import { WelcomeStep } from './WelcomeStep';
+import { Button } from '@/components/ui/button';
+import { User, Mic, FileText, BookOpen, Sparkles, Check } from 'lucide-react';
+import { BasicInfoFlow } from './BasicInfoFlow';
 import { VoiceDNASetup } from './VoiceDNASetup';
 import { FormatQuizSetup } from './FormatQuizSetup';
 import { NarrativeSetup } from './NarrativeSetup';
-import { ProcessingStep } from './ProcessingStep';
-import { FirstScriptSuggestion } from './FirstScriptSuggestion';
-import { FirstScriptResult } from './FirstScriptResult';
+import { FirstScriptFlow } from './FirstScriptFlow';
 import { toast } from 'sonner';
 
 interface MagneticOnboardingProps {
   onboardingStep: string;
 }
 
-export type OnboardingStep = 'basic_info' | 'voice_dna' | 'format_quiz' | 'narrative' | 'processing' | 'first_script' | 'completed';
+const STEPS = [
+  { key: 'basic_info', label: 'Boas-vindas', icon: User, description: 'Nome e @' },
+  { key: 'voice_dna', label: 'DNA de Voz', icon: Mic, description: 'Seu jeito de falar' },
+  { key: 'format_quiz', label: 'Formato', icon: FileText, description: 'Seu estilo de gravar' },
+  { key: 'narrative', label: 'Narrativa', icon: BookOpen, description: 'Sua história' },
+];
 
-interface ScriptSuggestion {
-  title: string;
-  style: string;
-  style_label: string;
-  format: string;
-  duration: string;
-  justification: string;
-}
-
-interface GeneratedScript {
-  title: string;
-  style: string;
-  script_content: {
-    inicio: { title: string; sections: { id: string; label: string; content: string }[] };
-    desenvolvimento: { title: string; sections: { id: string; label: string; content: string }[] };
-    final: { title: string; sections: { id: string; label: string; content: string }[] };
-  };
-}
+export type OnboardingStep = 'basic_info' | 'voice_dna' | 'format_quiz' | 'narrative' | 'first_script' | 'completed';
 
 export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) {
   const { user, refreshProfile } = useAuth();
   const { planType } = usePlanPermissions();
-  const [currentStep, setCurrentStep] = useState<string>(onboardingStep);
-  const [suggestion, setSuggestion] = useState<ScriptSuggestion | null>(null);
-  const [generatedScript, setGeneratedScript] = useState<GeneratedScript | null>(null);
-  const [generating, setGenerating] = useState(false);
+  const [currentStep, setCurrentStep] = useState(onboardingStep);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const isMagnetic = ['magnetic', 'magnetic_pro', 'magnetico', 'magnetico_pro'].includes(planType);
 
-  // Called when processing animation finishes — fetch suggestion from API
-  const handleProcessingComplete = useCallback(async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-first-script', {
-        body: { user_id: user.id, action: 'suggest' },
-      });
-      if (error) throw error;
-      setSuggestion(data.suggestion);
-      setCurrentStep('first_script');
-    } catch (err) {
-      console.error('Suggest error:', err);
-      toast.error('Erro ao gerar sugestão. Você pode criar seu primeiro roteiro no Kanban.');
-      // Skip to completed
-      if (user) {
-        await supabase
-          .from('profiles')
-          .update({ onboarding_step: 'completed', has_completed_setup: true } as any)
-          .eq('id', user.id);
-        await refreshProfile();
-        setCurrentStep('completed');
-      }
-    }
-  }, [user, refreshProfile]);
-
+  // Only render for magnetic plans and non-completed steps
   if (!isMagnetic || currentStep === 'completed') return null;
+
+  const currentIndex = STEPS.findIndex(s => s.key === currentStep);
 
   const goToStep = async (nextStep: string) => {
     if (!user) return;
+    setIsAnimating(true);
 
-    // 'processing' is transient — don't save to DB
-    if (nextStep !== 'processing') {
-      await supabase
-        .from('profiles')
-        .update({ onboarding_step: nextStep } as any)
-        .eq('id', user.id);
-      await refreshProfile();
-    }
+    await supabase
+      .from('profiles')
+      .update({ onboarding_step: nextStep } as any)
+      .eq('id', user.id);
 
-    setCurrentStep(nextStep);
+    setTimeout(() => {
+      setCurrentStep(nextStep);
+      setIsAnimating(false);
+    }, 300);
+
+    await refreshProfile();
   };
 
   const handleSkipAll = async () => {
-    if (!user) return;
-    await supabase
-      .from('profiles')
-      .update({ onboarding_step: 'completed', has_completed_setup: true } as any)
-      .eq('id', user.id);
-    await refreshProfile();
-    setCurrentStep('completed');
+    await goToStep('completed');
     toast.info('Você pode configurar tudo depois em Perfil > Identidade Magnética.');
   };
 
-
-  const handleGenerate = async () => {
-    if (!user || !suggestion) return;
-    setGenerating(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke('generate-first-script', {
-        body: { user_id: user.id, action: 'generate', suggestion },
-      });
-      if (error) throw error;
-      setGeneratedScript(data.script);
-      setCurrentStep('script_result');
-    } catch (err) {
-      console.error('Generate error:', err);
-      toast.error('Erro ao gerar roteiro. Tente novamente.');
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const handleGoToKanban = async () => {
-    await goToStep('completed');
-    await supabase
-      .from('profiles')
-      .update({ has_completed_setup: true } as any)
-      .eq('id', user!.id);
-    window.location.href = '/kanban';
-  };
-
-  const handleGoToHome = async () => {
-    await goToStep('completed');
-    await supabase
-      .from('profiles')
-      .update({ has_completed_setup: true } as any)
-      .eq('id', user!.id);
-  };
-
-  // ═══ TELA 1: BOAS-VINDAS ═══
-  if (currentStep === 'basic_info') {
+  // ===== TELA DO PRIMEIRO ROTEIRO (fullscreen separada, sem header de progresso) =====
+  if (currentStep === 'first_script') {
     return (
-      <div className="fixed inset-0 z-50">
-        <WelcomeStep onNext={() => goToStep('voice_dna')} />
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <main className="flex-1 overflow-auto">
+          <div className="max-w-lg mx-auto px-4 py-6">
+            <FirstScriptFlow
+              onComplete={() => goToStep('completed')}
+              onSkip={() => goToStep('completed')}
+            />
+          </div>
+        </main>
       </div>
     );
   }
 
-  // ═══ TELA 2: VOICE DNA ═══
+  // ===== VOICE DNA, FORMAT QUIZ, NARRATIVE — delegate to existing Dialog components =====
   if (currentStep === 'voice_dna') {
     return (
       <VoiceDNASetup
@@ -157,7 +86,6 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
     );
   }
 
-  // ═══ TELA 3: FORMAT QUIZ ═══
   if (currentStep === 'format_quiz') {
     return (
       <FormatQuizSetup
@@ -168,53 +96,86 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
     );
   }
 
-  // ═══ TELA 4: NARRATIVA ═══
   if (currentStep === 'narrative') {
     return (
       <NarrativeSetup
         open={true}
-        onComplete={() => goToStep('processing')}
-        onSkip={() => goToStep('processing')}
+        onComplete={() => goToStep('first_script')}
+        onSkip={() => goToStep('first_script')}
       />
     );
   }
 
-  // ═══ TELA 5: PROCESSING ═══
-  if (currentStep === 'processing') {
-    return (
-      <div className="fixed inset-0 z-50">
-        <ProcessingStep onComplete={handleProcessingComplete} />
-      </div>
-    );
-  }
+  // ===== BASIC INFO (fullscreen with header) =====
+  return (
+    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      {/* ===== HEADER COM PROGRESSO ===== */}
+      <header className="border-b border-border/30 bg-background/95 backdrop-blur px-4 py-3">
+        <div className="max-w-lg mx-auto">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <span className="text-sm font-bold text-foreground">
+                Identidade Magnética
+              </span>
+            </div>
+            {/* Botão "Configurar depois" NÃO aparece no basic_info */}
+            {currentStep !== 'basic_info' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSkipAll}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Configurar depois
+              </Button>
+            )}
+          </div>
 
-  // ═══ TELA 6: SUGGESTION ═══
-  if (currentStep === 'first_script' && suggestion) {
-    return (
-      <div className="fixed inset-0 z-50">
-        <FirstScriptSuggestion
-          suggestion={suggestion}
-          onGenerate={handleGenerate}
-          onSkip={handleGoToHome}
-          generating={generating}
-        />
-      </div>
-    );
-  }
+          {/* Step indicators */}
+          <div className="flex gap-2">
+            {STEPS.map((step, i) => {
+              const Icon = step.icon;
+              const isActive = i === currentIndex;
+              const isDone = i < currentIndex;
 
-  // ═══ TELA 7: SCRIPT RESULT ═══
-  if (currentStep === 'script_result' && generatedScript) {
-    return (
-      <div className="fixed inset-0 z-50 overflow-auto" style={{ background: '#0a0a0a' }}>
-        <FirstScriptResult
-          script={generatedScript}
-          suggestion={suggestion}
-          onGoToKanban={handleGoToKanban}
-          onGoToHome={handleGoToHome}
-        />
-      </div>
-    );
-  }
+              return (
+                <div key={step.key} className="flex-1">
+                  <div className={`
+                    h-1.5 rounded-full transition-all duration-500
+                    ${isDone ? 'bg-primary' : isActive ? 'bg-primary/50' : 'bg-muted/30'}
+                  `} />
+                  <div className={`
+                    flex items-center gap-1.5 mt-1.5 transition-opacity
+                    ${isActive ? 'opacity-100' : 'opacity-40'}
+                  `}>
+                    {isDone ? (
+                      <Check className="w-3 h-3 text-primary" />
+                    ) : (
+                      <Icon className="w-3 h-3" />
+                    )}
+                    <span className="text-[10px] font-medium truncate">
+                      {step.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </header>
 
-  return null;
+      {/* ===== CONTEÚDO DO STEP ===== */}
+      <main className={`
+        flex-1 overflow-auto transition-opacity duration-300
+        ${isAnimating ? 'opacity-0' : 'opacity-100'}
+      `}>
+        <div className="max-w-lg mx-auto px-4 py-6">
+          {currentStep === 'basic_info' && (
+            <BasicInfoFlow onComplete={() => goToStep('voice_dna')} />
+          )}
+        </div>
+      </main>
+    </div>
+  );
 }
