@@ -146,10 +146,13 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
     if (currentQ > 0) setCurrentQ(prev => prev - 1);
   };
 
+  const totalQuestions = QUESTIONS.length;
+
   return (
     <div>
       <div className="flex flex-col px-6 py-7 max-w-md mx-auto animate-fade-in">
-        {/* Progress bar — 3 segments */}
+
+        {/* Onboarding progress bar — 3 segments (segment 2 active) */}
         <div className="flex gap-1.5 mb-5">
           <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
           <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
@@ -157,7 +160,7 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
         </div>
 
         {/* Step header */}
-        <div className="flex items-center mb-1">
+        <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-[10px] bg-[#FAFC59]/15 flex items-center justify-center text-lg">
               📁
@@ -166,6 +169,9 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
               Etapa 2 · Formato
             </span>
           </div>
+          <span className="text-[11px] text-[#666]">
+            {currentQ + 1} / {totalQuestions}
+          </span>
         </div>
 
         {/* Title */}
@@ -176,8 +182,25 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
           5 perguntas rápidas pra IA entender o que faz sentido pra sua rotina. Assim ela só sugere formatos que você consegue executar de verdade — sem sobrecarregar.
         </p>
 
+        {/* Per-question progress dots */}
+        <div className="flex gap-1.5 mt-5 mb-1">
+          {QUESTIONS.map((_, i) => (
+            <div
+              key={i}
+              className={cn(
+                'h-1 rounded-full flex-1 transition-all duration-300',
+                i < currentQ
+                  ? 'bg-[#FAFC59]'
+                  : i === currentQ
+                  ? 'bg-[#FAFC59]/60'
+                  : 'bg-white/[0.08]'
+              )}
+            />
+          ))}
+        </div>
+
         {/* Question label */}
-        <p className="text-[11px] font-semibold text-[#FAFC59] uppercase tracking-wider mt-6 mb-1">
+        <p className="text-[11px] font-semibold text-[#FAFC59] uppercase tracking-wider mt-5 mb-1">
           {q.label}
         </p>
         <p className="text-[15px] font-semibold text-[#fafafa] leading-snug mb-4">
@@ -213,9 +236,6 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
           })}
         </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
-
         {/* Navigation */}
         <div className="mt-6 space-y-2">
           <button
@@ -243,4 +263,5 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
       </div>
     </div>
   );
+
 }
