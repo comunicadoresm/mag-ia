@@ -163,7 +163,7 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
           Vamos construir sua história
         </h2>
         <p className="text-sm text-[#999] mt-1 leading-relaxed">
-          Uma conversa guiada pra extrair seu posicionamento único.
+          Uma conversa guiada de 6 perguntas pra extrair seu posicionamento único. No final, a IA gera sua Narrativa Primária — o fio condutor de todo o seu conteúdo.
         </p>
       </div>
 

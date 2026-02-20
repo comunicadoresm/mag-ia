@@ -53,6 +53,9 @@ export function FirstScriptResult({ script, suggestion, onGoToKanban, onGoToHome
           <p className="text-sm text-[#4ade80] font-bold">
             Seu primeiro roteiro está pronto!
           </p>
+          <p className="text-xs text-[#666] mt-1 max-w-[260px] mx-auto">
+            Ele já foi salvo no seu Kanban. Você pode editar, ajustar e usar como base para todos os próximos.
+          </p>
         </div>
 
         {/* Script card */}

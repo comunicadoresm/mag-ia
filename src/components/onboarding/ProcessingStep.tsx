@@ -64,7 +64,7 @@ export function ProcessingStep({ onComplete }: ProcessingStepProps) {
         Magnética...
       </h2>
       <p className="text-sm text-[#999] text-center mt-3 max-w-[300px] leading-relaxed">
-        A IA está analisando seu tom de voz, formato e narrativa para criar algo único pra você.
+        A IA está cruzando seu tom de voz, formato de produção e narrativa para montar um perfil único. Isso leva alguns segundos.
       </p>
 
       {/* Steps */}

@@ -175,7 +175,7 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
           Qual seu estilo de produzir?
         </h2>
         <p className="text-sm text-[#999] mt-2 leading-relaxed">
-          5 perguntas rápidas pra IA entender o que faz sentido pra sua rotina.
+          5 perguntas rápidas pra IA entender o que faz sentido pra sua rotina. Assim ela só sugere formatos que você consegue executar de verdade — sem sobrecarregar.
         </p>
 
         {/* Question label */}
