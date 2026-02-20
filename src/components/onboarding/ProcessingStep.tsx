@@ -6,12 +6,12 @@ interface ProcessingStepProps {
 
 function StepItem({ done, active, label }: { done: boolean; active?: boolean; label: string }) {
   return (
-    <div className={`flex items-center gap-3 py-2.5 text-[14px] ${
+    <div className={`flex items-center gap-2.5 py-2 text-[13px] ${
       done ? 'text-[#22c55e]' : active ? 'text-[#FAFC59]' : 'text-[#666]'
     }`}>
-      <span className="w-5 h-5 flex items-center justify-center flex-shrink-0 text-base">
-        {done ? '✅' : active ? (
-          <span className="animate-spin inline-block text-sm">⟳</span>
+      <span className="w-[18px] h-[18px] flex items-center justify-center flex-shrink-0">
+        {done ? '✓' : active ? (
+          <span className="animate-spin inline-block">⟳</span>
         ) : '○'}
       </span>
       {label}
@@ -34,19 +34,25 @@ export function ProcessingStep({ onComplete }: ProcessingStepProps) {
       setTimeout(() => setSteps(p => ({ ...p, narrative: true })), 2400),
       setTimeout(() => setSteps(p => ({ ...p, generating: true })), 3200),
     ];
+
     return () => timers.forEach(clearTimeout);
   }, []);
 
+  // The actual API call happens in MagneticOnboarding, this is just visual
+  // We signal readiness after generating becomes true
   useEffect(() => {
     if (steps.generating) {
+      // Wait a bit more for the visual, then signal ready
       const t = setTimeout(onComplete, 500);
       return () => clearTimeout(t);
     }
   }, [steps.generating, onComplete]);
 
   return (
-    <div className="flex flex-col items-center justify-center px-6 py-10 animate-fade-in">
-      {/* Progress bar — all filled */}
+    <div className="min-h-screen flex flex-col items-center justify-center px-5 animate-fade-in"
+      style={{ background: '#0a0a0a' }}
+    >
+      {/* Progress bar — all done */}
       <div className="w-full max-w-xs mb-12">
         <div className="flex gap-1.5">
           <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
@@ -56,19 +62,17 @@ export function ProcessingStep({ onComplete }: ProcessingStepProps) {
       </div>
 
       {/* Spinner */}
-      <div className="w-14 h-14 rounded-full border-[3px] border-[#FAFC59]/20 border-t-[#FAFC59] animate-spin mb-6" />
+      <div className="w-12 h-12 rounded-full border-[3px] border-[#FAFC59]/20 border-t-[#FAFC59] animate-spin mb-6" />
 
-      <h2 className="text-[22px] font-bold text-[#fafafa] text-center tracking-tight leading-tight">
-        Criando sua Identidade
-        <br />
-        Magnética...
+      <h2 className="text-[22px] font-bold text-[#fafafa] text-center tracking-tight">
+        Criando sua Identidade<br />Magnética...
       </h2>
-      <p className="text-sm text-[#999] text-center mt-3 max-w-[300px] leading-relaxed">
-        A IA está cruzando seu tom de voz, formato de produção e narrativa para montar um perfil único. Isso leva alguns segundos.
+      <p className="text-sm text-[#999] text-center mt-2 max-w-[280px]">
+        A IA está analisando seu tom de voz, formato e narrativa para criar algo único pra você.
       </p>
 
       {/* Steps */}
-      <div className="mt-8 w-full max-w-xs">
+      <div className="mt-8 w-full max-w-xs space-y-0">
         <StepItem done={steps.voiceDna} active={!steps.voiceDna} label="DNA de Voz calibrado" />
         <StepItem done={steps.format} active={steps.voiceDna && !steps.format} label="Formato sustentável definido" />
         <StepItem done={steps.narrative} active={steps.format && !steps.narrative} label="Narrativa Primária construída" />

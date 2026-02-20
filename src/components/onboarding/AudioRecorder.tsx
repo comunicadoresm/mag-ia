@@ -1,16 +1,17 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Mic, Play, Pause, RotateCcw, Check } from 'lucide-react';
+import { Mic, Square, Play, Pause, RotateCcw, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface AudioRecorderProps {
   onAudioReady: (blob: Blob) => void;
-  maxDuration?: number;
+  maxDuration?: number; // seconds
   disabled?: boolean;
 }
 
 export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: AudioRecorderProps) {
   const [state, setState] = useState<'idle' | 'recording' | 'recorded' | 'playing'>('idle');
   const [duration, setDuration] = useState(0);
-
+  
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -105,89 +106,63 @@ export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: Audi
     };
   }, []);
 
-  // ── IDLE: Start button ──
   if (state === 'idle') {
     return (
-      <div className="flex flex-col items-center gap-3">
-        <button
-          onClick={startRecording}
-          disabled={disabled}
-          className="w-16 h-16 rounded-full bg-[#FAFC59] flex items-center justify-center shadow-[0_0_30px_-5px_rgba(250,252,89,0.4)] hover:bg-[#e8ea40] disabled:opacity-40 transition-all"
-        >
-          <Mic className="w-7 h-7 text-[#141414]" />
-        </button>
-        <p className="text-xs text-[#666]">
-          Toque para gravar (máx. {maxDuration}s)
-        </p>
-      </div>
+      <Button
+        onClick={startRecording}
+        disabled={disabled}
+        className="w-full h-14 gap-3 rounded-2xl bg-primary text-primary-foreground text-base font-semibold"
+      >
+        <Mic className="w-5 h-5" />
+        🎙️ Gravar áudio — máximo {maxDuration / 60} minuto
+      </Button>
     );
   }
 
-  // ── RECORDING: Waveform + Timer + Stop ──
   if (state === 'recording') {
     return (
       <div className="flex flex-col items-center gap-3">
-        {/* Waveform visualization */}
-        <div className="flex items-center justify-center gap-[3px] h-10">
-          {Array.from({ length: 12 }).map((_, i) => (
-            <span
-              key={i}
-              className="w-[3px] rounded-sm bg-[#FAFC59]"
-              style={{
-                height: [12, 24, 36, 20, 30, 16, 28, 22, 34, 14, 26, 18][i],
-                animation: `wave 1.2s ease-in-out ${i * 0.08}s infinite`,
-              }}
-            />
-          ))}
+        <div className="flex items-center gap-3">
+          <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+          <span className="text-lg font-mono font-bold text-foreground">{formatTime(duration)}</span>
+          <span className="text-xs text-muted-foreground">/ {formatTime(maxDuration)}</span>
         </div>
-
-        {/* Timer */}
-        <span className="text-2xl font-bold font-mono text-[#fafafa]">
-          {formatTime(duration)}
-        </span>
-
-        {/* Red stop button */}
-        <button
-          onClick={stopRecording}
-          className="w-14 h-14 rounded-full bg-[#ef4444] flex items-center justify-center hover:bg-[#dc2626] transition-colors"
-        >
-          <div className="w-5 h-5 rounded-sm bg-white" />
-        </button>
-
-        <p className="text-xs text-[#666]">
-          Gravando... toque para parar
-        </p>
+        <div className="w-full bg-muted/30 rounded-full h-2">
+          <div
+            className="bg-red-500 h-2 rounded-full transition-all"
+            style={{ width: `${(duration / maxDuration) * 100}%` }}
+          />
+        </div>
+        <Button onClick={stopRecording} variant="destructive" className="gap-2 rounded-xl">
+          <Square className="w-4 h-4" /> Parar gravação
+        </Button>
       </div>
     );
   }
 
-  // ── RECORDED / PLAYING: Playback controls ──
+  // recorded or playing
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="flex items-center gap-2 text-sm text-[#999]">
-        <span>Áudio gravado</span>
-        <span className="font-mono font-semibold text-[#fafafa]">{formatTime(duration)}</span>
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Áudio gravado</span>
+        <span className="text-sm font-mono font-semibold text-foreground">{formatTime(duration)}</span>
       </div>
       <div className="flex gap-2">
-        <button
+        <Button
+          size="sm"
+          variant="outline"
           onClick={state === 'playing' ? pauseAudio : playAudio}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-white/[0.06] bg-white/[0.03] text-[#fafafa] text-sm hover:bg-white/[0.06] transition-colors"
+          className="gap-1.5 rounded-xl"
         >
           {state === 'playing' ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
           {state === 'playing' ? 'Pausar' : 'Ouvir'}
-        </button>
-        <button
-          onClick={reRecord}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-white/[0.06] bg-white/[0.03] text-[#fafafa] text-sm hover:bg-white/[0.06] transition-colors"
-        >
+        </Button>
+        <Button size="sm" variant="outline" onClick={reRecord} className="gap-1.5 rounded-xl">
           <RotateCcw className="w-4 h-4" /> Regravar
-        </button>
-        <button
-          onClick={confirmAudio}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#FAFC59] text-[#141414] text-sm font-semibold hover:bg-[#e8ea40] transition-colors"
-        >
-          <Check className="w-4 h-4" /> Usar
-        </button>
+        </Button>
+        <Button size="sm" onClick={confirmAudio} className="gap-1.5 rounded-xl">
+          <Check className="w-4 h-4" /> Usar este áudio
+        </Button>
       </div>
     </div>
   );

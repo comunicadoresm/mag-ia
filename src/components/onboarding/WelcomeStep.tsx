@@ -65,68 +65,106 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
   };
 
   return (
-    <div className="flex flex-col px-6 py-7 animate-fade-in">
-      <div className="w-full flex flex-col">
-        {/* Hero */}
-        <div className="text-center mt-10">
-          <div className="text-5xl mb-3">✨</div>
-          <h2 className="text-[26px] font-bold tracking-tight text-[#fafafa] leading-tight">
-            Bem-vindo à
-            <br />
-            <span className="text-[#fafafa]">Magnetic.IA</span>
-          </h2>
-          <p className="text-sm text-[#999] mt-3 max-w-[300px] mx-auto leading-relaxed">
-            Em menos de 10 minutos você vai configurar sua identidade de criador para que a IA escreva conteúdo com a{' '}
-            <strong className="text-[#FAFC59]">sua voz, seu jeito e sua história</strong>.
-          </p>
+    <div
+      className="min-h-screen flex flex-col px-5 py-8 relative overflow-hidden animate-fade-in"
+      style={{
+        background: `
+          radial-gradient(circle at 20% 20%, rgba(250,252,89,0.05) 0%, transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(147,51,234,0.05) 0%, transparent 50%),
+          #0a0a0a
+        `,
+      }}
+    >
+      {/* Hero */}
+      <div className="text-center mt-8 animate-slide-up">
+        <div className="text-5xl mb-2">✨</div>
+        <h2 className="text-2xl font-bold tracking-tight text-[#fafafa]">
+          Bem-vindo à{' '}
+          <span className="text-[#FAFC59]">Magnetic.IA</span>
+        </h2>
+        <p className="text-sm text-[#999] mt-2 max-w-[280px] mx-auto leading-relaxed">
+          Vamos configurar sua identidade para que a IA crie conteúdo com a{' '}
+          <strong className="text-[#FAFC59]">sua voz</strong>.
+        </p>
+      </div>
+
+      {/* Inputs */}
+      <div className="mt-8 space-y-4 animate-slide-up" style={{ animationDelay: '100ms' }}>
+        <div>
+          <label className="text-xs font-semibold text-[#999] mb-1.5 block">
+            Como você quer ser chamado?
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Seu nome..."
+            data-filled={name.trim().length > 0 || undefined}
+            className="
+              w-full py-3.5 px-4
+              bg-white/5 text-[#fafafa]
+              border border-white/[0.06] rounded-xl
+              text-sm placeholder:text-[#666]
+              focus:border-[#FAFC59]/40 focus:outline-none
+              focus:ring-[3px] focus:ring-[#FAFC59]/[0.08]
+              transition-colors duration-200
+              data-[filled]:text-[#fafafa] data-[filled]:border-[#FAFC59]/30
+            "
+          />
         </div>
 
-        {/* Inputs */}
-        <div className="mt-8 space-y-5">
-          <div>
-            <label className="text-xs font-semibold text-[#999] mb-2 block">
-              Como você quer ser chamado? *
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Seu nome"
-              className="w-full py-3.5 px-4 bg-white/[0.05] text-[#fafafa] border border-white/[0.06] rounded-xl text-sm placeholder:text-[#666] focus:border-[#FAFC59]/40 focus:outline-none focus:ring-[3px] focus:ring-[#FAFC59]/[0.08] transition-colors duration-200"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-[#999] mb-2 block">
-              Qual seu @ principal? (Instagram, TikTok...) *
-            </label>
-            <input
-              type="text"
-              value={handle}
-              onChange={(e) => setHandle(e.target.value)}
-              placeholder="@seuarroba_"
-              className="w-full py-3.5 px-4 bg-white/[0.05] text-[#fafafa] border border-white/[0.06] rounded-xl text-sm placeholder:text-[#666] focus:border-[#FAFC59]/40 focus:outline-none focus:ring-[3px] focus:ring-[#FAFC59]/[0.08] transition-colors duration-200"
-            />
-          </div>
+        <div>
+          <label className="text-xs font-semibold text-[#999] mb-1.5 block">
+            Qual seu @ principal? (Instagram, TikTok...)
+          </label>
+          <input
+            type="text"
+            value={handle}
+            onChange={(e) => setHandle(e.target.value)}
+            placeholder="@seuarroba"
+            data-filled={handle.trim().length > 0 || undefined}
+            className="
+              w-full py-3.5 px-4
+              bg-white/5 text-[#fafafa]
+              border border-white/[0.06] rounded-xl
+              text-sm placeholder:text-[#666]
+              focus:border-[#FAFC59]/40 focus:outline-none
+              focus:ring-[3px] focus:ring-[#FAFC59]/[0.08]
+              transition-colors duration-200
+              data-[filled]:text-[#fafafa] data-[filled]:border-[#FAFC59]/30
+            "
+          />
         </div>
+      </div>
 
-        {/* Spacer */}
-        <div className="flex-1" />
+      {/* Spacer */}
+      <div className="flex-1" />
 
-        {/* CTA */}
-        <div className="mt-6 pb-4">
-          <button
-            onClick={handleSubmit}
-            disabled={!canContinue || saving}
-            className="w-full py-4 px-6 bg-[#FAFC59] text-[#141414] rounded-full font-bold text-[15px] shadow-[0_0_40px_-10px_rgba(250,252,89,0.4)] hover:bg-[#e8ea40] hover:-translate-y-0.5 disabled:opacity-40 disabled:shadow-none disabled:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2"
-          >
-            {saving ? (
-              <div className="w-5 h-5 border-2 border-[#141414]/30 border-t-[#141414] rounded-full animate-spin" />
-            ) : (
-              'Começar configuração →'
-            )}
-          </button>
-        </div>
+      {/* CTA */}
+      <div className="mt-6 animate-slide-up" style={{ animationDelay: '200ms' }}>
+        <button
+          onClick={handleSubmit}
+          disabled={!canContinue || saving}
+          className="
+            w-full py-4 px-6
+            bg-[#FAFC59] text-[#141414]
+            rounded-full font-bold text-[15px]
+            shadow-[0_0_40px_-10px_rgba(250,252,89,0.4)]
+            hover:bg-[#e8ea40] hover:-translate-y-0.5
+            disabled:opacity-40 disabled:shadow-none disabled:translate-y-0
+            transition-all duration-200
+            flex items-center justify-center gap-2
+          "
+        >
+          {saving ? (
+            <div className="w-5 h-5 border-2 border-[#141414]/30 border-t-[#141414] rounded-full animate-spin" />
+          ) : (
+            <>Começar configuração →</>
+          )}
+        </button>
+        <p className="text-center text-[11px] text-[#666] mt-2.5">
+          Leva menos de 3 minutos
+        </p>
       </div>
     </div>
   );

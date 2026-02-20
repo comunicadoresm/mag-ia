@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Loader2, CheckCircle } from 'lucide-react';
+import { Loader2, CheckCircle, X, Mic, LayoutGrid, BookOpen, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { AudioRecorder } from './AudioRecorder';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,28 +18,29 @@ interface VoiceDNASetupProps {
 const AUDIO_PROMPTS = [
   {
     key: 'casual',
-    title: 'Áudio 1 de 3 — Tom Casual',
-    why: 'Esse áudio captura como você fala de verdade no dia a dia — sem filtro, sem perfomance.',
-    instruction: 'Imagine que está mandando um áudio no WhatsApp pra um amigo explicando o que você faz de verdade.',
-    example: 'Ex: "Cara, eu ajudo [perfil de cliente] a conseguir [resultado], geralmente através de [método]... e funciona porque..."',
+    title: 'Áudio 1 — Falando com um AMIGO',
+    text: 'Imagina o seguinte: você tá indo encontrar um amigo e aconteceu um perrengue no caminho. Você vai atrasar uns 20 minutos.\n\nGrava um áudio como se tivesse mandando pra ele no WhatsApp — explicando o que aconteceu e que vai chegar atrasado.\n\nFala do jeito que você falaria de verdade. Sem filtro, sem pensar demais. Solta o áudio.',
     field: 'audio_casual_url',
   },
   {
     key: 'professional',
-    title: 'Áudio 2 de 3 — Tom Profissional',
-    why: 'Esse áudio revela como você se posiciona quando há interesse real — seu tom de autoridade natural.',
-    instruction: 'Alguém te mandou uma DM: "Tô pensando em te contratar, mas ainda tô na dúvida." Responda como responderia de verdade.',
-    example: 'Ex: "Entendo a dúvida. Deixa eu te explicar como funciona e por que faz sentido pra você..."',
+    title: 'Áudio 2 — Falando com um CLIENTE/SEGUIDOR',
+    text: 'Agora muda o cenário. Imagina que alguém te mandou uma DM assim:\n\n"Oi, tô pensando em contratar você / comprar seu produto, mas ainda tô na dúvida se é pra mim."\n\nGrava um áudio respondendo essa pessoa. Como você responderia de verdade — no direct, sem roteiro, no improviso.',
     field: 'audio_professional_url',
   },
   {
     key: 'positioning',
-    title: 'Áudio 3 de 3 — Posicionamento',
-    why: 'Esse áudio captura sua convicção e diferencial — o que te faz único e por que você acredita no que faz.',
-    instruction: 'Alguém comentou: "Isso aí não funciona, qualquer um faz isso." Responda o que pensa de verdade.',
-    example: 'Ex: "Entendo quem pensa assim. Mas a realidade que eu vejo no dia a dia é completamente diferente..."',
+    title: 'Áudio 3 — Falando com alguém que DISCORDA',
+    text: 'Último áudio. Esse é o mais gostoso.\n\nImagina que alguém postou nos comentários algo tipo: "Isso aí não funciona, é tudo a mesma coisa, qualquer um faz isso."\n\nGrava um áudio como se fosse responder essa pessoa. Pode ser firme, pode ser irônico, pode ser didático — do jeito que VOCÊ responderia.\n\nNão segura. Fala o que pensa.',
     field: 'audio_positioning_url',
   },
+];
+
+const STEPS = [
+  { id: 'profile',      icon: User,       label: 'Perfil' },
+  { id: 'voice_dna',   icon: Mic,        label: 'DNA de Voz' },
+  { id: 'format_quiz', icon: LayoutGrid, label: 'Formato' },
+  { id: 'narrative',   icon: BookOpen,   label: 'Narrativa' },
 ];
 
 export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) {
@@ -51,6 +54,8 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
   const [score, setScore] = useState(7);
   const [feedback, setFeedback] = useState('');
   const [recalibrating, setRecalibrating] = useState(false);
+
+  const currentOnboardingStep = 1; // voice_dna is index 1
 
   const handleAudioReady = async (blob: Blob) => {
     if (!user) return;
@@ -68,13 +73,16 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
 
       if (uploadError) throw uploadError;
 
+      // Save the storage path (not public URL, since bucket is private)
       const newPaths = { ...uploadedPaths, [prompt.key]: path };
       setUploadedPaths(newPaths);
 
+      // Also save public URL for display purposes
       const { data } = supabase.storage.from('voice-audios').getPublicUrl(path);
       const newUrls = { ...uploadedUrls, [prompt.key]: data.publicUrl };
       setUploadedUrls(newUrls);
 
+      // Save URL to profile for reference
       const upsertData: Record<string, string> = { user_id: user.id, [prompt.field]: data.publicUrl };
       await supabase.from('voice_profiles' as any).upsert(upsertData as any, { onConflict: 'user_id' });
 
@@ -141,225 +149,183 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
     }
   };
 
-  if (!open) return null;
-
   return (
-    <div>
-      <div className="flex flex-col px-6 py-7 max-w-md mx-auto animate-fade-in">
-        {/* Progress bar — 3 segments */}
-        <div className="flex gap-1.5 mb-5">
-          <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]/40" />
-          <div className="flex-1 h-1 rounded-sm bg-white/[0.08]" />
-          <div className="flex-1 h-1 rounded-sm bg-white/[0.08]" />
-        </div>
-
-        {/* Step header */}
-        <div className="flex items-center mb-1">
-          <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-[10px] bg-[#FAFC59]/15 flex items-center justify-center text-lg">
-              🎙️
-            </div>
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#FAFC59]">
-              Etapa 1 · DNA de Voz
-            </span>
-          </div>
-        </div>
-
-        {/* INTRO */}
-        {step === 'intro' && (
-          <>
-            <h2 className="text-2xl font-bold tracking-tight text-[#fafafa] mt-3 leading-tight">
-              Grave 3 áudios curtos
-            </h2>
-            <p className="text-sm text-[#999] mt-2 leading-relaxed">
-              A IA vai analisar seu tom, vocabulário e energia para escrever conteúdo que soa exatamente como você — não como um robô.
-            </p>
-
-            <div className="mt-6 bg-[#1e1e1e] border border-white/[0.06] rounded-2xl p-5">
-              <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-[#FAFC59] mb-2">
-                {AUDIO_PROMPTS[0].title}
+    <Dialog open={open}>
+      <DialogContent
+        className="max-w-md [&>button.absolute]:hidden"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        {/* Progress bar — same as MagneticOnboarding step 1 */}
+        <div className="flex items-center gap-1.5 mb-1">
+          {STEPS.map((s, i) => (
+            <div key={s.id} className="flex-1 flex flex-col items-center gap-1">
+              <div className={cn(
+                'w-full h-1 rounded-full transition-all duration-300',
+                i < currentOnboardingStep ? 'bg-primary' :
+                i === currentOnboardingStep ? 'bg-primary/50' : 'bg-muted'
+              )} />
+              <span className={cn(
+                'text-[10px] font-medium hidden sm:block',
+                i === currentOnboardingStep ? 'text-primary' : 'text-muted-foreground/60'
+              )}>
+                {s.label}
               </span>
-              <p className="text-[11px] text-[#666] mb-3 leading-relaxed">
-                {AUDIO_PROMPTS[0].why}
+            </div>
+          ))}
+        </div>
+
+        {/* Header */}
+        <div className="flex items-start justify-between mt-2">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">
+              {step === 'intro' && '🎤 DNA de Voz'}
+              {step === 'audio' && AUDIO_PROMPTS[audioStep].title}
+              {step === 'uploading' && '⏫ Salvando áudio...'}
+              {step === 'processing' && '⏳ Processando seus áudios...'}
+              {step === 'validation' && '✅ Validação do DNA de Voz'}
+            </h2>
+          </div>
+          <button
+            onClick={onSkip}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors shrink-0 ml-2"
+            title="Configurar depois"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 mt-1">
+          {/* INTRO */}
+          {step === 'intro' && (
+            <>
+              <p className="text-sm text-muted-foreground whitespace-pre-line">
+                {`Agora vem a parte mais importante da sua Magnética.\n\nEu vou te pedir 3 áudios curtinhos — de no máximo 1 minuto cada.\nPode parecer estranho, mas confia: é assim que a IA vai aprender a escrever do SEU jeito, com as SUAS palavras.\n\nNão precisa pensar muito. Não precisa ser bonito.\nQuanto mais natural, melhor.\n\nBora pro primeiro?`}
               </p>
-              <div className="p-3 bg-white/[0.04] rounded-xl border border-white/[0.04]">
-                <p className="text-[12px] font-semibold text-[#fafafa] mb-1">🎙️ Sua instrução:</p>
-                <p className="text-[12px] text-[#ccc] leading-relaxed italic">
-                  "{AUDIO_PROMPTS[0].instruction}"
-                </p>
-              </div>
-              <p className="text-[11px] text-[#555] mt-2 leading-relaxed">
-                {AUDIO_PROMPTS[0].example}
+              <Button onClick={() => setStep('audio')} className="w-full rounded-xl">
+                Começar
+              </Button>
+              <Button variant="ghost" onClick={onSkip} className="w-full rounded-xl text-muted-foreground">
+                Configurar Depois
+              </Button>
+            </>
+          )}
+
+          {/* AUDIO RECORDING */}
+          {step === 'audio' && (
+            <>
+              <p className="text-sm text-muted-foreground whitespace-pre-line">
+                {AUDIO_PROMPTS[audioStep].text}
               </p>
-              {/* Audio wave mock */}
-              <div className="flex items-center justify-center gap-[3px] h-8 mt-4">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <span
+
+              {/* Progress dots */}
+              <div className="flex items-center gap-2">
+                {[0, 1, 2].map(i => (
+                  <div
                     key={i}
-                    className="w-[3px] rounded-sm bg-[#FAFC59]/50"
-                    style={{
-                      height: [12, 24, 36, 20, 30, 16, 28, 22, 34, 14][i],
-                      animation: `wave 1.2s ease-in-out ${i * 0.1}s infinite`,
-                    }}
+                    className={cn(
+                      'h-1.5 flex-1 rounded-full transition-colors',
+                      i < audioStep ? 'bg-primary' : i === audioStep ? 'bg-primary/50' : 'bg-muted'
+                    )}
                   />
                 ))}
               </div>
-            </div>
 
-            <div className="flex-1" />
-
-            <div className="mt-6">
-              <button
-                onClick={() => setStep('audio')}
-                className="w-full py-4 px-6 bg-[#FAFC59] text-[#141414] rounded-full font-bold text-[15px] shadow-[0_0_40px_-10px_rgba(250,252,89,0.4)] hover:bg-[#e8ea40] hover:-translate-y-0.5 transition-all duration-200"
-              >
-                Começar gravação →
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* AUDIO RECORDING */}
-        {step === 'audio' && (
-          <>
-            <h2 className="text-xl font-bold tracking-tight text-[#fafafa] mt-3 leading-tight">
-              {AUDIO_PROMPTS[audioStep].title}
-            </h2>
-
-            {/* Audio step progress */}
-            <div className="flex items-center gap-2 mt-3">
-              {[0, 1, 2].map(i => (
-                <div
-                  key={i}
-                  className={cn(
-                    'h-1 flex-1 rounded-full transition-colors',
-                    i < audioStep ? 'bg-[#FAFC59]' : i === audioStep ? 'bg-[#FAFC59]/40' : 'bg-white/[0.08]'
-                  )}
-                />
-              ))}
-            </div>
-
-            <div className="mt-4 bg-[#1e1e1e] border border-white/[0.06] rounded-2xl p-4">
-              <p className="text-[11px] text-[#666] mb-3 leading-relaxed">
-                {AUDIO_PROMPTS[audioStep].why}
+              <p className="text-xs text-muted-foreground text-center">
+                Áudio {audioStep + 1} de 3 — todos os áudios são obrigatórios
               </p>
-              <div className="p-3 bg-white/[0.04] rounded-xl border border-white/[0.04] mb-3">
-                <p className="text-[12px] font-semibold text-[#fafafa] mb-1">🎙️ Sua instrução:</p>
-                <p className="text-[12px] text-[#ccc] leading-relaxed italic">
-                  "{AUDIO_PROMPTS[audioStep].instruction}"
-                </p>
-              </div>
-              <p className="text-[11px] text-[#555] leading-relaxed mb-4">
-                {AUDIO_PROMPTS[audioStep].example}
-              </p>
+
               <AudioRecorder
                 onAudioReady={handleAudioReady}
                 maxDuration={60}
                 key={audioStep}
               />
-            </div>
+            </>
+          )}
 
-            <p className="text-xs text-[#666] text-center mt-3">
-              Áudio {audioStep + 1} de 3 — todos são obrigatórios
-            </p>
-          </>
-        )}
-
-        {/* UPLOADING */}
-        {step === 'uploading' && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4">
-            <Loader2 className="w-10 h-10 text-[#FAFC59] animate-spin" />
-            <p className="text-sm text-[#999] text-center">
-              Salvando áudio {audioStep + 1}...
-            </p>
-          </div>
-        )}
-
-        {/* PROCESSING */}
-        {step === 'processing' && (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4">
-            <div className="w-12 h-12 rounded-full border-[3px] border-[#FAFC59]/20 border-t-[#FAFC59] animate-spin" />
-            <p className="text-sm text-[#999] text-center">
-              Analisando seu tom de voz com IA...
-            </p>
-            <p className="text-xs text-[#666] text-center">
-              Isso pode levar até 1 minuto
-            </p>
-          </div>
-        )}
-
-        {/* VALIDATION */}
-        {step === 'validation' && (
-          <>
-            <h2 className="text-2xl font-bold tracking-tight text-[#fafafa] mt-3 leading-tight">
-              ✅ Validação do DNA de Voz
-            </h2>
-            <p className="text-sm text-[#999] mt-2 leading-relaxed">
-              Aqui está um parágrafo escrito com o seu tom de voz. Leia e avalie de 1 a 10:
-            </p>
-
-            <div className="mt-4 bg-[#292929] border border-white/[0.06] rounded-2xl p-5">
-              <p className="text-sm text-[#fafafa] italic leading-relaxed">
-                "{validationText}"
+          {/* UPLOADING */}
+          {step === 'uploading' && (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <Loader2 className="w-10 h-10 text-primary animate-spin" />
+              <p className="text-sm text-muted-foreground text-center">
+                Salvando áudio {audioStep + 1}...
               </p>
             </div>
+          )}
 
-            <div className="mt-4 space-y-3">
-              <p className="text-sm font-medium text-[#fafafa]">Qual nota você dá? (1-10)</p>
-              <div className="flex gap-1">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
-                  <button
-                    key={n}
-                    onClick={() => setScore(n)}
-                    className={cn(
-                      'w-8 h-8 rounded-lg text-xs font-bold transition-colors',
-                      n <= score
-                        ? 'bg-[#FAFC59] text-[#141414]'
-                        : 'bg-white/[0.06] text-[#666] hover:bg-white/[0.1]'
-                    )}
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
+          {/* PROCESSING */}
+          {step === 'processing' && (
+            <div className="flex flex-col items-center gap-4 py-8">
+              <Loader2 className="w-10 h-10 text-primary animate-spin" />
+              <p className="text-sm text-muted-foreground text-center">
+                Analisando seu tom de voz com IA...
+              </p>
+              <p className="text-xs text-muted-foreground text-center">
+                Isso pode levar até 1 minuto
+              </p>
             </div>
+          )}
 
-            {score < 7 && (
-              <div className="mt-3">
-                <p className="text-sm text-[#999] mb-1">O que soou estranho?</p>
-                <Textarea
-                  value={feedback}
-                  onChange={(e) => setFeedback(e.target.value)}
-                  placeholder="Ex: não uso essas palavras, meu tom é mais direto..."
-                  className="rounded-xl bg-white/[0.05] border-white/[0.06] text-[#fafafa] placeholder:text-[#666]"
-                  rows={3}
-                />
+          {/* VALIDATION */}
+          {step === 'validation' && (
+            <>
+              <p className="text-sm text-muted-foreground mb-2">
+                Aqui está um parágrafo escrito com o seu tom de voz. Leia e avalie de 1 a 10:
+              </p>
+              <div className="bg-muted/30 border border-border/30 rounded-xl p-4 text-sm text-foreground italic">
+                "{validationText}"
               </div>
-            )}
 
-            <div className="flex-1" />
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Qual nota você dá? (1-10)</p>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setScore(n)}
+                      className={cn(
+                        'w-8 h-8 rounded-lg text-xs font-bold transition-colors',
+                        n <= score
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                      )}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-            <div className="mt-6">
-              <button
+              {score < 7 && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">O que soou estranho?</p>
+                  <Textarea
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    placeholder="Ex: não uso essas palavras, meu tom é mais direto..."
+                    className="rounded-xl bg-muted/30 border-border/30"
+                    rows={3}
+                  />
+                </div>
+              )}
+
+              <Button
                 onClick={handleValidation}
                 disabled={recalibrating}
-                className="w-full py-4 px-6 bg-[#FAFC59] text-[#141414] rounded-full font-bold text-[15px] shadow-[0_0_40px_-10px_rgba(250,252,89,0.4)] hover:bg-[#e8ea40] hover:-translate-y-0.5 disabled:opacity-40 disabled:shadow-none disabled:translate-y-0 transition-all duration-200 flex items-center justify-center gap-2"
+                className="w-full rounded-xl"
               >
                 {recalibrating ? (
-                  <div className="w-5 h-5 border-2 border-[#141414]/30 border-t-[#141414] rounded-full animate-spin" />
+                  <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Recalibrando...</>
                 ) : score >= 7 ? (
-                  <>
-                    <CheckCircle className="w-4 h-4" />
-                    Aprovar e continuar
-                  </>
+                  <><CheckCircle className="w-4 h-4 mr-2" /> Aprovar e continuar</>
                 ) : (
                   'Recalibrar DNA'
                 )}
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+              </Button>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

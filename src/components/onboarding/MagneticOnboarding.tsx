@@ -13,7 +13,6 @@ import { toast } from 'sonner';
 
 interface MagneticOnboardingProps {
   onboardingStep: string;
-  onClose?: () => void;
 }
 
 export type OnboardingStep = 'basic_info' | 'voice_dna' | 'format_quiz' | 'narrative' | 'processing' | 'first_script' | 'completed';
@@ -37,25 +36,7 @@ interface GeneratedScript {
   };
 }
 
-// Wrapper de popup reutilizável
-function OnboardingPopup({ children, scrollable = false }: { children: React.ReactNode; scrollable?: boolean }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)' }}>
-      <div
-        className={`relative w-full max-w-md rounded-3xl shadow-2xl ${scrollable ? 'max-h-[88vh] flex flex-col overflow-hidden' : ''}`}
-        style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.07)' }}
-      >
-        {scrollable ? (
-          <div className="overflow-y-auto flex-1">{children}</div>
-        ) : (
-          children
-        )}
-      </div>
-    </div>
-  );
-}
-
-export function MagneticOnboarding({ onboardingStep, onClose }: MagneticOnboardingProps) {
+export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) {
   const { user, refreshProfile } = useAuth();
   const { planType } = usePlanPermissions();
   const [currentStep, setCurrentStep] = useState<string>(onboardingStep);
@@ -65,8 +46,10 @@ export function MagneticOnboarding({ onboardingStep, onClose }: MagneticOnboardi
 
   const isMagnetic = ['magnetic', 'magnetic_pro', 'magnetico', 'magnetico_pro'].includes(planType);
 
+  // Called when processing animation finishes — fetch suggestion from API
   const handleProcessingComplete = useCallback(async () => {
     if (!user) return;
+
     try {
       const { data, error } = await supabase.functions.invoke('generate-first-script', {
         body: { user_id: user.id, action: 'suggest' },
@@ -77,36 +60,51 @@ export function MagneticOnboarding({ onboardingStep, onClose }: MagneticOnboardi
     } catch (err) {
       console.error('Suggest error:', err);
       toast.error('Erro ao gerar sugestão. Você pode criar seu primeiro roteiro no Kanban.');
+      // Skip to completed
       if (user) {
-        await supabase.from('profiles').update({ onboarding_step: 'completed', has_completed_setup: true } as any).eq('id', user.id);
+        await supabase
+          .from('profiles')
+          .update({ onboarding_step: 'completed', has_completed_setup: true } as any)
+          .eq('id', user.id);
         await refreshProfile();
         setCurrentStep('completed');
       }
     }
   }, [user, refreshProfile]);
 
-  // Se veio de fora (onClose existe), o "completed" deve fechar sem alterar perfil
-  if (!isMagnetic && !onClose) return null;
-  if (currentStep === 'completed') {
-    if (onClose) onClose();
-    return null;
-  }
+  if (!isMagnetic || currentStep === 'completed') return null;
 
   const goToStep = async (nextStep: string) => {
     if (!user) return;
-    if (nextStep === 'completed') {
-      if (onClose) { onClose(); return; }
-    }
+
+    // 'processing' is transient — don't save to DB
     if (nextStep !== 'processing') {
-      await supabase.from('profiles').update({ onboarding_step: nextStep } as any).eq('id', user.id);
+      await supabase
+        .from('profiles')
+        .update({ onboarding_step: nextStep } as any)
+        .eq('id', user.id);
       await refreshProfile();
     }
+
     setCurrentStep(nextStep);
   };
+
+  const handleSkipAll = async () => {
+    if (!user) return;
+    await supabase
+      .from('profiles')
+      .update({ onboarding_step: 'completed', has_completed_setup: true } as any)
+      .eq('id', user.id);
+    await refreshProfile();
+    setCurrentStep('completed');
+    toast.info('Você pode configurar tudo depois em Perfil > Identidade Magnética.');
+  };
+
 
   const handleGenerate = async () => {
     if (!user || !suggestion) return;
     setGenerating(true);
+
     try {
       const { data, error } = await supabase.functions.invoke('generate-first-script', {
         body: { user_id: user.id, action: 'generate', suggestion },
@@ -124,71 +122,97 @@ export function MagneticOnboarding({ onboardingStep, onClose }: MagneticOnboardi
 
   const handleGoToKanban = async () => {
     await goToStep('completed');
-    await supabase.from('profiles').update({ has_completed_setup: true } as any).eq('id', user!.id);
+    await supabase
+      .from('profiles')
+      .update({ has_completed_setup: true } as any)
+      .eq('id', user!.id);
     window.location.href = '/kanban';
   };
 
   const handleGoToHome = async () => {
     await goToStep('completed');
-    await supabase.from('profiles').update({ has_completed_setup: true } as any).eq('id', user!.id);
+    await supabase
+      .from('profiles')
+      .update({ has_completed_setup: true } as any)
+      .eq('id', user!.id);
   };
 
+  // ═══ TELA 1: BOAS-VINDAS ═══
   if (currentStep === 'basic_info') {
     return (
-      <OnboardingPopup>
+      <div className="fixed inset-0 z-50">
         <WelcomeStep onNext={() => goToStep('voice_dna')} />
-      </OnboardingPopup>
+      </div>
     );
   }
 
+  // ═══ TELA 2: VOICE DNA ═══
   if (currentStep === 'voice_dna') {
-    const onDone = onClose ? onClose : () => goToStep('format_quiz');
     return (
-      <OnboardingPopup scrollable>
-        <VoiceDNASetup open={true} onComplete={onDone} onSkip={onDone} />
-      </OnboardingPopup>
+      <VoiceDNASetup
+        open={true}
+        onComplete={() => goToStep('format_quiz')}
+        onSkip={() => goToStep('format_quiz')}
+      />
     );
   }
 
+  // ═══ TELA 3: FORMAT QUIZ ═══
   if (currentStep === 'format_quiz') {
-    const onDone = onClose ? onClose : () => goToStep('narrative');
     return (
-      <OnboardingPopup scrollable>
-        <FormatQuizSetup open={true} onComplete={onDone} onSkip={onDone} />
-      </OnboardingPopup>
+      <FormatQuizSetup
+        open={true}
+        onComplete={() => goToStep('narrative')}
+        onSkip={() => goToStep('narrative')}
+      />
     );
   }
 
+  // ═══ TELA 4: NARRATIVA ═══
   if (currentStep === 'narrative') {
-    const onDone = onClose ? onClose : () => goToStep('processing');
     return (
-      <OnboardingPopup scrollable>
-        <NarrativeSetup open={true} onComplete={onDone} onSkip={onDone} />
-      </OnboardingPopup>
+      <NarrativeSetup
+        open={true}
+        onComplete={() => goToStep('processing')}
+        onSkip={() => goToStep('processing')}
+      />
     );
   }
 
+  // ═══ TELA 5: PROCESSING ═══
   if (currentStep === 'processing') {
     return (
-      <OnboardingPopup>
+      <div className="fixed inset-0 z-50">
         <ProcessingStep onComplete={handleProcessingComplete} />
-      </OnboardingPopup>
+      </div>
     );
   }
 
+  // ═══ TELA 6: SUGGESTION ═══
   if (currentStep === 'first_script' && suggestion) {
     return (
-      <OnboardingPopup scrollable>
-        <FirstScriptSuggestion suggestion={suggestion} onGenerate={handleGenerate} onSkip={handleGoToHome} generating={generating} />
-      </OnboardingPopup>
+      <div className="fixed inset-0 z-50">
+        <FirstScriptSuggestion
+          suggestion={suggestion}
+          onGenerate={handleGenerate}
+          onSkip={handleGoToHome}
+          generating={generating}
+        />
+      </div>
     );
   }
 
+  // ═══ TELA 7: SCRIPT RESULT ═══
   if (currentStep === 'script_result' && generatedScript) {
     return (
-      <OnboardingPopup scrollable>
-        <FirstScriptResult script={generatedScript} suggestion={suggestion} onGoToKanban={handleGoToKanban} onGoToHome={handleGoToHome} />
-      </OnboardingPopup>
+      <div className="fixed inset-0 z-50 overflow-auto" style={{ background: '#0a0a0a' }}>
+        <FirstScriptResult
+          script={generatedScript}
+          suggestion={suggestion}
+          onGoToKanban={handleGoToKanban}
+          onGoToHome={handleGoToHome}
+        />
+      </div>
     );
   }
 

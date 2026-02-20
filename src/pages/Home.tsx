@@ -247,8 +247,6 @@ export default function Home() {
   const [identity, setIdentity] = useState({ voiceDna: false, narrative: false, formatProfile: false });
   const [agentCount, setAgentCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState<string>('voice_dna');
 
   const greeting = useMemo(() => greetings[Math.floor(Math.random() * greetings.length)], []);
 
@@ -297,35 +295,13 @@ export default function Home() {
 
   const firstName = profile?.name?.split(' ')[0] || 'você';
 
-  // Detecta qual etapa está pendente para abrir o onboarding de onde parou
-  const handleOpenOnboarding = () => {
-    if (!identity.voiceDna) {
-      setOnboardingStep('voice_dna');
-    } else if (!identity.formatProfile) {
-      setOnboardingStep('format_quiz');
-    } else if (!identity.narrative) {
-      setOnboardingStep('narrative');
-    } else {
-      setOnboardingStep('voice_dna');
-    }
-    setShowOnboarding(true);
-  };
-
   return (
     <AppLayout>
-      {/* ── Onboarding wizard automático (primeiro acesso) ── */}
+      {/* ── Onboarding wizard ── */}
       {profile?.onboarding_step &&
-        profile.onboarding_step !== 'completed' && !showOnboarding && (
+        profile.onboarding_step !== 'completed' && (
           <MagneticOnboarding onboardingStep={profile.onboarding_step} />
         )}
-
-      {/* ── Onboarding aberto manualmente (continuar configuração) ── */}
-      {showOnboarding && (
-        <MagneticOnboarding
-          onboardingStep={onboardingStep}
-          onClose={() => setShowOnboarding(false)}
-        />
-      )}
 
       {/* ── Content (mesmo padrão do Kanban) ── */}
       <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
@@ -401,7 +377,7 @@ export default function Home() {
                 voiceDna={identity.voiceDna}
                 narrative={identity.narrative}
                 formatProfile={identity.formatProfile}
-                onComplete={handleOpenOnboarding}
+                onComplete={() => navigate('/profile')}
                 onView={() => navigate('/profile')}
               />
             )}
