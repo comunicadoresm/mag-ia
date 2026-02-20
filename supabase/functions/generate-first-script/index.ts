@@ -165,15 +165,40 @@ REGRAS PARA O TEXTO:
       const response = await callLLM(provider, model, apiKey, generatePrompt);
       const script = JSON.parse(response);
 
-      // Save to user_scripts
+      // Convert nested script_content to flat Record<string, string> for Kanban
+      // Kanban expects: { hook: "text", d1: "text", d2: "text", cta: "text" }
+      const flatContent: Record<string, string> = {};
+      const parts = ['inicio', 'desenvolvimento', 'final'] as const;
+      for (const part of parts) {
+        const sections = script.script_content?.[part]?.sections || [];
+        for (const section of sections) {
+          if (section.id && section.content) {
+            flatContent[section.id] = section.content;
+          }
+        }
+      }
+
+      // Map format label to Kanban value
+      const formatMap: Record<string, string> = {
+        'falado p/ câmera': 'falado_camera',
+        'falado para câmera': 'falado_camera',
+        'voice over': 'voice_over',
+        'texto na tela': 'texto_tela',
+        'misto': 'misto',
+      };
+      const formatKey = (suggestion.format || '').toLowerCase();
+      const kanbanFormat = formatMap[formatKey] || 'falado_camera';
+
+      // Save to user_scripts in flat format
       await supabase.from("user_scripts").insert({
         user_id,
         title: script.title,
         theme: suggestion.title,
         style: suggestion.style,
-        format: suggestion.format === "Falado p/ câmera" ? "falado_camera" : "misto",
+        format: kanbanFormat,
+        objective: 'attraction',
         status: "scripting",
-        script_content: script.script_content,
+        script_content: flatContent,
       });
 
       return new Response(
