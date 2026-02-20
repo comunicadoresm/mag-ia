@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Loader2, CheckCircle, X, Mic, LayoutGrid, BookOpen, User } from 'lucide-react';
+import { Loader2, CheckCircle, Mic, LayoutGrid, BookOpen, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
@@ -176,23 +176,14 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
         </div>
 
         {/* Header */}
-        <div className="flex items-start justify-between mt-2">
-          <div>
-            <h2 className="text-lg font-bold text-foreground">
-              {step === 'intro' && '🎤 DNA de Voz'}
-              {step === 'audio' && AUDIO_PROMPTS[audioStep].title}
-              {step === 'uploading' && '⏫ Salvando áudio...'}
-              {step === 'processing' && '⏳ Processando seus áudios...'}
-              {step === 'validation' && '✅ Validação do DNA de Voz'}
-            </h2>
-          </div>
-          <button
-            onClick={onSkip}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors shrink-0 ml-2"
-            title="Configurar depois"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        <div className="mt-2">
+          <h2 className="text-lg font-bold text-foreground">
+            {step === 'intro' && '🎤 DNA de Voz'}
+            {step === 'audio' && AUDIO_PROMPTS[audioStep].title}
+            {step === 'uploading' && '⏫ Salvando áudio...'}
+            {step === 'processing' && '⏳ Processando seus áudios...'}
+            {step === 'validation' && '✅ Validação do DNA de Voz'}
+          </h2>
         </div>
 
         <div className="space-y-4 mt-1">
@@ -204,9 +195,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
               </p>
               <Button onClick={() => setStep('audio')} className="w-full rounded-xl">
                 Começar
-              </Button>
-              <Button variant="ghost" onClick={onSkip} className="w-full rounded-xl text-muted-foreground">
-                Configurar Depois
               </Button>
             </>
           )}

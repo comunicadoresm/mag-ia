@@ -248,13 +248,6 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
             <Zap className="w-5 h-5" />
             Gerar meu primeiro roteiro
           </Button>
-          <Button
-            variant="ghost"
-            onClick={onSkip}
-            className="w-full rounded-xl text-sm text-muted-foreground"
-          >
-            Ir para o início (gerar depois)
-          </Button>
         </div>
       </div>
     );
