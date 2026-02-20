@@ -87,54 +87,58 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
   };
 
   const handleNext = async () => {
+    if (!selectedValue) return;
+
     if (currentQ < QUESTIONS.length - 1) {
       setCurrentQ(prev => prev + 1);
-    } else {
-      // Last question — calculate and save
-      setSaving(true);
-      try {
-        let totalScore = 0;
-        QUESTIONS.forEach(question => {
-          const answer = answers[question.id];
-          const opt = question.options.find(o => o.value === answer);
-          totalScore += opt?.score || 0;
-        });
+      return;
+    }
 
-        let format: 'low_fi' | 'mid_fi' | 'hi_fi';
-        if (answers.experience === 'never' || totalScore <= 6) format = 'low_fi';
-        else if (totalScore <= 12) format = 'mid_fi';
-        else format = 'hi_fi';
+    // Last question — use latest answers (includes current selection already via selectedValue)
+    const finalAnswers = { ...answers, [q.id]: selectedValue };
+    setSaving(true);
+    try {
+      let totalScore = 0;
+      QUESTIONS.forEach(question => {
+        const answer = finalAnswers[question.id];
+        const opt = question.options.find(o => o.value === answer);
+        totalScore += opt?.score || 0;
+      });
 
-        const freq = answers.desired_frequency;
-        const daysPerWeek = freq === '1_to_2' ? 2 : freq === '3_to_4' ? 4 : freq === '5_to_7' ? 5 : 7;
-        const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].slice(0, daysPerWeek);
-        const suggestions: Record<string, string[]> = {
-          low_fi: ['Opinião Direta', 'Dica Rápida', 'Resposta de DM', 'Bastidores', 'Lista Rápida'],
-          mid_fi: ['Case + Lição', 'Storytelling', 'Tutorial', 'Análise', 'Entrevista'],
-          hi_fi: ['Documentário', 'Série', 'Produção Completa', 'Vlog Editado', 'Case Premium'],
-        };
-        const plan = days.map((day, i) => {
-          let dayFormat = format;
-          if ((format === 'mid_fi' || format === 'hi_fi') && i % 2 === 0 && i < days.length - 1) dayFormat = 'low_fi';
-          const sugs = suggestions[dayFormat];
-          return { day, format: dayFormat, suggestion: sugs[i % sugs.length], time: dayFormat === 'low_fi' ? '15 min' : dayFormat === 'mid_fi' ? '40 min' : '2h+' };
-        });
+      let format: 'low_fi' | 'mid_fi' | 'hi_fi';
+      if (finalAnswers.experience === 'never' || totalScore <= 6) format = 'low_fi';
+      else if (totalScore <= 12) format = 'mid_fi';
+      else format = 'hi_fi';
 
-        await supabase.from('user_format_profile' as any).upsert({
-          user_id: user!.id,
-          recommended_format: format,
-          quiz_answers: answers,
-          quiz_score: totalScore,
-          weekly_plan: plan,
-        } as any, { onConflict: 'user_id' });
+      const freq = finalAnswers.desired_frequency;
+      const daysPerWeek = freq === '1_to_2' ? 2 : freq === '3_to_4' ? 4 : freq === '5_to_7' ? 5 : 7;
+      const days = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'].slice(0, daysPerWeek);
+      const suggestions: Record<string, string[]> = {
+        low_fi: ['Opinião Direta', 'Dica Rápida', 'Resposta de DM', 'Bastidores', 'Lista Rápida'],
+        mid_fi: ['Case + Lição', 'Storytelling', 'Tutorial', 'Análise', 'Entrevista'],
+        hi_fi: ['Documentário', 'Série', 'Produção Completa', 'Vlog Editado', 'Case Premium'],
+      };
+      const plan = days.map((day, i) => {
+        let dayFormat = format;
+        if ((format === 'mid_fi' || format === 'hi_fi') && i % 2 === 0 && i < days.length - 1) dayFormat = 'low_fi';
+        const sugs = suggestions[dayFormat];
+        return { day, format: dayFormat, suggestion: sugs[i % sugs.length], time: dayFormat === 'low_fi' ? '15 min' : dayFormat === 'mid_fi' ? '40 min' : '2h+' };
+      });
 
-        onComplete();
-      } catch (err) {
-        console.error('Save format error:', err);
-        toast.error('Erro ao salvar resultado');
-      } finally {
-        setSaving(false);
-      }
+      await supabase.from('user_format_profile' as any).upsert({
+        user_id: user!.id,
+        recommended_format: format,
+        quiz_answers: finalAnswers,
+        quiz_score: totalScore,
+        weekly_plan: plan,
+      } as any, { onConflict: 'user_id' });
+
+      onComplete();
+    } catch (err) {
+      console.error('Save format error:', err);
+      toast.error('Erro ao salvar resultado');
+    } finally {
+      setSaving(false);
     }
   };
 
