@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Plus, Trash2, Save, X, Sparkles, LayoutGrid, List, Pencil } from 'lucide-react';
+import { Loader2, Plus, Trash2, Save, X, Sparkles, LayoutGrid, List, Pencil, ArrowUp, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -37,6 +37,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Agent } from '@/types';
@@ -102,6 +103,8 @@ export function ScriptTemplateManagement({ agents }: ScriptTemplateManagementPro
   const [deleteTemplate, setDeleteTemplate] = useState<ScriptTemplate | null>(null);
   const [formData, setFormData] = useState<TemplateFormData>(defaultFormData);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectionMode = selectedIds.size > 0;
   
   // Dynamic options from database
   const [styles, setStyles] = useState<ScriptStyle[]>([]);
@@ -312,6 +315,45 @@ export function ScriptTemplateManagement({ agents }: ScriptTemplateManagementPro
     return found || { value: 'attraction', label: 'Atração', color: '#EF4444' };
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === templates.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(templates.map((t) => t.id)));
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const moveSelected = async (direction: 'up' | 'down') => {
+    const ordered = [...templates];
+    const selectedIndices = ordered
+      .map((t, i) => (selectedIds.has(t.id) ? i : -1))
+      .filter((i) => i !== -1)
+      .sort((a, b) => (direction === 'up' ? a - b : b - a));
+
+    for (const idx of selectedIndices) {
+      const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (targetIdx < 0 || targetIdx >= ordered.length) continue;
+      if (selectedIds.has(ordered[targetIdx].id)) continue;
+      [ordered[idx], ordered[targetIdx]] = [ordered[targetIdx], ordered[idx]];
+    }
+
+    setTemplates(ordered);
+    try {
+      await Promise.all(ordered.map((t, i) => supabase.from('script_templates').update({ display_order: i }).eq('id', t.id)));
+      toast({ title: 'Ordem atualizada' });
+    } catch {
+      toast({ title: 'Erro ao salvar ordem', variant: 'destructive' });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -360,68 +402,103 @@ export function ScriptTemplateManagement({ agents }: ScriptTemplateManagementPro
           <Button onClick={() => handleOpenForm()}>Criar primeiro template</Button>
         </div>
       ) : viewMode === 'list' ? (
-        <div className="grid gap-3">
-          {templates.map((template) => {
-            const objectiveInfo = getObjectiveInfo(template.objective);
-            return (
-              <div
-                key={template.id}
-                className="bg-card border border-border rounded-xl p-4 flex items-center gap-4"
-              >
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-2xl shrink-0">
-                  <Sparkles className="w-5 h-5 text-primary" />
-                </div>
+        <div className="space-y-3">
+          {/* Bulk selection toolbar */}
+          <div className="flex items-center gap-2 min-h-[40px]">
+            <Checkbox
+              checked={templates.length > 0 && selectedIds.size === templates.length}
+              onCheckedChange={selectAll}
+            />
+            <span className="text-sm text-muted-foreground">
+              {selectionMode ? `${selectedIds.size} selecionado${selectedIds.size > 1 ? 's' : ''}` : 'Selecionar'}
+            </span>
+            {selectionMode && (
+              <>
+                <Button variant="outline" size="sm" className="gap-1 ml-2" onClick={() => moveSelected('up')}>
+                  <ArrowUp className="w-4 h-4" /> Subir
+                </Button>
+                <Button variant="outline" size="sm" className="gap-1" onClick={() => moveSelected('down')}>
+                  <ArrowDown className="w-4 h-4" /> Descer
+                </Button>
+                <Button variant="ghost" size="sm" className="gap-1 ml-auto" onClick={clearSelection}>
+                  <X className="w-4 h-4" /> Limpar
+                </Button>
+              </>
+            )}
+          </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <h3 className="font-semibold text-foreground">{template.title}</h3>
-                    {!template.is_active && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                        Inativo
-                      </span>
+          <div className="grid gap-3">
+            {templates.map((template) => {
+              const objectiveInfo = getObjectiveInfo(template.objective);
+              const isSelected = selectedIds.has(template.id);
+              return (
+                <div
+                  key={template.id}
+                  className={`bg-card border rounded-xl p-4 flex items-center gap-4 transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'border-border'}`}
+                >
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={() => toggleSelect(template.id)}
+                    className="shrink-0"
+                  />
+
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-2xl shrink-0">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                  </div>
+
+                  <div className="flex-1 min-w-0" onClick={() => selectionMode && toggleSelect(template.id)} role={selectionMode ? 'button' : undefined}>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className="font-semibold text-foreground">{template.title}</h3>
+                      {!template.is_active && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          Inativo
+                        </span>
+                      )}
+                    </div>
+                    {template.theme && (
+                      <p className="text-sm text-muted-foreground truncate">
+                        Tema: {template.theme}
+                      </p>
                     )}
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      <span className="text-xs px-2 py-0.5 rounded-full border border-border text-muted-foreground">
+                        {getStyleLabel(template.style)}
+                      </span>
+                      <span
+                        className="text-xs px-2 py-0.5 rounded-full border"
+                        style={{ borderColor: objectiveInfo.color, color: objectiveInfo.color }}
+                      >
+                        {objectiveInfo.label}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {getAgentName(template.agent_id)}
+                      </span>
+                    </div>
                   </div>
-                  {template.theme && (
-                    <p className="text-sm text-muted-foreground truncate">
-                      Tema: {template.theme}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className="text-xs px-2 py-0.5 rounded-full border border-border text-muted-foreground">
-                      {getStyleLabel(template.style)}
-                    </span>
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full border"
-                      style={{ borderColor: objectiveInfo.color, color: objectiveInfo.color }}
-                    >
-                      {objectiveInfo.label}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {getAgentName(template.agent_id)}
-                    </span>
-                  </div>
-                </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleOpenForm(template)}
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => setDeleteTemplate(template)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {!selectionMode && (
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleOpenForm(template)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => setDeleteTemplate(template)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
