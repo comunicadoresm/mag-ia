@@ -17,19 +17,25 @@ const AUDIO_PROMPTS = [
   {
     key: 'casual',
     title: 'Áudio 1 de 3 — Tom Casual',
-    text: '"Imagine que está mandando um áudio no WhatsApp pra um amigo explicando o que você faz de verdade."',
+    why: 'Esse áudio captura como você fala de verdade no dia a dia — sem filtro, sem perfomance.',
+    instruction: 'Imagine que está mandando um áudio no WhatsApp pra um amigo explicando o que você faz de verdade.',
+    example: 'Ex: "Cara, eu ajudo [perfil de cliente] a conseguir [resultado], geralmente através de [método]... e funciona porque..."',
     field: 'audio_casual_url',
   },
   {
     key: 'professional',
     title: 'Áudio 2 de 3 — Tom Profissional',
-    text: '"Alguém te mandou uma DM: \'Tô pensando em te contratar, mas ainda tô na dúvida.\' Responda como responderia de verdade."',
+    why: 'Esse áudio revela como você se posiciona quando há interesse real — seu tom de autoridade natural.',
+    instruction: 'Alguém te mandou uma DM: "Tô pensando em te contratar, mas ainda tô na dúvida." Responda como responderia de verdade.',
+    example: 'Ex: "Entendo a dúvida. Deixa eu te explicar como funciona e por que faz sentido pra você..."',
     field: 'audio_professional_url',
   },
   {
     key: 'positioning',
     title: 'Áudio 3 de 3 — Posicionamento',
-    text: '"Alguém comentou: \'Isso aí não funciona, qualquer um faz isso.\' Responda o que pensa."',
+    why: 'Esse áudio captura sua convicção e diferencial — o que te faz único e por que você acredita no que faz.',
+    instruction: 'Alguém comentou: "Isso aí não funciona, qualquer um faz isso." Responda o que pensa de verdade.',
+    example: 'Ex: "Entendo quem pensa assim. Mas a realidade que eu vejo no dia a dia é completamente diferente..."',
     field: 'audio_positioning_url',
   },
 ];
@@ -169,21 +175,28 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
               A IA vai analisar seu tom, vocabulário e energia para escrever conteúdo que soa exatamente como você — não como um robô.
             </p>
 
-            <div className="mt-6 bg-[#292929] border border-white/[0.06] rounded-2xl p-5 text-center">
-              <p className="text-[11px] font-semibold text-[#FAFC59] uppercase tracking-wider">
+            <div className="mt-6 bg-[#1e1e1e] border border-white/[0.06] rounded-2xl p-5">
+              <span className="inline-block text-[10px] font-bold uppercase tracking-wider text-[#FAFC59] mb-2">
                 {AUDIO_PROMPTS[0].title}
+              </span>
+              <p className="text-[11px] text-[#666] mb-3 leading-relaxed">
+                {AUDIO_PROMPTS[0].why}
               </p>
-              <div className="mt-3 p-3 bg-white/[0.03] rounded-[10px] text-left">
-                <p className="text-[13px] text-[#999] leading-relaxed">
-                  {AUDIO_PROMPTS[0].text}
+              <div className="p-3 bg-white/[0.04] rounded-xl border border-white/[0.04]">
+                <p className="text-[12px] font-semibold text-[#fafafa] mb-1">🎙️ Sua instrução:</p>
+                <p className="text-[12px] text-[#ccc] leading-relaxed italic">
+                  "{AUDIO_PROMPTS[0].instruction}"
                 </p>
               </div>
+              <p className="text-[11px] text-[#555] mt-2 leading-relaxed">
+                {AUDIO_PROMPTS[0].example}
+              </p>
               {/* Audio wave mock */}
-              <div className="flex items-center justify-center gap-[3px] h-10 my-3">
+              <div className="flex items-center justify-center gap-[3px] h-8 mt-4">
                 {Array.from({ length: 10 }).map((_, i) => (
                   <span
                     key={i}
-                    className="w-[3px] rounded-sm bg-[#FAFC59]"
+                    className="w-[3px] rounded-sm bg-[#FAFC59]/50"
                     style={{
                       height: [12, 24, 36, 20, 30, 16, 28, 22, 34, 14][i],
                       animation: `wave 1.2s ease-in-out ${i * 0.1}s infinite`,
@@ -209,7 +222,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
         {/* AUDIO RECORDING */}
         {step === 'audio' && (
           <>
-            <h2 className="text-2xl font-bold tracking-tight text-[#fafafa] mt-3 leading-tight">
+            <h2 className="text-xl font-bold tracking-tight text-[#fafafa] mt-3 leading-tight">
               {AUDIO_PROMPTS[audioStep].title}
             </h2>
 
@@ -226,13 +239,19 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
               ))}
             </div>
 
-            <div className="mt-5 bg-[#292929] border border-white/[0.06] rounded-2xl p-5">
-              <div className="p-3 bg-white/[0.03] rounded-[10px] text-left mb-4">
-                <p className="text-[13px] text-[#999] leading-relaxed">
-                  {AUDIO_PROMPTS[audioStep].text}
+            <div className="mt-4 bg-[#1e1e1e] border border-white/[0.06] rounded-2xl p-4">
+              <p className="text-[11px] text-[#666] mb-3 leading-relaxed">
+                {AUDIO_PROMPTS[audioStep].why}
+              </p>
+              <div className="p-3 bg-white/[0.04] rounded-xl border border-white/[0.04] mb-3">
+                <p className="text-[12px] font-semibold text-[#fafafa] mb-1">🎙️ Sua instrução:</p>
+                <p className="text-[12px] text-[#ccc] leading-relaxed italic">
+                  "{AUDIO_PROMPTS[audioStep].instruction}"
                 </p>
               </div>
-
+              <p className="text-[11px] text-[#555] leading-relaxed mb-4">
+                {AUDIO_PROMPTS[audioStep].example}
+              </p>
               <AudioRecorder
                 onAudioReady={handleAudioReady}
                 maxDuration={60}
@@ -241,7 +260,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
             </div>
 
             <p className="text-xs text-[#666] text-center mt-3">
-              Áudio {audioStep + 1} de 3 — todos os áudios são obrigatórios
+              Áudio {audioStep + 1} de 3 — todos são obrigatórios
             </p>
           </>
         )}
