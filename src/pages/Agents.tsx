@@ -34,7 +34,7 @@ export default function Agents() {
     const fetchData = async () => {
       try {
         const [agentsRes, tagsRes, agentTagsRes, planAccessRes] = await Promise.all([
-          supabase.from('agents_public').select('*').order('display_order'),
+          supabase.from('agents_public').select('*').neq('slug', 'first-script-onboarding').order('display_order'),
           supabase.from('tags').select('*').order('display_order'),
           supabase.from('agent_tags').select('*'),
           supabase.from('agent_plan_access').select('agent_id, plan_type_id'),

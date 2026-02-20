@@ -10,7 +10,7 @@ import { useCredits } from '@/hooks/useCredits';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { MagneticOnboarding, OnboardingStep } from '@/components/onboarding/MagneticOnboarding';
+import { MagneticOnboarding } from '@/components/onboarding/MagneticOnboarding';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -247,27 +247,11 @@ export default function Home() {
   const [identity, setIdentity] = useState({ voiceDna: false, narrative: false, formatProfile: false });
   const [agentCount, setAgentCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [showOnboardingManual, setShowOnboardingManual] = useState(false);
-
-  // Show mandatory setup modal every time until identity is fully configured
-  // sessionStorage only prevents re-showing within same tab session (skip button)
-  const hasCompletedSetup = profile?.has_completed_setup ?? false;
-  const skippedThisTab = sessionStorage.getItem('setup_skipped_this_session') === '1';
-  const showSetupModal = !loading && !!profile && !hasCompletedSetup && !skippedThisTab;
 
   const greeting = useMemo(() => greetings[Math.floor(Math.random() * greetings.length)], []);
 
   const totalCredits = balance.total;
   const pendingScripts = scripts.length;
-
-  // Modal automático (primeiro acesso): sempre começa do step 1 (profile + @)
-  // Botão manual da Home: começa da próxima etapa pendente
-  const onboardingManualInitialStep = useMemo((): OnboardingStep => {
-    if (!identity.voiceDna) return 'voice_dna';
-    if (!identity.formatProfile) return 'format_quiz';
-    if (!identity.narrative) return 'narrative';
-    return 'voice_dna';
-  }, [identity]);
 
   const contextualSummary = useMemo(() => {
     if (creditsLoading) return '';
@@ -314,11 +298,10 @@ export default function Home() {
   return (
     <AppLayout>
       {/* ── Onboarding wizard ── */}
-      <MagneticOnboarding
-        open={showSetupModal || showOnboardingManual}
-        onClose={() => setShowOnboardingManual(false)}
-        initialStep={showSetupModal ? 'profile' : onboardingManualInitialStep}
-      />
+      {profile?.onboarding_step &&
+        profile.onboarding_step !== 'completed' && (
+          <MagneticOnboarding onboardingStep={profile.onboarding_step} />
+        )}
 
       {/* ── Content (mesmo padrão do Kanban) ── */}
       <div className="flex-1 overflow-auto px-4 py-6 pb-24 md:pb-6">
@@ -394,7 +377,7 @@ export default function Home() {
                 voiceDna={identity.voiceDna}
                 narrative={identity.narrative}
                 formatProfile={identity.formatProfile}
-                onComplete={() => setShowOnboardingManual(true)}
+                onComplete={() => navigate('/profile')}
                 onView={() => navigate('/profile')}
               />
             )}
