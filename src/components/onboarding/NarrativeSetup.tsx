@@ -21,6 +21,7 @@ interface ChatMsg {
   content: string;
 }
 
+// TODO: Verificar modelo usado na narrativa — considerar upgrade (idealmente Claude)
 // System prompt for the narrative agent
 const NARRATIVE_SYSTEM_PROMPT = `Você é o Agente de Narrativa Primária da plataforma Magnetic.IA.
 
@@ -216,7 +217,7 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
                       : 'bg-muted/40 text-foreground rounded-bl-md'
                   }`}>
                     {msg.role === 'assistant' ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0">
+                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-4 [&>p:last-child]:mb-0 [&>ul]:mb-4 [&>li]:mb-1 [&>strong]:text-foreground [&>br+br]:block [&>br+br]:mt-3">
                         <ReactMarkdown>{msg.content}</ReactMarkdown>
                       </div>
                     ) : msg.content}

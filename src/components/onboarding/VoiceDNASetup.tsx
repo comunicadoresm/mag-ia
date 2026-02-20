@@ -19,6 +19,7 @@ const AUDIO_PROMPTS = [
   {
     key: 'casual',
     title: 'Áudio 1 — Falando com um AMIGO',
+    // TODO: Revisar prompt de análise de voz — enviar para aprovação
     text: 'Imagina o seguinte: você tá indo encontrar um amigo e aconteceu um perrengue no caminho. Você vai atrasar uns 20 minutos.\n\nGrava um áudio como se tivesse mandando pra ele no WhatsApp — explicando o que aconteceu e que vai chegar atrasado.\n\nFala do jeito que você falaria de verdade. Sem filtro, sem pensar demais. Solta o áudio.',
     field: 'audio_casual_url',
   },
@@ -196,6 +197,13 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
               <Button onClick={() => setStep('audio')} className="w-full rounded-xl">
                 Começar
               </Button>
+              <Button
+                variant="ghost"
+                onClick={onSkip}
+                className="w-full rounded-xl text-muted-foreground text-sm"
+              >
+                Configurar depois
+              </Button>
             </>
           )}
 
@@ -220,7 +228,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
               </div>
 
               <p className="text-xs text-muted-foreground text-center">
-                Áudio {audioStep + 1} de 3 — todos os áudios são obrigatórios
+                Áudio {audioStep + 1} de 3
               </p>
 
               <AudioRecorder
@@ -228,6 +236,16 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
                 maxDuration={60}
                 key={audioStep}
               />
+
+              {/* Pular button — bottom right */}
+              <div className="flex justify-end">
+                <button
+                  onClick={onSkip}
+                  className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors underline underline-offset-2"
+                >
+                  Pular
+                </button>
+              </div>
             </>
           )}
 

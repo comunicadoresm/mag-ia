@@ -10,6 +10,7 @@ import { NarrativeSetup } from './NarrativeSetup';
 import { FirstScriptFlow } from './FirstScriptFlow';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import logoSymbol from '@/assets/logo-symbol.png';
 
 const STEPS = [
   { key: 'basic_info', label: 'Perfil', icon: User },
@@ -111,6 +112,11 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
+        {/* Logo CM no topo da modal */}
+        <div className="flex items-center justify-center mb-2">
+          <img src={logoSymbol} alt="Comunicadores Magnéticos" className="w-8 h-8 object-contain" />
+        </div>
+
         {/* Progress bar — same style as other steps */}
         <div className="flex items-center gap-1.5 mb-1">
           {STEPS.map((s, i) => {

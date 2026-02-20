@@ -219,26 +219,42 @@ export default function Profile() {
                 </div>
 
                 {/* Narrative */}
-                <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-                    <BookOpen className="w-5 h-5 text-primary" />
+                <div className="bg-gradient-to-br from-muted/40 to-muted/20 border border-border/30 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
+                      <BookOpen className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground">Narrativa Primária</p>
+                      <p className="text-sm font-medium text-foreground">
+                        {narrative?.is_completed ? (
+                          <span className="text-green-500">✅ Completa</span>
+                        ) : (
+                          <span className="text-muted-foreground">Não configurada</span>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveOnboarding('narrative')}
+                      className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
+                    >
+                      {narrative?.is_completed ? 'Reconfigurar' : 'Configurar'}
+                    </button>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground">Narrativa Magnética</p>
-                    <p className="text-sm font-medium text-foreground">
-                      {narrative?.is_completed ? (
-                        <span className="text-green-500">✅ Completa{narrative.expertise ? ` — ${narrative.expertise.substring(0, 40)}...` : ''}</span>
-                      ) : (
-                        <span className="text-muted-foreground">Não configurada</span>
-                      )}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setActiveOnboarding('narrative')}
-                    className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
-                  >
-                    {narrative?.is_completed ? 'Reconfigurar' : 'Configurar'}
-                  </button>
+                  {/* Exibir texto completo da narrativa quando disponível */}
+                  {narrative?.narrative_text && (
+                    <div className="border-t border-border/20 pt-3">
+                      <p className="text-xs text-muted-foreground mb-2 font-semibold uppercase tracking-wider">Sua Narrativa</p>
+                      <div className="text-xs text-foreground/80 leading-relaxed whitespace-pre-line space-y-1">
+                        {narrative.narrative_text
+                          .split('\n')
+                          .filter((line: string) => line.trim())
+                          .map((line: string, i: number) => (
+                            <p key={i} className="mb-1">{line}</p>
+                          ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Format Profile */}

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import logoSymbol from '@/assets/logo-symbol.png';
 
 interface BasicInfoFlowProps {
   onComplete: () => void;
@@ -73,21 +74,25 @@ export function BasicInfoFlow({ onComplete }: BasicInfoFlowProps) {
   };
 
   return (
-    <div className="space-y-6 flex flex-col min-h-[60vh]">
+    <div className="space-y-5 flex flex-col min-h-[55vh]">
       {/* Hero */}
-      <div className="text-center space-y-3 pt-4">
-        <div className="text-5xl">✨</div>
+      <div className="text-center space-y-3 pt-2">
+        <img
+          src={logoSymbol}
+          alt="Comunicadores Magnéticos"
+          className="w-14 h-14 mx-auto object-contain"
+        />
         <h2 className="text-xl font-bold text-foreground">
-          Bem-vindo à Magnetic.IA
+          Bem-vindo(a) à Magnetic.IA
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mx-auto">
-          Vamos configurar sua identidade para que a IA crie conteúdo com a{' '}
-          <strong className="text-foreground">SUA voz</strong>.
+          Vamos configurar a sua identidade magnética para criar conteúdos com a sua{' '}
+          <strong className="text-foreground">voz narrativa</strong>.
         </p>
       </div>
 
       {/* Form */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <div>
           <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">
             Como você quer ser chamado?
@@ -96,8 +101,8 @@ export function BasicInfoFlow({ onComplete }: BasicInfoFlowProps) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Ex: Vitor"
-            className="w-full px-4 py-3.5 bg-muted/10 border border-border/30 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+            placeholder="ex: Giullya"
+            className="w-full px-4 py-3 bg-muted/10 border border-border/30 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
           />
         </div>
 
@@ -109,8 +114,8 @@ export function BasicInfoFlow({ onComplete }: BasicInfoFlowProps) {
             type="text"
             value={handle}
             onChange={(e) => setHandle(e.target.value)}
-            placeholder="Ex: @vitorassi_"
-            className="w-full px-4 py-3.5 bg-muted/10 border border-border/30 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+            placeholder="ex: @giubeckers"
+            className="w-full px-4 py-3 bg-muted/10 border border-border/30 rounded-xl text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/40 focus:ring-2 focus:ring-primary/20 outline-none transition-all"
           />
         </div>
       </div>
@@ -119,7 +124,7 @@ export function BasicInfoFlow({ onComplete }: BasicInfoFlowProps) {
       <div className="flex-1" />
 
       {/* CTA */}
-      <div className="space-y-2 pt-4">
+      <div className="space-y-2">
         <Button
           onClick={handleSubmit}
           disabled={!name.trim() || saving}
