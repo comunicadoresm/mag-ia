@@ -2,13 +2,14 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles, Bot, UserCircle, ChevronRight,
-  CheckCircle2, Circle, FileText,
+  CheckCircle2, Circle, FileText, Filter,
 } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCredits } from '@/hooks/useCredits';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
+import { TemplateFilters } from '@/components/kanban/TemplateFilters';
 import { Button } from '@/components/ui/button';
 import { MagneticOnboarding, OnboardingStep } from '@/components/onboarding/MagneticOnboarding';
 import { formatDistanceToNow } from 'date-fns';
@@ -248,6 +249,9 @@ export default function Home() {
   const [agentCount, setAgentCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showOnboardingManual, setShowOnboardingManual] = useState(false);
+  const [selectedObjectives, setSelectedObjectives] = useState<string[]>([]);
+  const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
+  const [selectedFormats, setSelectedFormats] = useState<string[]>([]);
 
   // Show mandatory setup modal every time until identity is fully configured
   // sessionStorage only prevents re-showing within same tab session (skip button)
@@ -279,13 +283,22 @@ export default function Home() {
     return 'Tudo pronto pra começar.';
   }, [pendingScripts, totalCredits, creditsLoading]);
 
+  const filteredScripts = useMemo(() => {
+    return scripts.filter((s) => {
+      if (selectedObjectives.length > 0 && !selectedObjectives.includes(s.objective)) return false;
+      if (selectedStyles.length > 0 && !selectedStyles.includes(s.style)) return false;
+      if (selectedFormats.length > 0 && !selectedFormats.includes(s.format)) return false;
+      return true;
+    });
+  }, [scripts, selectedObjectives, selectedStyles, selectedFormats]);
+
   useEffect(() => {
     if (!user) return;
     const fetchAll = async () => {
       setLoading(true);
       try {
         const [scriptsRes, voiceRes, narrativeRes, formatRes, agentsRes] = await Promise.all([
-          supabase.from('user_scripts').select('id, title, status, updated_at').eq('user_id', user.id).neq('status', 'posted').order('updated_at', { ascending: false }).limit(5),
+          supabase.from('user_scripts').select('id, title, status, updated_at, objective, style, format').eq('user_id', user.id).neq('status', 'posted').order('updated_at', { ascending: false }).limit(20),
           supabase.from('voice_profiles').select('is_calibrated').eq('user_id', user.id).maybeSingle(),
           supabase.from('user_narratives').select('is_completed').eq('user_id', user.id).maybeSingle(),
           supabase.from('user_format_profile').select('id').eq('user_id', user.id).maybeSingle(),
@@ -362,22 +375,42 @@ export default function Home() {
 
           {/* ── Seção 3: Próximos Conteúdos ───── */}
           <section>
-            <SectionHeader
-              title="Próximos conteúdos"
-              action="Ver todos"
-              onAction={() => navigate('/kanban')}
-            />
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-foreground">Próximos conteúdos</h2>
+              <div className="flex items-center gap-2">
+                <TemplateFilters
+                  selectedObjectives={selectedObjectives}
+                  selectedStyles={selectedStyles}
+                  selectedFormats={selectedFormats}
+                  onObjectivesChange={setSelectedObjectives}
+                  onStylesChange={setSelectedStyles}
+                  onFormatsChange={setSelectedFormats}
+                />
+                <button
+                  onClick={() => navigate('/kanban')}
+                  className="text-sm text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5"
+                >
+                  Ver todos <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
             {loading ? (
               <div className="flex gap-3 -mx-4 px-4 overflow-x-hidden">
                 {[1, 2].map((i) => (
                   <div key={i} className="min-w-[260px] h-28 rounded-2xl bg-muted/40 animate-pulse flex-shrink-0" />
                 ))}
               </div>
-            ) : scripts.length > 0 ? (
+            ) : filteredScripts.length > 0 ? (
               <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-thin snap-x snap-mandatory">
-                {scripts.map((script) => (
+                {filteredScripts.map((script) => (
                   <ScriptCard key={script.id} script={script} onClick={() => navigate('/kanban')} />
                 ))}
+              </div>
+            ) : scripts.length > 0 ? (
+              <div className="p-6 rounded-2xl border border-dashed border-border/50 flex flex-col items-center text-center">
+                <Filter className="w-8 h-8 text-muted-foreground/40 mb-2" />
+                <p className="text-sm font-medium text-foreground mb-1">Nenhum roteiro com esses filtros</p>
+                <p className="text-xs text-muted-foreground">Tente ajustar os filtros selecionados.</p>
               </div>
             ) : (
               <EmptyScripts onCreate={() => navigate('/kanban')} />
