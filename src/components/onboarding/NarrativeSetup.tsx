@@ -172,8 +172,8 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
   const currentOnboardingStep = 3;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onSkip(); }}>
-      <DialogContent className="max-w-md [&>button.absolute]:hidden max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()}>
+    <Dialog open={open}>
+      <DialogContent className="max-w-md [&>button.absolute]:hidden max-h-[90vh] flex flex-col" onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
         {/* Progress bar */}
         <div className="flex items-center gap-1.5 mb-1 shrink-0">
           {ONBOARDING_STEPS.map((s, i) => (
@@ -202,7 +202,6 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
               {`Última etapa: vamos montar o seu posicionamento.\n\nA Narrativa Primária é o que faz seu conteúdo ter DIREÇÃO.\nÉ o que responde: por que alguém deveria te ouvir?\n\nSão algumas perguntas. Leva uns 5-8 minutos.\nE o resultado vai guiar todo roteiro que a IA gerar pra você.`}
             </p>
             <Button onClick={startChat} className="w-full rounded-xl">Começar</Button>
-            <Button variant="ghost" onClick={onSkip} className="w-full rounded-xl text-muted-foreground">Configurar Depois</Button>
           </div>
         ) : (
 

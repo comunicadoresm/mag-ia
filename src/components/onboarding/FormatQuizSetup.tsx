@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, ChevronRight, ChevronLeft } from 'lucide-react';
+import { CheckCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 
@@ -343,8 +343,9 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
           ))}
         </div>
 
+
         {/* Header */}
-        <div className="flex items-start justify-between mt-2">
+        <div className="mt-2">
           <h2 className="text-lg font-bold text-foreground">
             {step === 'intro' && '🎯 Quiz de Formato Sustentável'}
             {step === 0 && '📹 Experiência com Gravação'}
@@ -354,13 +355,6 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
             {step === 4 && '📅 Frequência'}
             {step === 'result' && '🎉 Seu Formato Sustentável'}
           </h2>
-          <button
-            onClick={onSkip}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors shrink-0 ml-2"
-            title="Configurar depois"
-          >
-            <X className="w-4 h-4" />
-          </button>
         </div>
 
         <div className="space-y-3 mt-1">
@@ -373,7 +367,6 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
 São 5 perguntas rápidas. Menos de 1 minuto.`}
               </p>
               <Button onClick={() => setStep(0)} className="w-full rounded-xl">Começar</Button>
-              <Button variant="ghost" onClick={onSkip} className="w-full rounded-xl text-muted-foreground">Configurar Depois</Button>
             </>
           )}
 
