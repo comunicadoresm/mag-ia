@@ -197,13 +197,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
               <Button onClick={() => setStep('audio')} className="w-full rounded-xl">
                 Começar
               </Button>
-              <Button
-                variant="ghost"
-                onClick={onSkip}
-                className="w-full rounded-xl text-muted-foreground text-sm"
-              >
-                Configurar depois
-              </Button>
             </>
           )}
 
@@ -236,16 +229,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
                 maxDuration={60}
                 key={audioStep}
               />
-
-              {/* Pular button — bottom right */}
-              <div className="flex justify-end">
-                <button
-                  onClick={onSkip}
-                  className="text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors underline underline-offset-2"
-                >
-                  Pular
-                </button>
-              </div>
             </>
           )}
 
