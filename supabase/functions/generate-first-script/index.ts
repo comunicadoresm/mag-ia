@@ -87,19 +87,20 @@ TAREFA: Com base nos dados acima, sugira UM tema de primeiro roteiro para este u
 Retorne APENAS um JSON válido (sem markdown, sem explicação) neste formato:
 {
   "title": "Título do roteiro sugerido",
-  "style": "storytelling_looping",
+  "style": "storytelling-looping",
   "style_label": "Storytelling Looping",
-  "format": "Falado p/ câmera",
+  "format": "mid-fi",
   "duration": "60s",
   "justification": "Explicação curta (2-3 frases) de por que este roteiro é perfeito para este usuário."
 }
 
 REGRAS:
-- O style deve ser um dos: storytelling_looping, analysis, arco_transformacao, escalada, narrativa_primaria, reenquadramento, vlog, desafio, serie
+- O style deve ser EXATAMENTE um dos: storytelling-looping, analise, arco-transformacao, escalada, narrativa-primaria, reenquadramento, vlog, desafio, serie
+- O format deve ser EXATAMENTE um dos: lo-fi, mid-fi, high-fi
 - O título deve ser provocativo e personalizado
 - A justificativa deve mencionar o tom de voz e/ou a narrativa do usuário
-- O formato deve ser adequado ao recommended_format
-- A duração deve ser adequada ao formato (low_fi: 30-60s, mid_fi: 60-90s, hi_fi: 90-180s)
+- O formato deve ser adequado ao recommended_format (low_fi → lo-fi, mid_fi → mid-fi, high_fi → high-fi)
+- A duração deve ser adequada ao formato (lo-fi: 30-60s, mid-fi: 60-90s, high-fi: 90-180s)
 `;
 
       const response = await callLLM(provider, model, apiKey, suggestPrompt);
@@ -178,16 +179,8 @@ REGRAS PARA O TEXTO:
         }
       }
 
-      // Map format label to Kanban value
-      const formatMap: Record<string, string> = {
-        'falado p/ câmera': 'falado_camera',
-        'falado para câmera': 'falado_camera',
-        'voice over': 'voice_over',
-        'texto na tela': 'texto_tela',
-        'misto': 'misto',
-      };
-      const formatKey = (suggestion.format || '').toLowerCase();
-      const kanbanFormat = formatMap[formatKey] || 'falado_camera';
+      // Format already comes as lo-fi, mid-fi, high-fi from suggest step
+      const kanbanFormat = suggestion.format || 'mid-fi';
 
       // Save to user_scripts in flat format
       await supabase.from("user_scripts").insert({
@@ -196,7 +189,7 @@ REGRAS PARA O TEXTO:
         theme: suggestion.title,
         style: suggestion.style,
         format: kanbanFormat,
-        objective: 'attraction',
+        objective: 'atração',
         status: "scripting",
         script_content: flatContent,
       });
