@@ -139,7 +139,7 @@ export function MainSidebar({ tags = [], activeTag = null, onTagChange, showTagF
       </div>
 
       {/* Nav */}
-      <nav className={cn("flex-1 overflow-y-auto", collapsed ? "p-2" : "p-3")}>
+      <nav className={cn("flex-1 overflow-y-auto scrollbar-thin", collapsed ? "p-2" : "p-3")}>
         {navItems.map((item) => (
           <NavButton key={item.path} {...item} />
         ))}
