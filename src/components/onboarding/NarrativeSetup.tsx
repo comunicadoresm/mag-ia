@@ -68,10 +68,8 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
   const startChat = async () => {
     setStep('chat');
     setLoading(true);
-
     try {
       const systemPromptWithContext = NARRATIVE_SYSTEM_PROMPT + `\n\nDADOS DO USUÁRIO:\n- Nome: ${profile?.name || 'Usuário'}\n- Email: ${profile?.email || ''}`;
-
       const { data, error } = await supabase.functions.invoke('process-voice-dna', {
         body: {
           action: 'narrative_chat',
@@ -80,14 +78,13 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
           user_id: user?.id,
         },
       });
-
       if (error) throw error;
-      const aiMsg = data?.message || 'Olá! Vamos construir sua Narrativa Primária. Começando pela primeira pergunta...';
+      const aiMsg = data?.message || 'Olá! Vamos construir sua Narrativa Primária.';
       setMessages([{ role: 'assistant', content: aiMsg }]);
     } catch {
       setMessages([{
         role: 'assistant',
-        content: `${profile?.name || 'Usuário'}, me conta: o que você sabe fazer de verdade? Aquilo que as pessoas te procuram pra resolver?`
+        content: `${profile?.name || 'Usuário'}, me conta: o que você sabe fazer de verdade?`
       }]);
     } finally {
       setLoading(false);
@@ -101,22 +98,15 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
     const newMessages = [...messages, { role: 'user' as const, content: userMsg }];
     setMessages(newMessages);
     setLoading(true);
-
     try {
       const systemPromptWithContext = NARRATIVE_SYSTEM_PROMPT + `\n\nDADOS DO USUÁRIO:\n- Nome: ${profile?.name || 'Usuário'}`;
       const { data, error } = await supabase.functions.invoke('process-voice-dna', {
-        body: {
-          action: 'narrative_chat',
-          messages: newMessages,
-          system_prompt: systemPromptWithContext,
-          user_id: user.id,
-        },
+        body: { action: 'narrative_chat', messages: newMessages, system_prompt: systemPromptWithContext, user_id: user.id },
       });
       if (error) throw error;
       const aiResponse = data?.message || '';
       const updatedMessages = [...newMessages, { role: 'assistant' as const, content: aiResponse }];
       setMessages(updatedMessages);
-
       if (aiResponse.includes('Eu sou uma pessoa que') && aiResponse.includes('Eu acredito que')) {
         setNarrativeDetected(true);
       }
@@ -150,135 +140,115 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#0a0a0a' }}>
-      <div className="flex flex-col h-full max-w-md mx-auto w-full">
-        {/* Header */}
-        <div className="px-5 pt-8 pb-2 shrink-0">
-          {/* Progress bar — 3 segments */}
-          <div className="flex gap-1.5 mb-5">
-            <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
-            <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
-            <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
-          </div>
-
-          {/* Step header */}
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-[10px] bg-[#FAFC59]/15 flex items-center justify-center text-lg">
-                📖
-              </div>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-[#FAFC59]">
-                Etapa 3 · Narrativa Primária
-              </span>
-            </div>
-            <button
-              onClick={onSkip}
-              className="text-xs text-[#666] hover:text-[#999] transition-colors px-2 py-1 rounded-md"
-            >
-              Pular
-            </button>
-          </div>
-
-          <h2 className="text-2xl font-bold tracking-tight text-[#fafafa] mt-3 leading-tight">
-            Vamos construir sua história
-          </h2>
-          <p className="text-sm text-[#999] mt-1 leading-relaxed">
-            Uma conversa guiada pra extrair seu posicionamento único.
-          </p>
+    <div className="flex flex-col w-full animate-fade-in">
+      {/* Header */}
+      <div className="px-6 pt-7 pb-2 shrink-0">
+        <div className="flex gap-1.5 mb-5">
+          <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
+          <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
+          <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
         </div>
-
-        {step === 'intro' ? (
-          <div className="flex-1 flex flex-col px-5">
-            <div className="flex-1" />
-            <button
-              onClick={startChat}
-              className="w-full py-4 px-6 bg-[#FAFC59] text-[#141414] rounded-full font-bold text-[15px] shadow-[0_0_40px_-10px_rgba(250,252,89,0.4)] hover:bg-[#e8ea40] hover:-translate-y-0.5 transition-all duration-200 mb-3"
-            >
-              Começar conversa →
-            </button>
-            <button
-              onClick={onSkip}
-              className="w-full py-3 text-sm text-[#666] hover:text-[#999] transition-colors mb-4"
-            >
-              Configurar depois
-            </button>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-[10px] bg-[#FAFC59]/15 flex items-center justify-center text-lg">📖</div>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-[#FAFC59]">
+              Etapa 3 · Narrativa Primária
+            </span>
           </div>
-        ) : (
-          <>
-            {/* Chat area */}
-            <div ref={scrollRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                    msg.role === 'user'
-                      ? 'bg-[#FAFC59] text-[#141414] rounded-br-md'
-                      : 'bg-[#1e1e1e] text-[#fafafa] rounded-bl-md'
-                  }`}>
-                    {msg.role === 'assistant' && (
-                      <div className="inline-flex items-center gap-1 px-2 py-0.5 mb-2 bg-[#FAFC59]/15 rounded text-[9px] font-bold uppercase tracking-wider text-[#FAFC59]">
-                        🧲 MAG-IA
-                      </div>
-                    )}
-                    <div className={`text-[13px] leading-relaxed ${msg.role === 'user' ? '' : 'prose prose-sm prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0'}`}>
-                      {msg.role === 'assistant' ? <ReactMarkdown>{msg.content}</ReactMarkdown> : msg.content}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              {loading && (
-                <div className="flex justify-start">
-                  <div className="bg-[#1e1e1e] px-4 py-3 rounded-2xl rounded-bl-md">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 rounded-full bg-[#666] animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-[#666] animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 rounded-full bg-[#666] animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+          <button onClick={onSkip} className="text-xs text-[#666] hover:text-[#999] transition-colors px-2 py-1 rounded-md">
+            Pular
+          </button>
+        </div>
+        <h2 className="text-2xl font-bold tracking-tight text-[#fafafa] mt-3 leading-tight">
+          Vamos construir sua história
+        </h2>
+        <p className="text-sm text-[#999] mt-1 leading-relaxed">
+          Uma conversa guiada pra extrair seu posicionamento único.
+        </p>
+      </div>
 
-            {/* Approve button */}
-            {narrativeDetected && (
-              <div className="px-5 pb-2">
-                <button
-                  onClick={handleApproveNarrative}
-                  disabled={loading}
-                  className="w-full py-3 px-4 bg-[#22c55e] text-white rounded-full font-bold text-sm disabled:opacity-40 transition-all"
-                >
-                  ✅ Aprovar Narrativa e Continuar
-                </button>
+      {step === 'intro' ? (
+        <div className="px-6 pb-7 mt-6 space-y-3">
+          <button
+            onClick={startChat}
+            className="w-full py-4 px-6 bg-[#FAFC59] text-[#141414] rounded-full font-bold text-[15px] shadow-[0_0_40px_-10px_rgba(250,252,89,0.4)] hover:bg-[#e8ea40] hover:-translate-y-0.5 transition-all duration-200"
+          >
+            Começar conversa →
+          </button>
+          <button onClick={onSkip} className="w-full py-3 text-sm text-[#666] hover:text-[#999] transition-colors">
+            Configurar depois
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Chat area com altura máxima para o popup */}
+          <div ref={scrollRef} className="overflow-y-auto px-5 py-4 space-y-3" style={{ maxHeight: '300px' }}>
+            {messages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                  msg.role === 'user'
+                    ? 'bg-[#FAFC59] text-[#141414] rounded-br-md'
+                    : 'bg-white/[0.07] text-[#fafafa] rounded-bl-md'
+                }`}>
+                  {msg.role === 'assistant' && (
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 mb-2 bg-[#FAFC59]/15 rounded text-[9px] font-bold uppercase tracking-wider text-[#FAFC59]">
+                      🧲 MAG-IA
+                    </div>
+                  )}
+                  <div className={`text-[13px] leading-relaxed ${msg.role === 'user' ? '' : 'prose prose-sm prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0'}`}>
+                    {msg.role === 'assistant' ? <ReactMarkdown>{msg.content}</ReactMarkdown> : msg.content}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="flex justify-start">
+                <div className="bg-white/[0.07] px-4 py-3 rounded-2xl rounded-bl-md">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 rounded-full bg-[#666] animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-[#666] animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 rounded-full bg-[#666] animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
               </div>
             )}
+          </div>
 
-            {/* Input area */}
-            <div className="px-5 pb-6 pt-2 shrink-0">
-              <div className="flex items-center gap-2 bg-[#1e1e1e] border border-white/[0.06] rounded-full px-4 py-2">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Digite sua resposta..."
-                  className="flex-1 bg-transparent text-[#fafafa] text-sm placeholder:text-[#666] outline-none"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!input.trim() || loading}
-                  className="w-8 h-8 rounded-full bg-[#FAFC59] flex items-center justify-center disabled:opacity-30 transition-opacity shrink-0"
-                >
-                  <Send className="w-4 h-4 text-[#141414]" />
-                </button>
-              </div>
+          {narrativeDetected && (
+            <div className="px-5 pb-2">
+              <button
+                onClick={handleApproveNarrative}
+                disabled={loading}
+                className="w-full py-3 px-4 bg-[#22c55e] text-white rounded-full font-bold text-sm disabled:opacity-40 transition-all"
+              >
+                ✅ Aprovar Narrativa e Continuar
+              </button>
             </div>
-          </>
-        )}
-      </div>
+          )}
+
+          <div className="px-5 pb-6 pt-2 shrink-0">
+            <div className="flex items-center gap-2 bg-white/[0.07] border border-white/[0.06] rounded-full px-4 py-2">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Digite sua resposta..."
+                className="flex-1 bg-transparent text-[#fafafa] text-sm placeholder:text-[#666] outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+                }}
+              />
+              <button
+                onClick={sendMessage}
+                disabled={!input.trim() || loading}
+                className="w-8 h-8 rounded-full bg-[#FAFC59] flex items-center justify-center disabled:opacity-30 transition-opacity shrink-0"
+              >
+                <Send className="w-4 h-4 text-[#141414]" />
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
