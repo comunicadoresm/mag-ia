@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 
 interface MagneticOnboardingProps {
   onboardingStep: string;
+  onClose?: () => void;
 }
 
 export type OnboardingStep = 'basic_info' | 'voice_dna' | 'format_quiz' | 'narrative' | 'processing' | 'first_script' | 'completed';
@@ -41,16 +42,20 @@ function OnboardingPopup({ children, scrollable = false }: { children: React.Rea
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(6px)' }}>
       <div
-        className={`relative w-full max-w-md rounded-3xl shadow-2xl ${scrollable ? 'max-h-[90vh] overflow-y-auto' : ''}`}
+        className={`relative w-full max-w-md rounded-3xl shadow-2xl ${scrollable ? 'max-h-[88vh] flex flex-col overflow-hidden' : ''}`}
         style={{ background: '#111111', border: '1px solid rgba(255,255,255,0.07)' }}
       >
-        {children}
+        {scrollable ? (
+          <div className="overflow-y-auto flex-1">{children}</div>
+        ) : (
+          children
+        )}
       </div>
     </div>
   );
 }
 
-export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) {
+export function MagneticOnboarding({ onboardingStep, onClose }: MagneticOnboardingProps) {
   const { user, refreshProfile } = useAuth();
   const { planType } = usePlanPermissions();
   const [currentStep, setCurrentStep] = useState<string>(onboardingStep);
@@ -80,10 +85,18 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
     }
   }, [user, refreshProfile]);
 
-  if (!isMagnetic || currentStep === 'completed') return null;
+  // Se veio de fora (onClose existe), o "completed" deve fechar sem alterar perfil
+  if (!isMagnetic && !onClose) return null;
+  if (currentStep === 'completed') {
+    if (onClose) onClose();
+    return null;
+  }
 
   const goToStep = async (nextStep: string) => {
     if (!user) return;
+    if (nextStep === 'completed') {
+      if (onClose) { onClose(); return; }
+    }
     if (nextStep !== 'processing') {
       await supabase.from('profiles').update({ onboarding_step: nextStep } as any).eq('id', user.id);
       await refreshProfile();
@@ -129,25 +142,28 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
   }
 
   if (currentStep === 'voice_dna') {
+    const onDone = onClose ? onClose : () => goToStep('format_quiz');
     return (
       <OnboardingPopup scrollable>
-        <VoiceDNASetup open={true} onComplete={() => goToStep('format_quiz')} onSkip={() => goToStep('format_quiz')} />
+        <VoiceDNASetup open={true} onComplete={onDone} onSkip={onDone} />
       </OnboardingPopup>
     );
   }
 
   if (currentStep === 'format_quiz') {
+    const onDone = onClose ? onClose : () => goToStep('narrative');
     return (
       <OnboardingPopup scrollable>
-        <FormatQuizSetup open={true} onComplete={() => goToStep('narrative')} onSkip={() => goToStep('narrative')} />
+        <FormatQuizSetup open={true} onComplete={onDone} onSkip={onDone} />
       </OnboardingPopup>
     );
   }
 
   if (currentStep === 'narrative') {
+    const onDone = onClose ? onClose : () => goToStep('processing');
     return (
       <OnboardingPopup scrollable>
-        <NarrativeSetup open={true} onComplete={() => goToStep('processing')} onSkip={() => goToStep('processing')} />
+        <NarrativeSetup open={true} onComplete={onDone} onSkip={onDone} />
       </OnboardingPopup>
     );
   }
