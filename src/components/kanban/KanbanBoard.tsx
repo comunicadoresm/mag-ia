@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useCredits } from '@/hooks/useCredits';
 import { useCreditsModals } from '@/contexts/CreditsModalContext';
+import { TemplateFilters } from './TemplateFilters';
 
 interface KanbanBoardProps {
   agents: Agent[];
@@ -51,6 +52,11 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
 
   // New card dialog state
   const [isNewCardOpen, setIsNewCardOpen] = useState(false);
+
+  // Template filter state
+  const [filterObjectives, setFilterObjectives] = useState<string[]>([]);
+  const [filterStyles, setFilterStyles] = useState<string[]>([]);
+  const [filterFormats, setFilterFormats] = useState<string[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -85,8 +91,19 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
     }
   };
 
+  // Filter templates
+  const filteredTemplates = templates.filter((t) => {
+    if (filterObjectives.length > 0 && (!t.objective || !filterObjectives.includes(t.objective))) return false;
+    if (filterStyles.length > 0 && !filterStyles.includes(t.style)) return false;
+    if (filterFormats.length > 0) {
+      const templateFormats = (t.format || '').split(',').map(f => f.trim()).filter(Boolean);
+      if (!templateFormats.some(f => filterFormats.includes(f))) return false;
+    }
+    return true;
+  });
+
   const columns: KanbanColumnType[] = KANBAN_COLUMNS.map((col) => {
-    if (col.id === 'templates') return { ...col, items: templates };
+    if (col.id === 'templates') return { ...col, items: filteredTemplates };
     return { ...col, items: userScripts.filter((s) => s.status === col.id) };
   });
 
@@ -345,6 +362,16 @@ export function KanbanBoard({ agents }: KanbanBoardProps) {
             <KanbanColumn
               key={column.id}
               column={column}
+              headerExtra={column.id === 'templates' ? (
+                <TemplateFilters
+                  selectedObjectives={filterObjectives}
+                  selectedStyles={filterStyles}
+                  selectedFormats={filterFormats}
+                  onObjectivesChange={setFilterObjectives}
+                  onStylesChange={setFilterStyles}
+                  onFormatsChange={setFilterFormats}
+                />
+              ) : undefined}
               onDuplicate={handleDuplicate}
               onCardClick={handleCardClick}
               onWriteWithAI={handleWriteWithAI}

@@ -7,6 +7,7 @@ import { ScriptTemplate, UserScript, KanbanColumn as KanbanColumnType } from '@/
 
 interface KanbanColumnProps {
   column: KanbanColumnType;
+  headerExtra?: React.ReactNode;
   onDuplicate?: (template: ScriptTemplate) => void;
   onCardClick?: (item: ScriptTemplate | UserScript) => void;
   onWriteWithAI?: (script: UserScript) => void;
@@ -19,6 +20,7 @@ interface KanbanColumnProps {
 
 export function KanbanColumn({
   column,
+  headerExtra,
   onDuplicate,
   onCardClick,
   onWriteWithAI,
@@ -60,10 +62,11 @@ export function KanbanColumn({
       {/* Column Header */}
       <div className="flex items-center gap-2 mb-4 px-1">
         <div
-          className="w-3 h-3 rounded-full"
+          className="w-3 h-3 rounded-full flex-shrink-0"
           style={{ backgroundColor: column.color }}
         />
         <h3 className="font-semibold text-foreground">{column.title}</h3>
+        {headerExtra}
         <span className="text-sm text-muted-foreground ml-auto">
           {column.items.length}
         </span>
