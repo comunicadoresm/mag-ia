@@ -5,6 +5,13 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+function getProvider(model: string): "anthropic" | "openai" | "google" {
+  if (model.startsWith("claude")) return "anthropic";
+  if (model.startsWith("gpt-") || model.startsWith("o1") || model.startsWith("o3")) return "openai";
+  if (model.startsWith("gemini")) return "google";
+  return "openai";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -44,8 +51,20 @@ Deno.serve(async (req) => {
       throw new Error('Agent config "first-script-onboarding" not found.');
     }
 
-    const model = agentConfig.model || "claude-sonnet-4-20250514";
-    const apiKey = agentConfig.api_key || Deno.env.get("OPENAI_API_KEY")!;
+    const model = agentConfig.model || "gpt-4o-mini";
+    const provider = getProvider(model);
+
+    const apiKey =
+      agentConfig.api_key ||
+      (provider === "anthropic"
+        ? Deno.env.get("ANTHROPIC_API_KEY")
+        : provider === "openai"
+          ? Deno.env.get("OPENAI_API_KEY")
+          : Deno.env.get("GOOGLE_API_KEY"));
+
+    if (!apiKey) {
+      throw new Error(`Missing API key for provider: ${provider}`);
+    }
 
     // 3. Build user context
     const userContext = `
@@ -83,7 +102,7 @@ REGRAS:
 - A duração deve ser adequada ao formato (low_fi: 30-60s, mid_fi: 60-90s, hi_fi: 90-180s)
 `;
 
-      const response = await callLLM(model, apiKey, suggestPrompt);
+      const response = await callLLM(provider, model, apiKey, suggestPrompt);
       const suggestionData = JSON.parse(response);
 
       return new Response(
@@ -143,7 +162,7 @@ REGRAS PARA O TEXTO:
 - Cada seção deve ter 2-4 frases
 `;
 
-      const response = await callLLM(model, apiKey, generatePrompt);
+      const response = await callLLM(provider, model, apiKey, generatePrompt);
       const script = JSON.parse(response);
 
       // Save to user_scripts
@@ -174,8 +193,13 @@ REGRAS PARA O TEXTO:
 });
 
 // Helper: Call LLM
-async function callLLM(model: string, apiKey: string, prompt: string): Promise<string> {
-  if (model.startsWith("claude")) {
+async function callLLM(
+  provider: "anthropic" | "openai" | "google",
+  model: string,
+  apiKey: string,
+  prompt: string
+): Promise<string> {
+  if (provider === "anthropic") {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -186,30 +210,71 @@ async function callLLM(model: string, apiKey: string, prompt: string): Promise<s
       body: JSON.stringify({
         model,
         max_tokens: 2000,
+        system: [
+          {
+            type: "text",
+            text: "", // prompt already includes full instructions
+            cache_control: { type: "ephemeral" },
+          },
+        ],
         messages: [{ role: "user", content: prompt }],
       }),
     });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Anthropic error:", errText);
+      throw new Error("Erro na API Anthropic");
+    }
+
     const data = await res.json();
     return data.content?.[0]?.text || "";
   }
 
-  if (model.startsWith("gpt")) {
-    const openaiKey = Deno.env.get("OPENAI_API_KEY") || apiKey;
+  if (provider === "openai") {
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${openaiKey}`,
+        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
         max_tokens: 2000,
+        temperature: 0.7,
       }),
     });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("OpenAI error:", errText);
+      throw new Error("Erro na API OpenAI");
+    }
+
     const data = await res.json();
     return data.choices?.[0]?.message?.content || "";
   }
 
-  throw new Error(`Unsupported model: ${model}`);
+  // Google Gemini
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 2000, temperature: 0.7 },
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("Gemini error:", errText);
+    throw new Error("Erro na API Google Gemini");
+  }
+
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }

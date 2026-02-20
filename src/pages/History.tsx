@@ -38,7 +38,7 @@ export default function History() {
           .from('conversations').select('*').eq('user_id', user.id).order('last_message_at', { ascending: false });
         if (convError) { console.error(convError); return; }
         const agentIds = [...new Set(convData.map((c) => c.agent_id))];
-        const { data: agentsData } = await supabase.from('agents_public').select('*').in('id', agentIds);
+        const { data: agentsData } = await supabase.rpc('get_agents_public', { p_ids: agentIds });
         const agentsMap = new Map(agentsData?.map((a) => [a.id, a as Agent]));
         const uniqueAgents = Array.from(agentsMap.values());
         setAgents(uniqueAgents);

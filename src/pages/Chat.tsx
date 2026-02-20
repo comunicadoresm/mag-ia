@@ -60,12 +60,9 @@ export default function Chat() {
         if (convError) { navigate('/home'); return; }
         setConversation(convData);
 
-        const { data: agentData, error: agentError } = await supabase
-          .from('agents_public')
-          .select('*')
-          .eq('id', convData.agent_id)
-          .single();
-        if (!agentError && agentData) setAgent(agentData as Agent);
+        const { data: agentRows, error: agentError } = await supabase
+          .rpc('get_agents_public', { p_ids: [convData.agent_id] });
+        if (!agentError && agentRows && agentRows.length > 0) setAgent(agentRows[0] as Agent);
 
         const { data: messagesData, error: messagesError } = await supabase
           .from('messages')
