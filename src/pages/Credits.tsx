@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Coins, TrendingDown, Gift, Wallet, Percent, Loader2, ShoppingCart, Crown } from 'lucide-react';
+import { Coins, TrendingDown, Gift, Wallet, Percent, Loader2, Crown } from 'lucide-react';
 import { AppLayout } from '@/components/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,7 +22,7 @@ export default function Credits() {
   const { balance, isLoading: creditsLoading } = useCredits();
   const { totalConsumed, totalMonthly, percentUsed } = useCycleProgress();
   const { canBuyCredits, upsellPlans } = usePlanPermissions();
-  const { showBuyCredits, showUpsell } = useCreditsModals();
+  const { showUpsell } = useCreditsModals();
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/login');
@@ -52,7 +52,8 @@ export default function Credits() {
               <p className="text-xs text-muted-foreground">Acompanhe seu consumo e saldo</p>
             </div>
           </div>
-          {canBuyCredits ? (
+          {/* Botão de compra temporariamente oculto */}
+          {/* {canBuyCredits ? (
             <Button onClick={showBuyCredits} className="gap-2 rounded-xl">
               <ShoppingCart className="w-4 h-4" />
               Adquirir Créditos
@@ -62,7 +63,7 @@ export default function Credits() {
               <Crown className="w-4 h-4" />
               Fazer Upgrade
             </Button>
-          ) : null}
+          ) : null} */}
         </div>
       </header>
 

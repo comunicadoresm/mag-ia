@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, Sparkles, Zap, CheckCircle, FileText } from 'lucide-react';
+import { Play, Zap, CheckCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import logoSymbol from '@/assets/logo-symbol.png';
+
+// TODO: Verificar modelo usado na geração de roteiro
 
 interface FirstScriptFlowProps {
   onComplete: () => void;
@@ -15,6 +18,7 @@ interface ScriptSuggestion {
   style: string;
   style_label: string;
   format: string;
+  production_level: string; // low-fi | mid-fi | high-fi
   duration: string;
   justification: string;
 }
@@ -31,6 +35,12 @@ interface GeneratedScript {
 
 type FlowState = 'processing' | 'suggestion' | 'generating' | 'result';
 
+const tutorialLinks: Record<string, string> = {
+  'low-fi': 'https://placeholder.com/tutorial-lowfi',
+  'mid-fi': 'https://placeholder.com/tutorial-midfi',
+  'high-fi': 'https://placeholder.com/tutorial-highfi',
+};
+
 function delay(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -44,7 +54,7 @@ function ProcessingStep({ done, active, label }: { done: boolean; active?: boole
         {done ? (
           <CheckCircle className="w-4 h-4" />
         ) : active ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
+          <img src={logoSymbol} alt="" className="w-4 h-4 animate-spin opacity-80" />
         ) : (
           <div className="w-2 h-2 rounded-full bg-current opacity-40" />
         )}
@@ -79,6 +89,20 @@ function ScriptSection({ emoji, label, sections }: {
     </div>
   );
 }
+
+/** Normaliza o nível de produção: nunca retorna high-fi para o primeiro roteiro */
+function normalizeProductionLevel(raw: string): string {
+  const lower = (raw || '').toLowerCase();
+  if (lower.includes('high') || lower.includes('hi-fi') || lower.includes('hifi')) return 'mid-fi';
+  if (lower.includes('low')) return 'low-fi';
+  return 'mid-fi';
+}
+
+const PRODUCTION_LABELS: Record<string, string> = {
+  'low-fi': 'Low-fi',
+  'mid-fi': 'Mid-fi',
+  'high-fi': 'High-fi',
+};
 
 export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
   const { user } = useAuth();
@@ -119,7 +143,10 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
 
       if (error) throw error;
 
-      setSuggestion(data.suggestion);
+      // Normalize production level — never high-fi for first script
+      const raw = data.suggestion;
+      const productionLevel = normalizeProductionLevel(raw.production_level || raw.format || '');
+      setSuggestion({ ...raw, production_level: productionLevel });
       setState('suggestion');
     } catch (err) {
       console.error('Suggest error:', err);
@@ -161,11 +188,22 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
     onComplete();
   };
 
+  const handleOpenTutorial = () => {
+    const level = suggestion?.production_level || 'mid-fi';
+    const url = tutorialLinks[level] || tutorialLinks['mid-fi'];
+    window.open(url, '_blank');
+  };
+
   // ═══ PROCESSING ═══
   if (state === 'processing') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
-        <Loader2 className="w-12 h-12 text-primary animate-spin" />
+        {/* Ímã CM animado no lugar do spinner */}
+        <img
+          src={logoSymbol}
+          alt="Magnetic.IA"
+          className="w-16 h-16 object-contain animate-pulse"
+        />
 
         <div className="space-y-2">
           <h2 className="text-xl font-bold text-foreground">
@@ -194,6 +232,10 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
 
   // ═══ SUGGESTION ═══
   if (state === 'suggestion' && suggestion) {
+    const productionLabel = PRODUCTION_LABELS[suggestion.production_level] || 'Mid-fi';
+    const isHighFiCapped = suggestion.production_level === 'mid-fi' &&
+      (suggestion.format || '').toLowerCase().includes('high');
+
     return (
       <div className="space-y-6 flex flex-col min-h-[60vh]">
         <div className="text-center space-y-2 pt-2">
@@ -202,15 +244,19 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
             Identidade configurada!
           </h2>
           <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            Com base no seu tom de voz, formato e narrativa, a IA sugere seu primeiro conteúdo:
+            Com base no seu tom de voz, formato e narrativa, a IA sugere seu primeiro conteúdo de <strong className="text-primary">Atração</strong>:
           </p>
         </div>
 
         <div className="bg-card border border-border/50 rounded-2xl p-5 space-y-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary mb-3">
-              <Sparkles className="w-3 h-3" />
-              Sugerido pela IA
+            <div className="flex gap-2 mb-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary">
+                ✨ Sugerido pela IA
+              </div>
+              <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-green-500/10 text-green-400">
+                🎯 Atração
+              </div>
             </div>
             <h3 className="text-lg font-bold text-foreground leading-tight">
               "{suggestion.title}"
@@ -221,13 +267,19 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
             <span className="text-[11px] px-2.5 py-1 rounded-full bg-primary/10 text-primary font-semibold">
               {suggestion.style_label}
             </span>
-            <span className="text-[11px] px-2.5 py-1 rounded-full bg-muted/30 text-muted-foreground font-semibold">
-              {suggestion.format}
+            <span className="text-[11px] px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 font-semibold">
+              {productionLabel}
             </span>
             <span className="text-[11px] px-2.5 py-1 rounded-full bg-muted/30 text-muted-foreground font-semibold">
               ~{suggestion.duration}
             </span>
           </div>
+
+          {isHighFiCapped && (
+            <p className="text-xs text-muted-foreground italic">
+              💡 Quando quiser elevar a produção, experimente o formato High-fi.
+            </p>
+          )}
 
           <div className="border-t border-border/30 pt-3">
             <p className="text-sm text-muted-foreground leading-relaxed">
@@ -257,10 +309,12 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
   if (state === 'generating') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-5">
-        <div className="relative">
-          <Loader2 className="w-12 h-12 text-primary animate-spin" />
-          <Zap className="w-5 h-5 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
-        </div>
+        {/* Ímã CM animado */}
+        <img
+          src={logoSymbol}
+          alt="Magnetic.IA"
+          className="w-14 h-14 object-contain animate-pulse"
+        />
         <div className="space-y-2">
           <h2 className="text-lg font-bold text-foreground">
             Gerando seu roteiro...
@@ -275,12 +329,15 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
 
   // ═══ RESULT ═══
   if (state === 'result' && generatedScript) {
+    const productionLabel = PRODUCTION_LABELS[suggestion?.production_level || 'mid-fi'] || 'Mid-fi';
+
     return (
       <div className="space-y-5">
         <div className="text-center space-y-1">
           <div className="text-3xl">🎬</div>
-          <p className="text-sm text-green-400 font-semibold">
-            Seu primeiro roteiro está pronto!
+          <p className="text-sm font-semibold">
+            Seu primeiro roteiro{' '}
+            <strong className="text-primary">magnético</strong> está pronto!
           </p>
         </div>
 
@@ -289,9 +346,15 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
             <h3 className="text-base font-bold text-foreground leading-tight">
               {generatedScript.title}
             </h3>
-            <div className="flex gap-1.5 mt-2">
+            <div className="flex gap-1.5 mt-2 flex-wrap">
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
                 {suggestion?.style_label || generatedScript.style}
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-semibold">
+                {productionLabel}
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 font-semibold">
+                🎯 Atração
               </span>
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted/30 text-muted-foreground font-semibold">
                 ~{suggestion?.duration || '60s'}
@@ -325,6 +388,14 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
           >
             <FileText className="w-4 h-4" />
             Editar no Kanban
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleOpenTutorial}
+            className="w-full rounded-xl text-sm gap-2 border-border/50"
+          >
+            <Play className="w-4 h-4" />
+            Assistir Tutorial de Gravação desse Formato
           </Button>
           <Button
             variant="ghost"
