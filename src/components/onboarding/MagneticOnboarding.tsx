@@ -1,283 +1,181 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Sparkles, User, Loader2, CheckCircle2,
-  ChevronRight, Mic, LayoutGrid, BookOpen
-} from 'lucide-react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePlanPermissions } from '@/hooks/usePlanPermissions';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { User, Mic, FileText, BookOpen, Sparkles, Check } from 'lucide-react';
+import { BasicInfoFlow } from './BasicInfoFlow';
 import { VoiceDNASetup } from './VoiceDNASetup';
 import { FormatQuizSetup } from './FormatQuizSetup';
 import { NarrativeSetup } from './NarrativeSetup';
-import { cn } from '@/lib/utils';
+import { FirstScriptFlow } from './FirstScriptFlow';
+import { toast } from 'sonner';
 
 interface MagneticOnboardingProps {
-  open: boolean;
-  onClose?: () => void;
-  initialStep?: OnboardingStep;
+  onboardingStep: string;
 }
 
-export type OnboardingStep = 'profile' | 'voice_dna' | 'format_quiz' | 'narrative' | 'done';
-
 const STEPS = [
-  { id: 'profile',      icon: User,       label: 'Perfil' },
-  { id: 'voice_dna',   icon: Mic,        label: 'DNA de Voz' },
-  { id: 'format_quiz', icon: LayoutGrid, label: 'Formato' },
-  { id: 'narrative',   icon: BookOpen,   label: 'Narrativa' },
+  { key: 'basic_info', label: 'Boas-vindas', icon: User, description: 'Nome e @' },
+  { key: 'voice_dna', label: 'DNA de Voz', icon: Mic, description: 'Seu jeito de falar' },
+  { key: 'format_quiz', label: 'Formato', icon: FileText, description: 'Seu estilo de gravar' },
+  { key: 'narrative', label: 'Narrativa', icon: BookOpen, description: 'Sua história' },
 ];
 
-export function MagneticOnboarding({ open, onClose, initialStep }: MagneticOnboardingProps) {
+export type OnboardingStep = 'basic_info' | 'voice_dna' | 'format_quiz' | 'narrative' | 'first_script' | 'completed';
+
+export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) {
   const { user, refreshProfile } = useAuth();
-  const { toast } = useToast();
+  const { planType } = usePlanPermissions();
+  const [currentStep, setCurrentStep] = useState(onboardingStep);
+  const [isAnimating, setIsAnimating] = useState(false);
 
-  const [step, setStep] = useState<OnboardingStep>(initialStep ?? 'profile');
-  const [name, setName] = useState('');
-  const [handle, setHandle] = useState('');
-  const [savingProfile, setSavingProfile] = useState(false);
+  const isMagnetic = ['magnetic', 'magnetic_pro', 'magnetico', 'magnetico_pro'].includes(planType);
 
-  // Quando o modal reabre com um initialStep diferente, vai para a etapa correta
-  const prevOpen = useRef(false);
-  useEffect(() => {
-    if (open && !prevOpen.current && initialStep) {
-      setStep(initialStep);
-    }
-    prevOpen.current = open;
-  }, [open, initialStep]);
+  // Only render for magnetic plans and non-completed steps
+  if (!isMagnetic || currentStep === 'completed') return null;
 
-  const currentStepIndex = STEPS.findIndex(s => s.id === step);
+  const currentIndex = STEPS.findIndex(s => s.key === currentStep);
 
-  // ── Step 1: Save profile info ──────────────────────────────────────
-  const handleSaveProfile = async () => {
-    if (!user || !name.trim()) return;
-    setSavingProfile(true);
-    try {
-      const cleanHandle = handle.trim().replace(/^@/, '');
-      await supabase
-        .from('profiles')
-        .update({ name: name.trim() } as any)
-        .eq('id', user.id);
-
-      if (cleanHandle) {
-        await supabase.from('user_metrics').upsert(
-          { user_id: user.id, handle: cleanHandle },
-          { onConflict: 'user_id' }
-        );
-      }
-
-      await refreshProfile();
-      setStep('voice_dna');
-    } catch {
-      toast({ title: 'Erro', description: 'Não foi possível salvar. Tente novamente.', variant: 'destructive' });
-    } finally {
-      setSavingProfile(false);
-    }
-  };
-
-  // ── Skip (closes modal, stays closed this session) ──────────────────
-  const handleSkipSession = () => {
-    sessionStorage.setItem('setup_skipped_this_session', '1');
-    onClose?.();
-  };
-
-  // ── Mark setup complete ─────────────────────────────────────────────
-  const handleComplete = async () => {
+  const goToStep = async (nextStep: string) => {
     if (!user) return;
+    setIsAnimating(true);
+
     await supabase
       .from('profiles')
-      .update({ has_completed_setup: true } as any)
+      .update({ onboarding_step: nextStep } as any)
       .eq('id', user.id);
-    await supabase.from('user_metrics').upsert(
-      { user_id: user.id, initial_setup_done: true },
-      { onConflict: 'user_id' }
-    );
+
+    setTimeout(() => {
+      setCurrentStep(nextStep);
+      setIsAnimating(false);
+    }, 300);
+
     await refreshProfile();
-    setStep('done');
   };
 
-  // ── Identity step handlers ──────────────────────────────────────────
-  const handleVoiceDone = () => setStep('format_quiz');
-  const handleFormatDone = () => setStep('narrative');
-  const handleNarrativeDone = async () => { await handleComplete(); };
-  const handleVoiceSkip = () => setStep('format_quiz');
-  const handleFormatSkip = () => setStep('narrative');
-  const handleNarrativeSkip = async () => { await handleComplete(); };
+  const handleSkipAll = async () => {
+    await goToStep('completed');
+    toast.info('Você pode configurar tudo depois em Perfil > Identidade Magnética.');
+  };
 
-  // ── Done screen ─────────────────────────────────────────────────────
-  if (step === 'done') {
+  // ===== TELA DO PRIMEIRO ROTEIRO (fullscreen separada, sem header de progresso) =====
+  if (currentStep === 'first_script') {
     return (
-      <Dialog open={open} modal>
-        <DialogContent
-          className="max-w-sm [&>button.absolute]:hidden"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          <div className="text-center py-4 space-y-4">
-            <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="w-8 h-8 text-primary" />
-            </div>
-            <h2 className="text-xl font-bold text-foreground">Identidade configurada! 🧲</h2>
-            <p className="text-sm text-muted-foreground">
-              Sua IA já sabe quem você é. Agora é só criar conteúdo magnético.
-            </p>
-            <Button onClick={() => { onClose?.(); window.location.reload(); }} className="w-full">
-              Começar a criar
-            </Button>
+      <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <main className="flex-1 overflow-auto">
+          <div className="max-w-lg mx-auto px-4 py-6">
+            <FirstScriptFlow
+              onComplete={() => goToStep('completed')}
+              onSkip={() => goToStep('completed')}
+            />
           </div>
-        </DialogContent>
-      </Dialog>
+        </main>
+      </div>
     );
   }
 
-  // ── Delegate to existing modals ─────────────────────────────────────
-  if (step === 'voice_dna') {
-    return <VoiceDNASetup open={open} onComplete={handleVoiceDone} onSkip={handleVoiceSkip} />;
-  }
-  if (step === 'format_quiz') {
-    return <FormatQuizSetup open={open} onComplete={handleFormatDone} onSkip={handleFormatSkip} />;
-  }
-  if (step === 'narrative') {
-    return <NarrativeSetup open={open} onComplete={handleNarrativeDone} onSkip={handleNarrativeSkip} />;
+  // ===== VOICE DNA, FORMAT QUIZ, NARRATIVE — delegate to existing Dialog components =====
+  if (currentStep === 'voice_dna') {
+    return (
+      <VoiceDNASetup
+        open={true}
+        onComplete={() => goToStep('format_quiz')}
+        onSkip={() => goToStep('format_quiz')}
+      />
+    );
   }
 
-  // ── Step 1: Profile ─────────────────────────────────────────────────
+  if (currentStep === 'format_quiz') {
+    return (
+      <FormatQuizSetup
+        open={true}
+        onComplete={() => goToStep('narrative')}
+        onSkip={() => goToStep('narrative')}
+      />
+    );
+  }
+
+  if (currentStep === 'narrative') {
+    return (
+      <NarrativeSetup
+        open={true}
+        onComplete={() => goToStep('first_script')}
+        onSkip={() => goToStep('first_script')}
+      />
+    );
+  }
+
+  // ===== BASIC INFO (fullscreen with header) =====
   return (
-    <Dialog open={open} modal>
-      <DialogContent
-        className="max-w-md [&>button.absolute]:hidden"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-      >
-        {/* Progress bar */}
-        <div className="flex items-center gap-1.5 mb-1">
-          {STEPS.map((s, i) => (
-            <div key={s.id} className="flex-1 flex flex-col items-center gap-1">
-              <div className={cn(
-                'w-full h-1 rounded-full transition-all duration-300',
-                i < currentStepIndex ? 'bg-primary' :
-                i === currentStepIndex ? 'bg-primary/50' : 'bg-muted'
-              )} />
-              <span className={cn(
-                'text-[10px] font-medium hidden sm:block',
-                i === currentStepIndex ? 'text-primary' : 'text-muted-foreground/60'
-              )}>
-                {s.label}
+    <div className="fixed inset-0 z-50 bg-background flex flex-col">
+      {/* ===== HEADER COM PROGRESSO ===== */}
+      <header className="border-b border-border/30 bg-background/95 backdrop-blur px-4 py-3">
+        <div className="max-w-lg mx-auto">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary" />
+              <span className="text-sm font-bold text-foreground">
+                Identidade Magnética
               </span>
             </div>
-          ))}
-        </div>
-
-        {/* Header */}
-        <div className="text-center mt-3 mb-4">
-          <div className="w-14 h-14 rounded-2xl bg-primary/15 flex items-center justify-center mx-auto mb-3">
-            <Sparkles className="w-7 h-7 text-primary" />
+            {/* Botão "Configurar depois" NÃO aparece no basic_info */}
+            {currentStep !== 'basic_info' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSkipAll}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Configurar depois
+              </Button>
+            )}
           </div>
-          <h2 className="text-xl font-bold text-foreground">Bem-vindo à Magnetic.IA! 🧲</h2>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            4 passos rápidos pra IA te conhecer de verdade.
-          </p>
-        </div>
 
-        {/* Steps preview */}
-        <div className="grid grid-cols-4 gap-2 mb-5">
-          {STEPS.map((s, i) => {
-            const Icon = s.icon;
-            const isDone = i < currentStepIndex;
-            const isActive = i === currentStepIndex;
-            return (
-              <div key={s.id} className={cn(
-                'flex flex-col items-center gap-1 p-2 rounded-xl text-center',
-                isActive ? 'bg-primary/10 border border-primary/30' :
-                isDone ? 'bg-muted/50' : 'bg-muted/20 opacity-50'
-              )}>
-                <div className={cn(
-                  'w-7 h-7 rounded-lg flex items-center justify-center',
-                  isActive ? 'bg-primary/20' : 'bg-muted'
-                )}>
-                  {isDone
-                    ? <CheckCircle2 className="w-3.5 h-3.5 text-primary" />
-                    : <Icon className={cn('w-3.5 h-3.5', isActive ? 'text-primary' : 'text-muted-foreground')} />
-                  }
+          {/* Step indicators */}
+          <div className="flex gap-2">
+            {STEPS.map((step, i) => {
+              const Icon = step.icon;
+              const isActive = i === currentIndex;
+              const isDone = i < currentIndex;
+
+              return (
+                <div key={step.key} className="flex-1">
+                  <div className={`
+                    h-1.5 rounded-full transition-all duration-500
+                    ${isDone ? 'bg-primary' : isActive ? 'bg-primary/50' : 'bg-muted/30'}
+                  `} />
+                  <div className={`
+                    flex items-center gap-1.5 mt-1.5 transition-opacity
+                    ${isActive ? 'opacity-100' : 'opacity-40'}
+                  `}>
+                    {isDone ? (
+                      <Check className="w-3 h-3 text-primary" />
+                    ) : (
+                      <Icon className="w-3 h-3" />
+                    )}
+                    <span className="text-[10px] font-medium truncate">
+                      {step.label}
+                    </span>
+                  </div>
                 </div>
-                <p className={cn(
-                  'text-[10px] font-medium leading-tight',
-                  isActive ? 'text-primary' : 'text-muted-foreground'
-                )}>
-                  {s.label}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Form */}
-        <div className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="setup-name" className="text-sm font-medium">
-              Qual é o seu nome? <span className="text-destructive">*</span>
-            </Label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                id="setup-name"
-                placeholder="Ex: Maria Silva"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="pl-10"
-                onKeyDown={(e) => e.key === 'Enter' && name.trim() && handleSaveProfile()}
-              />
-            </div>
+              );
+            })}
           </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="setup-handle" className="text-sm font-medium">
-              Seu @ do Instagram
-              <span className="text-xs text-muted-foreground font-normal ml-1">(opcional)</span>
-            </Label>
-            <div className="relative">
-              {/* Instagram logo prefix */}
-              <div className="absolute left-0 top-0 bottom-0 flex items-center pl-3 pr-2.5 border-r border-border/50 pointer-events-none">
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                  <rect width="24" height="24" rx="6" fill="url(#ig-grad)" />
-                  <circle cx="12" cy="12" r="4.5" stroke="white" strokeWidth="1.5" fill="none" />
-                  <circle cx="17" cy="7" r="1" fill="white" />
-                  <defs>
-                    <linearGradient id="ig-grad" x1="0" y1="24" x2="24" y2="0" gradientUnits="userSpaceOnUse">
-                      <stop stopColor="#F58529" />
-                      <stop offset="0.5" stopColor="#DD2A7B" />
-                      <stop offset="1" stopColor="#8134AF" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-              </div>
-              <div className="absolute left-11 top-1/2 -translate-y-1/2 text-muted-foreground text-sm pointer-events-none select-none">@</div>
-              <Input
-                id="setup-handle"
-                placeholder="seuperfil"
-                value={handle}
-                onChange={(e) => setHandle(e.target.value.replace(/^@/, ''))}
-                className="pl-[3.75rem]"
-                onKeyDown={(e) => e.key === 'Enter' && name.trim() && handleSaveProfile()}
-              />
-            </div>
-          </div>
-
-          <Button
-            onClick={handleSaveProfile}
-            disabled={!name.trim() || savingProfile}
-            className="w-full gap-2"
-          >
-            {savingProfile
-              ? <><Loader2 className="w-4 h-4 animate-spin" />Salvando...</>
-              : <>Continuar <ChevronRight className="w-4 h-4" /></>
-            }
-          </Button>
-
         </div>
-      </DialogContent>
-    </Dialog>
+      </header>
+
+      {/* ===== CONTEÚDO DO STEP ===== */}
+      <main className={`
+        flex-1 overflow-auto transition-opacity duration-300
+        ${isAnimating ? 'opacity-0' : 'opacity-100'}
+      `}>
+        <div className="max-w-lg mx-auto px-4 py-6">
+          {currentStep === 'basic_info' && (
+            <BasicInfoFlow onComplete={() => goToStep('voice_dna')} />
+          )}
+        </div>
+      </main>
+    </div>
   );
 }

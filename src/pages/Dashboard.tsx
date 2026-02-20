@@ -251,8 +251,8 @@ export default function Home() {
       if (user) {
         await supabase.from('profiles').update({ 
           name: name || data.display_name,
-          has_completed_setup: true 
-        }).eq('id', user.id);
+          has_completed_setup: true
+        } as any).eq('id', user.id);
       }
       toast.success('Perfil configurado!');
     }
