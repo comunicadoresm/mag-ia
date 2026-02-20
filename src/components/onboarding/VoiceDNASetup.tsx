@@ -148,7 +148,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
         </div>
 
         {/* Step header */}
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center mb-1">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-[10px] bg-[#FAFC59]/15 flex items-center justify-center text-lg">
               🎙️
@@ -157,12 +157,6 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
               Etapa 1 · DNA de Voz
             </span>
           </div>
-          <button
-            onClick={onSkip}
-            className="text-xs text-[#666] hover:text-[#999] transition-colors px-2 py-1 rounded-md"
-          >
-            Pular etapa
-          </button>
         </div>
 
         {/* INTRO */}

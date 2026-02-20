@@ -9,9 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { VoiceDNASetup } from '@/components/onboarding/VoiceDNASetup';
-import { FormatQuizSetup } from '@/components/onboarding/FormatQuizSetup';
-import { NarrativeSetup } from '@/components/onboarding/NarrativeSetup';
+import { MagneticOnboarding } from '@/components/onboarding/MagneticOnboarding';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -127,15 +125,12 @@ export default function Profile() {
 
   return (
     <AppLayout>
-      {/* Onboarding modals */}
-      {activeOnboarding === 'voice_dna' && (
-        <VoiceDNASetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
-      )}
-      {activeOnboarding === 'format_quiz' && (
-        <FormatQuizSetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
-      )}
-      {activeOnboarding === 'narrative' && (
-        <NarrativeSetup open onComplete={() => setActiveOnboarding(null)} onSkip={() => setActiveOnboarding(null)} />
+      {/* Onboarding modal abre diretamente na etapa selecionada */}
+      {activeOnboarding && (
+        <MagneticOnboarding
+          onboardingStep={activeOnboarding}
+          onClose={() => setActiveOnboarding(null)}
+        />
       )}
 
       {/* Header */}

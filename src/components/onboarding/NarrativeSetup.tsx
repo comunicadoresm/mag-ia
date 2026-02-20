@@ -148,16 +148,13 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
           <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
           <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />
         </div>
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center mb-1">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-[10px] bg-[#FAFC59]/15 flex items-center justify-center text-lg">📖</div>
             <span className="text-[11px] font-semibold uppercase tracking-wider text-[#FAFC59]">
               Etapa 3 · Narrativa Primária
             </span>
           </div>
-          <button onClick={onSkip} className="text-xs text-[#666] hover:text-[#999] transition-colors px-2 py-1 rounded-md">
-            Pular
-          </button>
         </div>
         <h2 className="text-2xl font-bold tracking-tight text-[#fafafa] mt-3 leading-tight">
           Vamos construir sua história
@@ -168,15 +165,12 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
       </div>
 
       {step === 'intro' ? (
-        <div className="px-6 pb-7 mt-6 space-y-3">
+        <div className="px-6 pb-7 mt-6">
           <button
             onClick={startChat}
             className="w-full py-4 px-6 bg-[#FAFC59] text-[#141414] rounded-full font-bold text-[15px] shadow-[0_0_40px_-10px_rgba(250,252,89,0.4)] hover:bg-[#e8ea40] hover:-translate-y-0.5 transition-all duration-200"
           >
             Começar conversa →
-          </button>
-          <button onClick={onSkip} className="w-full py-3 text-sm text-[#666] hover:text-[#999] transition-colors">
-            Configurar depois
           </button>
         </div>
       ) : (
