@@ -143,8 +143,8 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto" style={{ background: '#0a0a0a' }}>
-      <div className="min-h-screen flex flex-col px-5 py-8 max-w-md mx-auto animate-fade-in">
+    <div>
+      <div className="flex flex-col px-6 py-7 max-w-md mx-auto animate-fade-in">
         {/* Progress bar — 3 segments */}
         <div className="flex gap-1.5 mb-5">
           <div className="flex-1 h-1 rounded-sm bg-[#FAFC59]" />

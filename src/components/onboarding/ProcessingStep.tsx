@@ -45,7 +45,7 @@ export function ProcessingStep({ onComplete }: ProcessingStepProps) {
   }, [steps.generating, onComplete]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-5 animate-fade-in" style={{ background: '#0a0a0a' }}>
+    <div className="flex flex-col items-center justify-center px-6 py-10 animate-fade-in">
       {/* Progress bar — all filled */}
       <div className="w-full max-w-xs mb-12">
         <div className="flex gap-1.5">

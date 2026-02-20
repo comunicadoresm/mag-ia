@@ -65,8 +65,8 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col px-5 py-8 animate-fade-in" style={{ background: '#0a0a0a' }}>
-      <div className="max-w-md mx-auto w-full flex flex-col flex-1">
+    <div className="flex flex-col px-6 py-7 animate-fade-in">
+      <div className="w-full flex flex-col">
         {/* Hero */}
         <div className="text-center mt-10">
           <div className="text-5xl mb-3">✨</div>

@@ -45,8 +45,8 @@ function ScriptSection({ emoji, label, sections, borderColor }: {
 
 export function FirstScriptResult({ script, suggestion, onGoToKanban, onGoToHome }: FirstScriptResultProps) {
   return (
-    <div className="min-h-screen flex flex-col px-5 py-8 animate-fade-in" style={{ background: '#0a0a0a' }}>
-      <div className="max-w-md mx-auto w-full flex flex-col flex-1">
+    <div className="flex flex-col px-6 py-7 animate-fade-in">
+      <div className="w-full flex flex-col">
         {/* Success header */}
         <div className="text-center">
           <div className="text-4xl mb-2">🎬</div>
