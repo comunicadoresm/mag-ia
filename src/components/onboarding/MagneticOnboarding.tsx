@@ -10,7 +10,7 @@ import { NarrativeSetup } from './NarrativeSetup';
 import { FirstScriptFlow } from './FirstScriptFlow';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import logoSymbol from '@/assets/logo-symbol.png';
+import logoSymbol from '@/assets/logo-symbol-yellow.png';
 
 const STEPS = [
   { key: 'basic_info', label: 'Perfil', icon: User },
@@ -52,19 +52,25 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
     await refreshProfile();
   };
 
-  // ===== FIRST SCRIPT (fullscreen separada, sem header de progresso) =====
+  // ===== FIRST SCRIPT — como popup/dialog =====
   if (currentStep === 'first_script') {
     return (
-      <div className="fixed inset-0 z-50 bg-background flex flex-col">
-        <main className="flex-1 overflow-auto">
-          <div className="max-w-lg mx-auto px-4 py-6">
-            <FirstScriptFlow
-              onComplete={() => goToStep('completed')}
-              onSkip={() => goToStep('completed')}
-            />
+      <Dialog open={true}>
+        <DialogContent
+          className="max-w-md [&>button.absolute]:hidden overflow-y-auto max-h-[90vh]"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          {/* Logo CM no topo */}
+          <div className="flex items-center justify-center mb-2">
+            <img src={logoSymbol} alt="Comunicadores Magnéticos" className="w-8 h-8 object-contain" />
           </div>
-        </main>
-      </div>
+          <FirstScriptFlow
+            onComplete={() => goToStep('completed')}
+            onSkip={() => goToStep('completed')}
+          />
+        </DialogContent>
+      </Dialog>
     );
   }
 
@@ -119,24 +125,21 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
 
         {/* Progress bar — same style as other steps */}
         <div className="flex items-center gap-1.5 mb-1">
-          {STEPS.map((s, i) => {
-            const Icon = s.icon;
-            return (
-              <div key={s.key} className="flex-1 flex flex-col items-center gap-1">
-                <div className={cn(
-                  'w-full h-1 rounded-full transition-all duration-300',
-                  i < currentIndex ? 'bg-primary' :
-                  i === currentIndex ? 'bg-primary/50' : 'bg-muted'
-                )} />
-                <span className={cn(
-                  'text-[10px] font-medium hidden sm:block',
-                  i === currentIndex ? 'text-primary' : 'text-muted-foreground/60'
-                )}>
-                  {s.label}
-                </span>
-              </div>
-            );
-          })}
+        {STEPS.map((s, i) => (
+            <div key={s.key} className="flex-1 flex flex-col items-center gap-1">
+              <div className={cn(
+                'w-full h-1 rounded-full transition-all duration-300',
+                i < currentIndex ? 'bg-primary' :
+                i === currentIndex ? 'bg-primary/50' : 'bg-muted'
+              )} />
+              <span className={cn(
+                'text-[10px] font-medium hidden sm:block',
+                i === currentIndex ? 'text-primary' : 'text-muted-foreground/60'
+              )}>
+                {s.label}
+              </span>
+            </div>
+          ))}
         </div>
 
         <div className="mt-2">

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import logoSymbol from '@/assets/logo-symbol.png';
+import logoSymbol from '@/assets/logo-symbol-yellow.png';
 
 // TODO: Verificar modelo usado na geração de roteiro
 
@@ -197,7 +197,7 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
   // ═══ PROCESSING ═══
   if (state === 'processing') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-6">
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-6">
         {/* Ímã CM animado no lugar do spinner */}
         <img
           src={logoSymbol}
@@ -237,7 +237,7 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
       (suggestion.format || '').toLowerCase().includes('high');
 
     return (
-      <div className="space-y-6 flex flex-col min-h-[60vh]">
+      <div className="space-y-4 flex flex-col">
         <div className="text-center space-y-2 pt-2">
           <div className="text-4xl">🎯</div>
           <h2 className="text-xl font-bold text-foreground">
@@ -308,7 +308,7 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
   // ═══ GENERATING ═══
   if (state === 'generating') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-5">
+      <div className="flex flex-col items-center justify-center min-h-[40vh] text-center space-y-5">
         {/* Ímã CM animado */}
         <img
           src={logoSymbol}
