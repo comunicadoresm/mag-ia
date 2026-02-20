@@ -76,8 +76,8 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
             <span className="text-[#fafafa]">Magnetic.IA</span>
           </h2>
           <p className="text-sm text-[#999] mt-3 max-w-[300px] mx-auto leading-relaxed">
-            Vamos configurar sua identidade para que a IA crie conteúdo com a{' '}
-            <strong className="text-[#FAFC59]">sua voz</strong>.
+            Em menos de 10 minutos você vai configurar sua identidade de criador para que a IA escreva conteúdo com a{' '}
+            <strong className="text-[#FAFC59]">sua voz, seu jeito e sua história</strong>.
           </p>
         </div>
 
@@ -85,7 +85,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
         <div className="mt-8 space-y-5">
           <div>
             <label className="text-xs font-semibold text-[#999] mb-2 block">
-              Como você quer ser chamado?
+              Como você quer ser chamado? *
             </label>
             <input
               type="text"
@@ -98,7 +98,7 @@ export function WelcomeStep({ onNext }: WelcomeStepProps) {
 
           <div>
             <label className="text-xs font-semibold text-[#999] mb-2 block">
-              Qual seu @ principal? (Instagram, TikTok...)
+              Qual seu @ principal? (Instagram, TikTok...) *
             </label>
             <input
               type="text"

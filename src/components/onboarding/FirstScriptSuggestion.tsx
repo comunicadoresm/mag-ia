@@ -27,7 +27,7 @@ export function FirstScriptSuggestion({ suggestion, onGenerate, onSkip, generati
             Identidade configurada!
           </h2>
           <p className="text-sm text-[#999] mt-2 max-w-[280px] mx-auto leading-relaxed">
-            Com base no seu tom de voz, formato e narrativa, a IA sugere seu primeiro conteúdo:
+            Com base no seu DNA de voz, formato de produção e narrativa, a IA escolheu o roteiro com maior chance de engajar a sua audiência. Você pode gerar agora ou deixar para depois.
           </p>
         </div>
 

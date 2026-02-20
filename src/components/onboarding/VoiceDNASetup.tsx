@@ -161,7 +161,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
             onClick={onSkip}
             className="text-xs text-[#666] hover:text-[#999] transition-colors px-2 py-1 rounded-md"
           >
-            Configurar depois
+            Pular etapa
           </button>
         </div>
 
@@ -172,7 +172,7 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
               Grave 3 áudios curtos
             </h2>
             <p className="text-sm text-[#999] mt-2 leading-relaxed">
-              A IA vai aprender seu jeito de falar para escrever com a sua voz.
+              A IA vai analisar seu tom, vocabulário e energia para escrever conteúdo que soa exatamente como você — não como um robô.
             </p>
 
             <div className="mt-6 bg-[#292929] border border-white/[0.06] rounded-2xl p-5 text-center">
