@@ -273,7 +273,7 @@ export default function Home() {
           supabase.from('voice_profiles').select('is_calibrated').eq('user_id', user.id).maybeSingle(),
           supabase.from('user_narratives').select('is_completed').eq('user_id', user.id).maybeSingle(),
           supabase.from('user_format_profile').select('id').eq('user_id', user.id).maybeSingle(),
-          supabase.from('agents_public').select('id', { count: 'exact', head: true }),
+          supabase.rpc('get_agents_public'),
         ]);
         setScripts(scriptsRes.data || []);
         setIdentity({
@@ -281,7 +281,7 @@ export default function Home() {
           narrative: !!narrativeRes.data?.is_completed,
           formatProfile: !!formatRes.data,
         });
-        setAgentCount(agentsRes.count || 0);
+        setAgentCount((agentsRes.data || []).length);
       } catch (err) {
         console.error('Home fetch error:', err);
       } finally {

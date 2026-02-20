@@ -47,9 +47,7 @@ export function HomeSidebar({ onNewChat }: HomeSidebarProps) {
         const agentIds = [...new Set(convData.map((c) => c.agent_id))];
         if (agentIds.length > 0) {
           const { data: agentsData } = await supabase
-            .from('agents_public')
-            .select('*')
-            .in('id', agentIds);
+            .rpc('get_agents_public', { p_ids: agentIds });
 
           const agentsMap = new Map(agentsData?.map((a) => [a.id, a as Agent]));
 
