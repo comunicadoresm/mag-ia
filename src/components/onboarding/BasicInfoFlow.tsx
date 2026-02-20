@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import logoSymbol from '@/assets/logo-symbol.png';
+import logoSymbol from '@/assets/logo-symbol-yellow.png';
 
 interface BasicInfoFlowProps {
   onComplete: () => void;
