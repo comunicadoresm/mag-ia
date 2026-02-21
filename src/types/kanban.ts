@@ -96,21 +96,25 @@ export const FORMATS: { value: string; label: string }[] = [
 
 export const DEFAULT_SCRIPT_STRUCTURE: ScriptStructure = {
   inicio: {
-    title: '🎯 INÍCIO (Gancho)',
+    title: '🎯 INÍCIO (Gancho + Suspensão)',
     sections: [
-      { id: 'hook', label: 'Gancho', placeholder: 'Primeira frase que prende a atenção...' },
+      { id: 'hook', label: '🟠 Abertura com Tensão Real', placeholder: 'Primeira frase que prende a atenção com tensão real...' },
+      { id: 'suspensao', label: '🟡 Suspensão Intencional', placeholder: '"Mas antes de te contar..." — crie curiosidade...' },
     ],
   },
   desenvolvimento: {
-    title: '📚 DESENVOLVIMENTO',
+    title: '📖 DESENVOLVIMENTO (Contexto + Revelação + Valor)',
     sections: [
-      { id: 'content', label: 'Conteúdo Principal', placeholder: 'Desenvolva o tema com exemplos práticos...' },
+      { id: 'contexto', label: '🔵 Contexto Crível', placeholder: 'Situação concreta com detalhes reais...' },
+      { id: 'revelacao', label: '🟠 Revelação do Mecanismo', placeholder: 'O erro/problema revelado, conectado à expertise...' },
+      { id: 'meta', label: '🟢 Quebra Meta-Narrativa', placeholder: 'Frase que amplifica o impacto (opcional em low-fi)...' },
+      { id: 'regra', label: '🔵 Regra Prática', placeholder: 'Insight direto e aplicável...' },
     ],
   },
   final: {
-    title: '🎬 FINAL (CTA)',
+    title: '✅ FECHAMENTO (CTA)',
     sections: [
-      { id: 'cta', label: 'Call-to-Action', placeholder: 'Fechamento com chamada para ação...' },
+      { id: 'cta', label: '🟡 CTA de Atração', placeholder: 'Convite para seguir ou interagir...' },
     ],
   },
 };
