@@ -96,12 +96,60 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
 
-    // === NARRATIVE CHAT MODE ===
+    // === NARRATIVE CHAT MODE (uses Lovable AI Gateway with GPT-5 Mini) ===
     if (body.action === "narrative_chat") {
       const { messages, system_prompt } = body;
-      const aiResponse = await callOpenAI(system_prompt, messages);
+      
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) {
+        return new Response(
+          JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const gatewayResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openai/gpt-5-mini",
+          messages: [
+            { role: "system", content: system_prompt },
+            ...messages,
+          ],
+          max_tokens: 2048,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!gatewayResponse.ok) {
+        const errText = await gatewayResponse.text();
+        console.error("Lovable AI error:", gatewayResponse.status, errText);
+        
+        if (gatewayResponse.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded, tente novamente." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (gatewayResponse.status === 402) {
+          return new Response(JSON.stringify({ error: "Créditos de IA esgotados." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        return new Response(JSON.stringify({ error: "Erro na API de IA" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const data = await gatewayResponse.json();
+      const aiMsg = data.choices?.[0]?.message?.content || "";
+      
       return new Response(
-        JSON.stringify({ message: aiResponse }),
+        JSON.stringify({ message: aiMsg }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
