@@ -231,13 +231,41 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages]);
 
+  const buildSystemPrompt = async () => {
+    const userName = profile?.name || 'Usuário';
+    let voiceDnaContext = '';
+
+    // Fetch voice DNA if available
+    if (user) {
+      const { data: voiceProfile } = await supabase
+        .from('voice_profiles')
+        .select('voice_dna')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (voiceProfile?.voice_dna) {
+        const dna = voiceProfile.voice_dna as Record<string, unknown>;
+        voiceDnaContext = `\n\nDNA DE VOZ DO USUÁRIO (use para adaptar seu tom e linguagem):
+- Formalidade: ${dna.formalidade || 'médio'}
+- Ritmo: ${dna.ritmo || 'médio'}
+- Humor: ${dna.humor || 'sutil'}
+- Assertividade: ${dna.assertividade || 'média'}
+- Energia: ${dna.energia || 'média'}
+- Vocabulário: ${dna.vocabulario_nivel || 'simples'}
+- Expressões frequentes: ${JSON.stringify(dna.expressoes_frequentes || [])}
+- Resumo do tom: ${dna.resumo_tom || 'Não disponível'}`;
+      }
+    }
+
+    return NARRATIVE_SYSTEM_PROMPT + `\n\nDADOS DO USUÁRIO:\n- Nome: ${userName}\n- Email: ${profile?.email || ''}${voiceDnaContext}\n\nIMPORTANTE: Você já sabe o nome do usuário (${userName}). Na ETAPA 0, pule a pergunta do nome e cumprimente-o pelo nome. Faça apenas as perguntas 2 e 3 da Etapa 0 (o que vende e público).`;
+  };
+
   const startChat = async () => {
     setStep('chat');
     setLoading(true);
 
     try {
-      // Use Lovable AI to avoid needing an API key
-      const systemPromptWithContext = NARRATIVE_SYSTEM_PROMPT + `\n\nDADOS DO USUÁRIO:\n- Nome: ${profile?.name || 'Usuário'}\n- Email: ${profile?.email || ''}`;
+      const systemPromptWithContext = await buildSystemPrompt();
 
       const { data, error } = await supabase.functions.invoke('process-voice-dna', {
         body: {
@@ -253,10 +281,9 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
       setMessages([{ role: 'assistant', content: aiMsg }]);
     } catch (err) {
       console.error('Narrative start error:', err);
-      // Fallback opening message
       setMessages([{
         role: 'assistant',
-        content: 'Olá! 👋 Vamos construir sua Narrativa Primária — o posicionamento que vai guiar todo o seu conteúdo.\n\nPrimeira pergunta:\n\n**O que você sabe fazer de verdade?**\n\nNão é cargo, nem título. É o que você entrega na prática.\n\n💡 Modelo: "Eu sei fazer ___ para ___ através de ___."'
+        content: `Olá, ${profile?.name || 'Usuário'}! 👋 Vamos construir sua Narrativa Primária — o posicionamento que vai guiar todo o seu conteúdo.\n\nPrimeira pergunta:\n\n**O que você vende ou entrega hoje?** (em 1 frase)`
       }]);
     } finally {
       setLoading(false);
@@ -272,7 +299,7 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
     setLoading(true);
 
     try {
-      const systemPromptWithContext = NARRATIVE_SYSTEM_PROMPT + `\n\nDADOS DO USUÁRIO:\n- Nome: ${profile?.name || 'Usuário'}`;
+      const systemPromptWithContext = await buildSystemPrompt();
 
       const { data, error } = await supabase.functions.invoke('process-voice-dna', {
         body: {
