@@ -29,14 +29,15 @@ Deno.serve(async (req) => {
       supabase.from("profiles").select("name").eq("id", user_id).single(),
       supabase.from("voice_profiles").select("voice_dna, is_calibrated").eq("user_id", user_id).maybeSingle(),
       supabase.from("user_format_profile").select("recommended_format, weekly_plan").eq("user_id", user_id).maybeSingle(),
-      supabase.from("user_narratives").select("narrative_text, is_completed").eq("user_id", user_id).maybeSingle(),
+      supabase.from("user_narratives").select("narrative_text, is_completed, expertise, differentials, transformation, ideal_client").eq("user_id", user_id).maybeSingle(),
       supabase.from("user_metrics").select("handle").eq("user_id", user_id).maybeSingle(),
     ]);
 
     const userName = profileRes.data?.name || "Usuário";
     const voiceDna = voiceRes.data?.voice_dna || "Não calibrado";
     const format = formatRes.data?.recommended_format || "mid_fi";
-    const narrative = narrativeRes.data?.narrative_text || "Não definida";
+    const narrativeData = narrativeRes.data;
+    const narrative = narrativeData?.narrative_text || "Não definida";
     const handle = metricsRes.data?.handle || "";
 
     // 2. Fetch agent config
@@ -51,7 +52,7 @@ Deno.serve(async (req) => {
       throw new Error('Agent config "first-script-onboarding" not found.');
     }
 
-    const model = agentConfig.model || "gpt-4o-mini";
+    const model = agentConfig.model || "claude-opus-4-0-20250514";
     const provider = getProvider(model);
 
     const apiKey =
@@ -67,43 +68,55 @@ Deno.serve(async (req) => {
     }
 
     // 3. Build user context
+    const formatLabel = format === "low_fi"
+      ? "LOW-FI (simples, só roteiro + câmera selfie, sem edição)"
+      : format === "mid_fi"
+        ? "MID-FI (produção média, cortes, legendas)"
+        : "HI-FI (produção elaborada, B-roll, efeitos)";
+
     const userContext = `
-DADOS DO USUÁRIO:
+DADOS DO ONBOARDING DO USUÁRIO:
+
+### DNA de Voz:
+${typeof voiceDna === "object" ? JSON.stringify(voiceDna, null, 2) : voiceDna}
+
+### Formato Sustentável: ${formatLabel}
+
+### Narrativa Primária:
+${narrative}
+${narrativeData?.expertise ? `- Expertise: ${narrativeData.expertise}` : ""}
+${narrativeData?.differentials ? `- Diferenciais: ${narrativeData.differentials}` : ""}
+${narrativeData?.transformation ? `- Transformação: ${narrativeData.transformation}` : ""}
+${narrativeData?.ideal_client ? `- Cliente Ideal: ${narrativeData.ideal_client}` : ""}
+
+### Informações do Perfil:
 - Nome: ${userName}
 - Handle: ${handle}
-- DNA de Voz: ${typeof voiceDna === "object" ? JSON.stringify(voiceDna) : voiceDna}
-- Formato Recomendado: ${format === "low_fi" ? "LOW-FI (simples, só roteiro + câmera)" : format === "mid_fi" ? "MID-FI (qualidade visual/sonora elevada, edição leve)" : "HI-FI (produção completa, edição elaborada)"}
-- Narrativa Primária: ${narrative}
 `;
 
     // ═══ ACTION: SUGGEST ═══
     if (action === "suggest") {
-      const suggestPrompt = agentConfig.system_prompt + `
+      const userMessage = `${userContext}
 
-${userContext}
-
-TAREFA: Com base nos dados acima, sugira UM tema de primeiro roteiro para este usuário.
+TAREFA: Com base nos dados do onboarding acima, execute a ETAPA 1 do seu fluxo — analise a identidade magnética e sugira UM tema de primeiro roteiro.
 
 Retorne APENAS um JSON válido (sem markdown, sem explicação) neste formato:
 {
-  "title": "Título do roteiro sugerido",
+  "title": "Título do roteiro sugerido (provocativo e personalizado)",
   "style": "storytelling-looping",
   "style_label": "Storytelling Looping",
-  "format": "mid-fi",
-  "duration": "60s",
-  "justification": "Explicação curta (2-3 frases) de por que este roteiro é perfeito para este usuário."
+  "format": "${format === "low_fi" ? "lo-fi" : format === "mid_fi" ? "mid-fi" : "high-fi"}",
+  "duration": "${format === "low_fi" ? "45-60s" : format === "mid_fi" ? "60-75s" : "75-90s"}",
+  "justification": "Explicação curta (2-3 frases) de por que este roteiro é perfeito para este usuário, conectando com expertise e formato."
 }
 
 REGRAS:
-- O style deve ser EXATAMENTE um dos: storytelling-looping, analise, arco-transformacao, escalada, narrativa-primaria, reenquadramento, vlog, desafio, serie
-- O format deve ser EXATAMENTE um dos: lo-fi, mid-fi, high-fi
-- O título deve ser provocativo e personalizado
+- O style deve ser EXATAMENTE: storytelling-looping
 - A justificativa deve mencionar o tom de voz e/ou a narrativa do usuário
-- O formato deve ser adequado ao recommended_format (low_fi → lo-fi, mid_fi → mid-fi, high_fi → high-fi)
-- A duração deve ser adequada ao formato (lo-fi: 30-60s, mid-fi: 60-90s, high-fi: 90-180s)
-`;
+- O título deve começar pelo ERRO, não pela solução
+- Tema universal que atrai quem NÃO conhece o usuário`;
 
-      const response = await callLLM(provider, model, apiKey, suggestPrompt);
+      const response = await callLLM(provider, model, apiKey, agentConfig.system_prompt, userMessage);
       const suggestionData = JSON.parse(response);
 
       return new Response(
@@ -114,60 +127,60 @@ REGRAS:
 
     // ═══ ACTION: GENERATE ═══
     if (action === "generate" && suggestion) {
-      const generatePrompt = agentConfig.system_prompt + `
-
-${userContext}
+      const userMessage = `${userContext}
 
 ROTEIRO A GERAR:
 - Título: ${suggestion.title}
-- Estilo: ${suggestion.style_label}
+- Estilo: Storytelling Looping
 - Formato: ${suggestion.format}
 - Duração alvo: ${suggestion.duration}
+- Justificativa: ${suggestion.justification}
 
-TAREFA: Gere o roteiro COMPLETO no formato IDF (Início / Desenvolvimento / Final), escrito no tom de voz do usuário.
+TAREFA: Execute a ETAPA 4 do seu fluxo — gere o roteiro COMPLETO seguindo a estrutura IDF adaptada para Looping, com as cores de intenção e dicas de gravação. Use o DNA de Voz do usuário como referência de tom.
 
 Retorne APENAS um JSON válido (sem markdown, sem explicação) neste formato:
 {
   "title": "${suggestion.title}",
-  "style": "${suggestion.style}",
+  "style": "storytelling-looping",
   "script_content": {
     "inicio": {
-      "title": "🎯 INÍCIO (Gancho)",
+      "title": "🎯 INÍCIO (Gancho + Suspensão)",
       "sections": [
-        { "id": "hook", "label": "Gancho", "content": "O texto do gancho aqui" }
+        { "id": "hook", "label": "🟠 Abertura com Tensão Real", "content": "O texto do gancho aqui" },
+        { "id": "suspensao", "label": "🟡 Suspensão Intencional", "content": "Texto da suspensão (Mas antes...)" }
       ]
     },
     "desenvolvimento": {
-      "title": "📚 DESENVOLVIMENTO",
+      "title": "📖 DESENVOLVIMENTO (Contexto + Revelação + Valor)",
       "sections": [
-        { "id": "d1", "label": "Contexto", "content": "..." },
-        { "id": "d2", "label": "Revelação", "content": "..." },
-        { "id": "d3", "label": "Aprendizado", "content": "..." }
+        { "id": "contexto", "label": "🔵 Contexto Crível", "content": "Situação concreta com detalhes da narrativa do usuário" },
+        { "id": "revelacao", "label": "🟠 Revelação do Mecanismo", "content": "O erro/problema revelado, conectado à expertise" },
+        { "id": "meta", "label": "🟢 Quebra Meta-Narrativa", "content": "Frase que amplifica o impacto (opcional em low-fi)" },
+        { "id": "regra", "label": "🔵 Regra Prática", "content": "Insight direto e aplicável" }
       ]
     },
     "final": {
-      "title": "🎬 FINAL (CTA)",
+      "title": "✅ FECHAMENTO (CTA)",
       "sections": [
-        { "id": "cta", "label": "Call-to-Action", "content": "..." }
+        { "id": "cta", "label": "🟡 CTA de Atração", "content": "Convite para seguir" }
       ]
     }
   }
 }
 
 REGRAS PARA O TEXTO:
-- Use o DNA de Voz do usuário como referência para vocabulário, tom e ritmo
-- Incorpore elementos da Narrativa Primária
-- O texto deve parecer que o PRÓPRIO USUÁRIO escreveu
-- Linguagem falada, não escrita
-- Nada genérico — use detalhes específicos
-- Cada seção deve ter 2-4 frases
-`;
+- Use o DNA de Voz do aluno como referência — o roteiro deve parecer que o PRÓPRIO USUÁRIO escreveu
+- Incorpore elementos da Narrativa Primária no contexto crível e na revelação
+- Linguagem falada, não escrita — conversa real
+- Nada genérico — use detalhes específicos do nicho do usuário
+- Adapte a complexidade ao formato sustentável (${suggestion.format})
+- NÃO inclua explicações sobre o roteiro, apenas o conteúdo
+- Verifique o checklist de personalização (Seção 8) antes de entregar`;
 
-      const response = await callLLM(provider, model, apiKey, generatePrompt);
+      const response = await callLLM(provider, model, apiKey, agentConfig.system_prompt, userMessage);
       const script = JSON.parse(response);
 
       // Convert nested script_content to flat Record<string, string> for Kanban
-      // Kanban expects: { hook: "text", d1: "text", d2: "text", cta: "text" }
       const flatContent: Record<string, string> = {};
       const parts = ['inicio', 'desenvolvimento', 'final'] as const;
       for (const part of parts) {
@@ -179,7 +192,6 @@ REGRAS PARA O TEXTO:
         }
       }
 
-      // Format already comes as lo-fi, mid-fi, high-fi from suggest step
       const kanbanFormat = suggestion.format || 'mid-fi';
 
       // Save to user_scripts in flat format
@@ -187,7 +199,7 @@ REGRAS PARA O TEXTO:
         user_id,
         title: script.title,
         theme: suggestion.title,
-        style: suggestion.style,
+        style: suggestion.style || "storytelling-looping",
         format: kanbanFormat,
         objective: 'atração',
         status: "scripting",
@@ -210,12 +222,13 @@ REGRAS PARA O TEXTO:
   }
 });
 
-// Helper: Call LLM
+// Helper: Call LLM — separates system prompt from user message for proper caching
 async function callLLM(
   provider: "anthropic" | "openai" | "google",
   model: string,
   apiKey: string,
-  prompt: string
+  systemPrompt: string,
+  userMessage: string
 ): Promise<string> {
   if (provider === "anthropic") {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -224,18 +237,19 @@ async function callLLM(
         "Content-Type": "application/json",
         "x-api-key": apiKey,
         "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
       },
       body: JSON.stringify({
         model,
-        max_tokens: 2000,
+        max_tokens: 4096,
         system: [
           {
             type: "text",
-            text: "", // prompt already includes full instructions
+            text: systemPrompt,
             cache_control: { type: "ephemeral" },
           },
         ],
-        messages: [{ role: "user", content: prompt }],
+        messages: [{ role: "user", content: userMessage }],
       }),
     });
 
@@ -258,8 +272,11 @@ async function callLLM(
       },
       body: JSON.stringify({
         model,
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 2000,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userMessage },
+        ],
+        max_tokens: 4096,
         temperature: 0.7,
       }),
     });
@@ -281,8 +298,10 @@ async function callLLM(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 2000, temperature: 0.7 },
+        contents: [
+          { role: "user", parts: [{ text: `${systemPrompt}\n\n---\n\n${userMessage}` }] },
+        ],
+        generationConfig: { maxOutputTokens: 4096, temperature: 0.7 },
       }),
     }
   );
