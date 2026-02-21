@@ -96,47 +96,48 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
 
-    // === NARRATIVE CHAT MODE (uses Lovable AI Gateway with GPT-5 Mini) ===
+    // === NARRATIVE CHAT MODE (uses Claude Opus 4.5 via Anthropic API) ===
     if (body.action === "narrative_chat") {
       const { messages, system_prompt } = body;
       
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-      if (!LOVABLE_API_KEY) {
+      const ANTHROPIC_KEY = Deno.env.get("ANTHROPIC_API_KEY");
+      if (!ANTHROPIC_KEY) {
         return new Response(
-          JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
+          JSON.stringify({ error: "ANTHROPIC_API_KEY not configured" }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const gatewayResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      // Convert messages to Anthropic format (separate system from messages)
+      const anthropicMessages = messages.map((m: { role: string; content: string }) => ({
+        role: m.role === "assistant" ? "assistant" : "user",
+        content: m.content,
+      }));
+
+      const anthropicResponse = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "prompt-caching-2024-07-31",
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "openai/gpt-5-mini",
-          messages: [
-            { role: "system", content: system_prompt },
-            ...messages,
-          ],
+          model: "claude-opus-4-0-20250514",
           max_tokens: 2048,
           temperature: 0.7,
+          system: [{ type: "text", text: system_prompt, cache_control: { type: "ephemeral" } }],
+          messages: anthropicMessages,
         }),
       });
 
-      if (!gatewayResponse.ok) {
-        const errText = await gatewayResponse.text();
-        console.error("Lovable AI error:", gatewayResponse.status, errText);
+      if (!anthropicResponse.ok) {
+        const errText = await anthropicResponse.text();
+        console.error("Anthropic error:", anthropicResponse.status, errText);
         
-        if (gatewayResponse.status === 429) {
+        if (anthropicResponse.status === 429) {
           return new Response(JSON.stringify({ error: "Rate limit exceeded, tente novamente." }), {
             status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        if (gatewayResponse.status === 402) {
-          return new Response(JSON.stringify({ error: "Créditos de IA esgotados." }), {
-            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
         
@@ -145,8 +146,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      const data = await gatewayResponse.json();
-      const aiMsg = data.choices?.[0]?.message?.content || "";
+      const data = await anthropicResponse.json();
+      const aiMsg = data.content?.[0]?.text || "";
       
       return new Response(
         JSON.stringify({ message: aiMsg }),
