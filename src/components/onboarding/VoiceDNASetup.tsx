@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Loader2, CheckCircle, Mic, LayoutGrid, BookOpen, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { AudioRecorder } from './AudioRecorder';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -153,10 +153,12 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
   return (
     <Dialog open={open}>
       <DialogContent
-        className="max-w-md [&>button.absolute]:hidden"
+        className="max-w-md [&>button.absolute]:hidden overflow-y-auto max-h-[90vh]"
         onPointerDownOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
+        aria-describedby={undefined}
       >
+        <DialogTitle className="sr-only">DNA de Voz</DialogTitle>
         {/* Progress bar — same as MagneticOnboarding step 1 */}
         <div className="flex items-center gap-1.5 mb-1">
           {STEPS.map((s, i) => (
