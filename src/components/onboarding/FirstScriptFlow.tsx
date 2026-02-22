@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Play, Zap, CheckCircle, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
@@ -115,9 +115,12 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
     narrative: false,
     generating: false,
   });
+  const [isGenerating, setIsGenerating] = useState(false);
+  const hasFetchedRef = useRef(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || hasFetchedRef.current) return;
+    hasFetchedRef.current = true;
     fetchSuggestion();
   }, [user]);
 
@@ -156,7 +159,8 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
   };
 
   const handleGenerate = async () => {
-    if (!user || !suggestion) return;
+    if (!user || !suggestion || isGenerating) return;
+    setIsGenerating(true);
     setState('generating');
 
     try {
@@ -176,6 +180,7 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
       console.error('Generate error:', err);
       toast.error('Erro ao gerar roteiro. Tente novamente.');
       setState('suggestion');
+      setIsGenerating(false);
     }
   };
 
@@ -295,10 +300,11 @@ export function FirstScriptFlow({ onComplete, onSkip }: FirstScriptFlowProps) {
         <div className="space-y-3 pt-2">
           <Button
             onClick={handleGenerate}
+            disabled={isGenerating}
             className="w-full h-14 rounded-xl text-base font-bold gap-2"
           >
             <Zap className="w-5 h-5" />
-            Gerar meu primeiro roteiro
+            {isGenerating ? 'Gerando...' : 'Gerar meu primeiro roteiro'}
           </Button>
         </div>
       </div>

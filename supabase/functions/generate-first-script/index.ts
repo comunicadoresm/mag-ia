@@ -63,7 +63,13 @@ Deno.serve(async (req) => {
       throw new Error('Agent config "first-script-onboarding" not found.');
     }
 
-    const model = agentConfig.model || "claude-opus-4-20250514";
+    // Modelos otimizados por etapa:
+    // - suggest: só retorna 1 JSON com título → Haiku é suficiente
+    // - generate: gera roteiro completo em JSON → Sonnet é suficiente
+    const defaultModel = action === "suggest"
+      ? "claude-haiku-3-5-20241022"
+      : "claude-sonnet-4-20250514";
+    const model = agentConfig.model || defaultModel;
     const provider = getProvider(model);
 
     const apiKey =
@@ -107,6 +113,31 @@ ${narrativeData?.ideal_client ? `- Cliente Ideal: ${narrativeData.ideal_client}`
 
     // ═══ ACTION: SUGGEST ═══
     if (action === "suggest") {
+      // CHECK: Se o usuário já tem um script gerado, retorna sem chamar a IA
+      const { data: existingScripts } = await supabase
+        .from("user_scripts")
+        .select("id, title, style, format")
+        .eq("user_id", user_id)
+        .limit(1);
+
+      if (existingScripts && existingScripts.length > 0) {
+        console.log(`User ${user_id} already has ${existingScripts.length} script(s). Skipping generation.`);
+        return new Response(
+          JSON.stringify({
+            suggestion: {
+              title: existingScripts[0].title,
+              style: existingScripts[0].style || "storytelling-looping",
+              style_label: "Storytelling Looping",
+              format: existingScripts[0].format || "mid-fi",
+              duration: "60-75s",
+              justification: "Roteiro já gerado anteriormente.",
+            },
+            already_exists: true,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const userMessage = `${userContext}
 
 TAREFA: Com base nos dados do onboarding acima, execute a ETAPA 1 do seu fluxo — analise a identidade magnética e sugira UM tema de primeiro roteiro.
@@ -138,6 +169,22 @@ REGRAS:
 
     // ═══ ACTION: GENERATE ═══
     if (action === "generate" && suggestion) {
+      // CHECK: Evitar re-geração se já existe script com mesmo título
+      const { data: existingScript } = await supabase
+        .from("user_scripts")
+        .select("id")
+        .eq("user_id", user_id)
+        .eq("title", suggestion.title)
+        .limit(1);
+
+      if (existingScript && existingScript.length > 0) {
+        console.log(`Script "${suggestion.title}" already exists for user ${user_id}. Skipping.`);
+        return new Response(
+          JSON.stringify({ script: { title: suggestion.title, already_exists: true } }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const userMessage = `${userContext}
 
 ROTEIRO A GERAR:
