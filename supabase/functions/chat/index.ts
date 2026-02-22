@@ -18,7 +18,7 @@ interface Message {
 }
 
 // Max messages to send to AI (last N messages)
-const MAX_HISTORY_MESSAGES = 20;
+const MAX_HISTORY_MESSAGES = 10;
 
 // Determine provider based on model name
 function getProvider(model: string): "anthropic" | "openai" | "google" {
