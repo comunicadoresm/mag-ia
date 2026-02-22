@@ -80,7 +80,7 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
       <VoiceDNASetup
         open={true}
         onComplete={() => goToStep('format_quiz')}
-        onSkip={() => goToStep('format_quiz')}
+        onSkip={() => goToStep('completed')}
       />
     );
   }
@@ -90,7 +90,7 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
       <FormatQuizSetup
         open={true}
         onComplete={() => goToStep('narrative')}
-        onSkip={() => goToStep('narrative')}
+        onSkip={() => goToStep('completed')}
       />
     );
   }
@@ -100,7 +100,7 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
       <NarrativeSetup
         open={true}
         onComplete={() => goToStep('first_script')}
-        onSkip={() => goToStep('first_script')}
+        onSkip={() => goToStep('completed')}
       />
     );
   }

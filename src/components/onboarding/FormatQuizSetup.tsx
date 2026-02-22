@@ -505,6 +505,12 @@ São 5 perguntas rápidas. Menos de 1 minuto.`}
                   </Button>
                 )}
               </div>
+              <button
+                onClick={onSkip}
+                className="w-full text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors py-1"
+              >
+                Configurar depois
+              </button>
             </>
           )}
 

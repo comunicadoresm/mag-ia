@@ -199,6 +199,12 @@ export function VoiceDNASetup({ open, onComplete, onSkip }: VoiceDNASetupProps) 
               <Button onClick={() => setStep('audio')} className="w-full rounded-xl">
                 Começar
               </Button>
+              <button
+                onClick={onSkip}
+                className="w-full text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors py-1"
+              >
+                Configurar depois
+              </button>
             </>
           )}
 

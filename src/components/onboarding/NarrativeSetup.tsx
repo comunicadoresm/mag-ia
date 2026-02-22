@@ -444,6 +444,12 @@ export function NarrativeSetup({ open, onComplete, onSkip }: NarrativeSetupProps
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
+              <button
+                onClick={onSkip}
+                className="w-full text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors py-1"
+              >
+                Configurar depois
+              </button>
             </div>
           </>
         )}
