@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Mic, Square, Play, Pause, RotateCcw, Check } from 'lucide-react';
+import { Mic, Square, Play, Pause, RotateCcw, Check, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 interface AudioRecorderProps {
   onAudioReady: (blob: Blob) => void;
@@ -8,15 +9,37 @@ interface AudioRecorderProps {
   disabled?: boolean;
 }
 
+function getSupportedMimeType(): string {
+  const types = [
+    'audio/webm;codecs=opus',
+    'audio/webm',
+    'audio/mp4',
+    'audio/ogg;codecs=opus',
+    'audio/wav',
+    '',
+  ];
+  for (const type of types) {
+    if (!type) return ''; // fallback: let browser choose
+    try {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    } catch {
+      // isTypeSupported may throw in some browsers
+    }
+  }
+  return '';
+}
+
 export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: AudioRecorderProps) {
-  const [state, setState] = useState<'idle' | 'recording' | 'recorded' | 'playing'>('idle');
+  const [state, setState] = useState<'idle' | 'recording' | 'recorded' | 'playing' | 'error'>('idle');
   const [duration, setDuration] = useState(0);
+  const [errorMsg, setErrorMsg] = useState('');
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const blobRef = useRef<Blob | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -24,10 +47,39 @@ export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: Audi
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
+  const cleanupStream = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
   const startRecording = useCallback(async () => {
+    setErrorMsg('');
     try {
+      // Check if getUserMedia is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setErrorMsg('Seu navegador não suporta gravação de áudio. Tente usar Chrome ou Safari.');
+        setState('error');
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      streamRef.current = stream;
+
+      const mimeType = getSupportedMimeType();
+      const options: MediaRecorderOptions = {};
+      if (mimeType) options.mimeType = mimeType;
+
+      let mediaRecorder: MediaRecorder;
+      try {
+        mediaRecorder = new MediaRecorder(stream, options);
+      } catch (e) {
+        // Fallback: try without options
+        console.warn('MediaRecorder with options failed, trying without:', e);
+        mediaRecorder = new MediaRecorder(stream);
+      }
+
       chunksRef.current = [];
       mediaRecorderRef.current = mediaRecorder;
 
@@ -36,13 +88,21 @@ export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: Audi
       };
 
       mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        cleanupStream();
+        const recordedMime = mediaRecorder.mimeType || 'audio/webm';
+        const blob = new Blob(chunksRef.current, { type: recordedMime });
         blobRef.current = blob;
         const url = URL.createObjectURL(blob);
         audioRef.current = new Audio(url);
         audioRef.current.onended = () => setState('recorded');
         setState('recorded');
+      };
+
+      mediaRecorder.onerror = (e) => {
+        console.error('MediaRecorder error:', e);
+        cleanupStream();
+        setErrorMsg('Erro durante a gravação. Tente novamente.');
+        setState('error');
       };
 
       mediaRecorder.start(100);
@@ -59,20 +119,41 @@ export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: Audi
           return prev + 1;
         });
       }, 1000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Mic error:', err);
+      cleanupStream();
+      
+      if (err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError') {
+        setErrorMsg('Permissão de microfone negada. Habilite o microfone nas configurações do seu navegador e tente novamente.');
+      } else if (err?.name === 'NotFoundError' || err?.name === 'DevicesNotFoundError') {
+        setErrorMsg('Nenhum microfone encontrado. Conecte um microfone e tente novamente.');
+      } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
+        setErrorMsg('O microfone está sendo usado por outro aplicativo. Feche outros apps e tente novamente.');
+      } else {
+        setErrorMsg('Não foi possível acessar o microfone. Verifique as permissões do navegador.');
+      }
+      setState('error');
+      toast.error('Erro ao acessar microfone');
     }
-  }, [maxDuration]);
+  }, [maxDuration, cleanupStream]);
 
   const stopRecording = useCallback(() => {
-    mediaRecorderRef.current?.stop();
+    try {
+      mediaRecorderRef.current?.stop();
+    } catch (e) {
+      console.error('Error stopping recorder:', e);
+      cleanupStream();
+    }
     if (timerRef.current) clearInterval(timerRef.current);
-  }, []);
+  }, [cleanupStream]);
 
   const playAudio = useCallback(() => {
     if (!audioRef.current) return;
     audioRef.current.currentTime = 0;
-    audioRef.current.play();
+    audioRef.current.play().catch(err => {
+      console.error('Play error:', err);
+      toast.error('Erro ao reproduzir áudio');
+    });
     setState('playing');
   }, []);
 
@@ -89,6 +170,7 @@ export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: Audi
     blobRef.current = null;
     audioRef.current = null;
     setDuration(0);
+    setErrorMsg('');
     setState('idle');
   }, []);
 
@@ -99,12 +181,29 @@ export function AudioRecorder({ onAudioReady, maxDuration = 60, disabled }: Audi
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      cleanupStream();
       if (audioRef.current) {
         audioRef.current.pause();
         URL.revokeObjectURL(audioRef.current.src);
       }
     };
-  }, []);
+  }, [cleanupStream]);
+
+  if (state === 'error') {
+    return (
+      <div className="flex flex-col items-center gap-3 p-4 bg-destructive/10 rounded-2xl border border-destructive/20">
+        <AlertCircle className="w-6 h-6 text-destructive" />
+        <p className="text-sm text-center text-destructive font-medium">{errorMsg}</p>
+        <Button
+          onClick={() => { setErrorMsg(''); setState('idle'); }}
+          variant="outline"
+          className="rounded-xl"
+        >
+          Tentar novamente
+        </Button>
+      </div>
+    );
+  }
 
   if (state === 'idle') {
     return (
