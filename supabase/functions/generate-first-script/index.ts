@@ -2,8 +2,19 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+function extractJSON(text: string): string {
+  // Strip markdown code fences if present
+  const match = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (match) return match[1].trim();
+  // Try to find raw JSON object
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) return jsonMatch[0];
+  return text;
+}
 
 function getProvider(model: string): "anthropic" | "openai" | "google" {
   if (model.startsWith("claude")) return "anthropic";
@@ -52,7 +63,7 @@ Deno.serve(async (req) => {
       throw new Error('Agent config "first-script-onboarding" not found.');
     }
 
-    const model = agentConfig.model || "claude-opus-4-0-20250514";
+    const model = agentConfig.model || "claude-opus-4-20250514";
     const provider = getProvider(model);
 
     const apiKey =
@@ -117,7 +128,7 @@ REGRAS:
 - Tema universal que atrai quem NÃO conhece o usuário`;
 
       const response = await callLLM(provider, model, apiKey, agentConfig.system_prompt, userMessage);
-      const suggestionData = JSON.parse(response);
+      const suggestionData = JSON.parse(extractJSON(response));
 
       return new Response(
         JSON.stringify({ suggestion: suggestionData }),
@@ -178,7 +189,7 @@ REGRAS PARA O TEXTO:
 - Verifique o checklist de personalização (Seção 8) antes de entregar`;
 
       const response = await callLLM(provider, model, apiKey, agentConfig.system_prompt, userMessage);
-      const script = JSON.parse(response);
+      const script = JSON.parse(extractJSON(response));
 
       // Convert nested script_content to flat Record<string, string> for Kanban
       const flatContent: Record<string, string> = {};
