@@ -143,7 +143,7 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
         </div>
 
         <div className="mt-2">
-          <BasicInfoFlow onComplete={() => goToStep('voice_dna')} />
+          <BasicInfoFlow onComplete={() => goToStep('completed')} />
         </div>
       </DialogContent>
     </Dialog>
