@@ -64,6 +64,7 @@ interface AgentFormData {
   billing_type: string;
   credit_cost: number;
   message_package_size: number;
+  output_markers: string[];
   plan_access: string;
   plan_access_all: boolean;
   selectedPlanIds: string[];
@@ -74,7 +75,8 @@ const defaultFormData: AgentFormData = {
   system_prompt: '', welcome_message: '', model: 'claude-sonnet-4-20250514',
   api_key: '', is_active: true, display_order: 0, selectedTags: [],
   ice_breakers: ['', '', ''], billing_type: 'per_messages',
-  credit_cost: 1, message_package_size: 5, plan_access: 'magnetic',
+  credit_cost: 1, message_package_size: 5, output_markers: [''],
+  plan_access: 'magnetic',
   plan_access_all: true, selectedPlanIds: [],
 };
 
@@ -146,6 +148,8 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
       setEditingAgent(agent);
       const existingIceBreakers = (agent as any).ice_breakers || [];
       const paddedIceBreakers = [...existingIceBreakers, '', '', ''].slice(0, 3);
+      const existingMarkers = (agent as any).output_markers || [];
+      const paddedMarkers = existingMarkers.length > 0 ? existingMarkers : [''];
       setFormData({
         name: agent.name, slug: agent.slug, description: agent.description || '',
         icon_emoji: agent.icon_emoji || '🤖', system_prompt: agent.system_prompt,
@@ -154,6 +158,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         display_order: agent.display_order, selectedTags: agentTags[agent.id] || [],
         ice_breakers: paddedIceBreakers, billing_type: (agent as any).billing_type || 'per_messages',
         credit_cost: (agent as any).credit_cost || 1, message_package_size: (agent as any).message_package_size || 5,
+        output_markers: paddedMarkers,
         plan_access: (agent as any).plan_access || 'magnetic',
         plan_access_all: true, selectedPlanIds: [],
       });
@@ -232,6 +237,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
     try {
       let agentId: string;
       const filteredIceBreakers = formData.ice_breakers.filter(ib => ib.trim() !== '');
+      const filteredMarkers = formData.output_markers.filter(m => m.trim() !== '');
       const agentData = {
         name: formData.name, slug: formData.slug, description: formData.description,
         icon_emoji: formData.icon_emoji, system_prompt: formData.system_prompt,
@@ -240,6 +246,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         display_order: formData.display_order, ice_breakers: filteredIceBreakers,
         billing_type: formData.billing_type, credit_cost: formData.credit_cost,
         message_package_size: formData.message_package_size,
+        output_markers: filteredMarkers.length > 0 ? filteredMarkers : null,
         plan_access: formData.plan_access,
       };
 
@@ -424,6 +431,40 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
                   </div>
                 )}
               </div>
+              {formData.billing_type === 'per_output' && (
+                <div className="space-y-2 mt-3">
+                  <Label>Marcadores de Output (detecção de cobrança)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Textos que, se encontrados na resposta da IA, indicam que um output/roteiro foi gerado e deve ser cobrado.
+                  </p>
+                  <div className="space-y-2">
+                    {formData.output_markers.map((marker, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <Input
+                          value={marker}
+                          onChange={(e) => {
+                            const arr = [...formData.output_markers];
+                            arr[i] = e.target.value;
+                            setFormData((prev) => ({ ...prev, output_markers: arr }));
+                          }}
+                          placeholder={`Ex: 🎯 INÍCIO, ✅ FECHAMENTO`}
+                        />
+                        {formData.output_markers.length > 1 && (
+                          <Button type="button" variant="ghost" size="icon" onClick={() => {
+                            const arr = formData.output_markers.filter((_, idx) => idx !== i);
+                            setFormData((prev) => ({ ...prev, output_markers: arr }));
+                          }}>
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setFormData((prev) => ({ ...prev, output_markers: [...prev.output_markers, ''] }))}>
+                    <Plus className="w-3 h-3 mr-1" /> Adicionar marcador
+                  </Button>
+                </div>
+              )}
             </div>
 
             <div className="space-y-2">

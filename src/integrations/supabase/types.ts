@@ -184,6 +184,7 @@ export type Database = {
           message_package_size: number | null
           model: string | null
           name: string
+          output_markers: string[] | null
           plan_access: string | null
           slug: string
           system_prompt: string
@@ -205,6 +206,7 @@ export type Database = {
           message_package_size?: number | null
           model?: string | null
           name: string
+          output_markers?: string[] | null
           plan_access?: string | null
           slug: string
           system_prompt: string
@@ -226,6 +228,7 @@ export type Database = {
           message_package_size?: number | null
           model?: string | null
           name?: string
+          output_markers?: string[] | null
           plan_access?: string | null
           slug?: string
           system_prompt?: string
