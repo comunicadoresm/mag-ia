@@ -492,12 +492,12 @@ Use estas informações para contextualizar respostas e roteiros.`;
     // === DEFERRED per_output BILLING ===
     let creditsConsumed = 0;
     if (deferCharge) {
-      // Detect structured output - check for script markers with or without markdown formatting
+      // Detect structured output using per-agent output_markers (or fallback to defaults)
       const normalizedText = result.text.replace(/\*\*/g, "").replace(/##\s*/g, "");
-      const hasOutputStructure =
-        normalizedText.includes("🎯 INÍCIO") || normalizedText.includes("📚 DESENVOLVIMENTO") ||
-        normalizedText.includes("🎬 ROTEIRO FINAL") || normalizedText.includes("📍 DESENVOLVIMENTO") ||
-        normalizedText.includes("✅ FECHAMENTO");
+      const markers: string[] = (agent.output_markers && agent.output_markers.length > 0)
+        ? agent.output_markers
+        : ["🎯 INÍCIO", "📚 DESENVOLVIMENTO", "🎬 ROTEIRO FINAL", "📍 DESENVOLVIMENTO", "✅ FECHAMENTO"];
+      const hasOutputStructure = markers.some((marker: string) => normalizedText.includes(marker));
 
       if (hasOutputStructure) {
         console.log(`Output detected in per_output mode. Charging ${creditCost} credits.`);
