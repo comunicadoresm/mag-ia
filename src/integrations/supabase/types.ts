@@ -1407,6 +1407,7 @@ export type Database = {
           message_package_size: number
           model: string
           name: string
+          output_markers: string[]
           plan_access: string
           slug: string
           system_prompt: string
