@@ -265,14 +265,17 @@ export default function UserManagement() {
                   <TableCell className="font-medium">{user.email}</TableCell>
                   <TableCell>{user.name || '-'}</TableCell>
                   <TableCell>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      user.plan_type === 'magnetic' ? 'bg-primary/20 text-primary' :
-                      user.plan_type === 'basic' ? 'bg-blue-500/20 text-blue-400' :
-                      'bg-muted text-muted-foreground'
-                    }`}>
-                      {user.plan_type === 'magnetic' ? 'Magnético' :
-                       user.plan_type === 'basic' ? 'Básico' : 'Nenhum'}
-                    </span>
+                    {(() => {
+                      const plan = resolvePlanName(user);
+                      return (
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+                          style={plan ? { backgroundColor: `${plan.color}30`, color: plan.color || undefined } : undefined}
+                        >
+                          {plan ? plan.name : 'Nenhum'}
+                        </span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {formatDate(user.created_at)}
