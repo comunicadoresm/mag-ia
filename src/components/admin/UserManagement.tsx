@@ -37,6 +37,7 @@ import {
 
 export default function UserManagement() {
   const [users, setUsers] = useState<Profile[]>([]);
+  const [planTypes, setPlanTypes] = useState<{ id: string; slug: string; name: string; color: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -53,6 +54,18 @@ export default function UserManagement() {
   const [saving, setSaving] = useState(false);
 
   const { toast } = useToast();
+
+  const resolvePlanName = (user: Profile) => {
+    if ((user as any).plan_type_id) {
+      const match = planTypes.find(p => p.id === (user as any).plan_type_id);
+      if (match) return match;
+    }
+    if (user.plan_type && user.plan_type !== 'none') {
+      const match = planTypes.find(p => p.slug === user.plan_type);
+      if (match) return match;
+    }
+    return null;
+  };
 
   const fetchUsers = async () => {
     try {
