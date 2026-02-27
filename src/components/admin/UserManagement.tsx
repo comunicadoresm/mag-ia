@@ -70,13 +70,14 @@ export default function UserManagement() {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [usersRes, plansRes] = await Promise.all([
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('plan_types').select('id, slug, name, color, display_order').eq('is_active', true).order('display_order'),
+      ]);
 
-      if (error) throw error;
-      setUsers(data || []);
+      if (usersRes.error) throw usersRes.error;
+      setUsers(usersRes.data || []);
+      if (plansRes.data) setPlanTypes(plansRes.data);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
