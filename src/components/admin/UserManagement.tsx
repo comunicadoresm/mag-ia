@@ -56,8 +56,8 @@ export default function UserManagement() {
   const { toast } = useToast();
 
   const resolvePlanName = (user: Profile) => {
-    if ((user as any).plan_type_id) {
-      const match = planTypes.find(p => p.id === (user as any).plan_type_id);
+    if (user.plan_type_id) {
+      const match = planTypes.find(p => p.id === user.plan_type_id);
       if (match) return match;
     }
     if (user.plan_type && user.plan_type !== 'none') {
