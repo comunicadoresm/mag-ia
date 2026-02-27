@@ -342,8 +342,9 @@ export default function UserManagement() {
               <Select value={newUserPlan} onValueChange={setNewUserPlan}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="basic">Básico</SelectItem>
-                  <SelectItem value="magnetic">Magnético</SelectItem>
+                  {planTypes.map(p => (
+                    <SelectItem key={p.id} value={p.slug}>{p.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
