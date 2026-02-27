@@ -33,6 +33,8 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
 
   const isMagnetic = ['magnetic', 'magnetic_pro', 'magnetico', 'magnetico_pro'].includes(planType);
 
+  const skipSteps = ['voice_dna', 'format_quiz', 'narrative', 'first_script'];
+
   if (!isMagnetic || currentStep === 'completed') return null;
 
   const goToStep = async (nextStep: string) => {
@@ -52,57 +54,11 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
     await refreshProfile();
   };
 
-  // ===== FIRST SCRIPT — como popup/dialog =====
-  if (currentStep === 'first_script') {
-    return (
-      <Dialog open={true}>
-        <DialogContent
-          className="max-w-md [&>button.absolute]:hidden overflow-y-auto max-h-[90vh]"
-          onPointerDownOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-        >
-          {/* Logo CM no topo */}
-          <div className="flex items-center justify-center mb-2">
-            <img src={logoSymbol} alt="Comunicadores Magnéticos" className="w-8 h-8 object-contain" />
-          </div>
-          <FirstScriptFlow
-            onComplete={() => goToStep('completed')}
-            onSkip={() => goToStep('completed')}
-          />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
-  // ===== VOICE DNA, FORMAT QUIZ, NARRATIVE — delegate to existing Dialog components =====
-  if (currentStep === 'voice_dna') {
-    return (
-      <VoiceDNASetup
-        open={true}
-        onComplete={() => goToStep('format_quiz')}
-        onSkip={() => goToStep('completed')}
-      />
-    );
-  }
-
-  if (currentStep === 'format_quiz') {
-    return (
-      <FormatQuizSetup
-        open={true}
-        onComplete={() => goToStep('narrative')}
-        onSkip={() => goToStep('completed')}
-      />
-    );
-  }
-
-  if (currentStep === 'narrative') {
-    return (
-      <NarrativeSetup
-        open={true}
-        onComplete={() => goToStep('first_script')}
-        onSkip={() => goToStep('completed')}
-      />
-    );
+  // ===== BYPASS: auto-advance users stuck on disabled steps =====
+  if (skipSteps.includes(currentStep)) {
+    // Auto-complete for users stuck on disabled steps
+    goToStep('completed');
+    return null;
   }
 
   // ===== BASIC INFO — now as a Dialog/popup like the other steps =====
