@@ -546,11 +546,35 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
               </div>
             </div>
 
-            <div className="flex items-center gap-6 pt-2 border-t border-border">
+            <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-border">
               <div className="flex items-center gap-3">
                 <Switch id="is_active" checked={formData.is_active} onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_active: checked }))} />
                 <Label htmlFor="is_active" className="font-normal cursor-pointer">Agente ativo</Label>
               </div>
+              <div className="flex items-center gap-3">
+                <Switch id="is_public" checked={formData.is_public} onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, is_public: checked }))} />
+                <Label htmlFor="is_public" className="font-normal cursor-pointer flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5" /> Agente Público
+                </Label>
+              </div>
+              {formData.is_public && (
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="public_message_limit" className="text-xs whitespace-nowrap">Limite msgs:</Label>
+                  <Input id="public_message_limit" type="number" min={1} max={100} value={formData.public_message_limit}
+                    onChange={(e) => setFormData(prev => ({ ...prev, public_message_limit: Math.max(1, parseInt(e.target.value) || 20) }))}
+                    className="w-20 h-8" />
+                </div>
+              )}
+              {formData.is_public && formData.slug && (
+                <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs h-8"
+                  onClick={() => {
+                    const url = `${window.location.origin}/p/${formData.slug}`;
+                    navigator.clipboard.writeText(url);
+                    toast({ title: 'Link copiado!', description: url });
+                  }}>
+                  <Link className="w-3.5 h-3.5" /> Copiar link
+                </Button>
+              )}
               <div className="space-y-2">
                 <Label className="font-normal text-sm">Acesso por plano</Label>
                 <div className="space-y-2">
