@@ -253,6 +253,8 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         message_package_size: formData.message_package_size,
         output_markers: filteredMarkers.length > 0 ? filteredMarkers : null,
         plan_access: formData.plan_access,
+        is_public: formData.is_public,
+        public_message_limit: formData.public_message_limit,
       };
 
       if (editingAgent) {
