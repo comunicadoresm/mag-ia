@@ -49,7 +49,7 @@ export default function AccessDenied() {
   }, []);
 
   const handleSupport = () => {
-    window.open('https://wa.me/551340427391', '_blank');
+    window.location.href = 'https://wa.me/551340427391';
   };
 
   const handlePlanCheckout = (url: string) => {
