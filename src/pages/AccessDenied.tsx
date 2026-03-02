@@ -137,12 +137,7 @@ export default function AccessDenied() {
                     <Button
                       onClick={() => plan.upsell_hotmart_url && handlePlanCheckout(plan.upsell_hotmart_url)}
                       disabled={!plan.upsell_hotmart_url}
-                      className={cn(
-                        'w-full gap-2 font-semibold',
-                        isFeatured
-                          ? 'bg-primary hover:bg-primary/90 text-primary-foreground'
-                          : 'bg-muted hover:bg-muted/80 text-foreground border border-border'
-                      )}
+                      className="w-full gap-2 font-semibold bg-primary text-primary-foreground hover:bg-primary/85 hover:scale-[1.03] hover:shadow-[0_0_20px_hsl(61_97%_67%/0.3)] active:scale-[0.98] transition-all duration-200"
                     >
                       <Sparkles className="w-4 h-4" />
                       {plan.upsell_button_text || 'Quero este plano'}
