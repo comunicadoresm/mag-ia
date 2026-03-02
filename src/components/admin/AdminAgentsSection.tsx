@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  Loader2, Plus, Bot, FileText, X, Trash2, Save,
+  Loader2, Plus, Bot, FileText, X, Trash2, Save, Globe, Copy, Link,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,6 +68,8 @@ interface AgentFormData {
   plan_access: string;
   plan_access_all: boolean;
   selectedPlanIds: string[];
+  is_public: boolean;
+  public_message_limit: number;
 }
 
 const defaultFormData: AgentFormData = {
@@ -78,6 +80,7 @@ const defaultFormData: AgentFormData = {
   credit_cost: 1, message_package_size: 5, output_markers: [''],
   plan_access: 'magnetic',
   plan_access_all: true, selectedPlanIds: [],
+  is_public: false, public_message_limit: 20,
 };
 
 interface AdminAgentsSectionProps {
@@ -161,6 +164,8 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
         output_markers: paddedMarkers,
         plan_access: (agent as any).plan_access || 'magnetic',
         plan_access_all: true, selectedPlanIds: [],
+        is_public: (agent as any).is_public || false,
+        public_message_limit: (agent as any).public_message_limit || 20,
       });
       // Load agent_plan_access
       supabase.from('agent_plan_access').select('plan_type_id').eq('agent_id', agent.id).then(({ data }) => {
