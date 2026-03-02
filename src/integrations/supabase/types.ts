@@ -181,11 +181,13 @@ export type Database = {
           icon_url: string | null
           id: string
           is_active: boolean | null
+          is_public: boolean | null
           message_package_size: number | null
           model: string | null
           name: string
           output_markers: string[] | null
           plan_access: string | null
+          public_message_limit: number | null
           slug: string
           system_prompt: string
           updated_at: string | null
@@ -203,11 +205,13 @@ export type Database = {
           icon_url?: string | null
           id?: string
           is_active?: boolean | null
+          is_public?: boolean | null
           message_package_size?: number | null
           model?: string | null
           name: string
           output_markers?: string[] | null
           plan_access?: string | null
+          public_message_limit?: number | null
           slug: string
           system_prompt: string
           updated_at?: string | null
@@ -225,11 +229,13 @@ export type Database = {
           icon_url?: string | null
           id?: string
           is_active?: boolean | null
+          is_public?: boolean | null
           message_package_size?: number | null
           model?: string | null
           name?: string
           output_markers?: string[] | null
           plan_access?: string | null
+          public_message_limit?: number | null
           slug?: string
           system_prompt?: string
           updated_at?: string | null
@@ -734,6 +740,127 @@ export type Database = {
             columns: ["plan_type_id"]
             isOneToOne: false
             referencedRelation: "plan_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_leads: {
+        Row: {
+          agent_id: string | null
+          agent_slug: string | null
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          phone: string
+          source: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_slug?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          phone: string
+          source?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          agent_slug?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          phone?: string
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_leads_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          role: string
+          session_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          role: string
+          session_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          role?: string
+          session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "public_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_sessions: {
+        Row: {
+          agent_id: string | null
+          created_at: string | null
+          expires_at: string | null
+          fingerprint: string
+          id: string
+          lead_id: string | null
+          max_messages: number | null
+          messages_used: number | null
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          fingerprint: string
+          id?: string
+          lead_id?: string | null
+          max_messages?: number | null
+          messages_used?: number | null
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string | null
+          expires_at?: string | null
+          fingerprint?: string
+          id?: string
+          lead_id?: string | null
+          max_messages?: number | null
+          messages_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_sessions_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_sessions_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "public_leads"
             referencedColumns: ["id"]
           },
         ]
@@ -1412,6 +1539,22 @@ export type Database = {
           slug: string
           system_prompt: string
           updated_at: string
+          welcome_message: string
+        }[]
+      }
+      get_public_agents: {
+        Args: { p_slug?: string }
+        Returns: {
+          description: string
+          display_order: number
+          ice_breakers: Json
+          icon_emoji: string
+          icon_url: string
+          id: string
+          is_active: boolean
+          name: string
+          public_message_limit: number
+          slug: string
           welcome_message: string
         }[]
       }
