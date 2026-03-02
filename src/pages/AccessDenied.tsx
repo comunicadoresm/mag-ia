@@ -49,7 +49,7 @@ export default function AccessDenied() {
   }, []);
 
   const handleSupport = () => {
-    window.open('https://wa.me/5511999999999?text=Olá! Preciso de ajuda para acessar o Magnetic.IA.', '_blank');
+    window.open('https://wa.me/551340427391', '_blank');
   };
 
   const handlePlanCheckout = (url: string) => {
