@@ -22,6 +22,7 @@ import Admin from "./pages/Admin";
 import Kanban from "./pages/Kanban";
 import Credits from "./pages/Credits";
 import NotFound from "./pages/NotFound";
+import PublicAgent from "./pages/PublicAgent";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ function AppRoutes() {
       {/* Legacy routes redirect to unified admin */}
       <Route path="/admin/agents" element={<Navigate to="/admin?section=agents" replace />} />
       <Route path="/admin/credits" element={<Navigate to="/admin?section=credits-overview" replace />} />
+      <Route path="/p/:slug" element={<PublicAgent />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
