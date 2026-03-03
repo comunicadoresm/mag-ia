@@ -174,6 +174,7 @@ export default function PublicAgent() {
       }
     } catch (err) {
       console.error('Error creating lead/session:', err);
+      toast.error('Erro ao iniciar conversa. Tente novamente.');
     } finally {
       setFormLoading(false);
     }
