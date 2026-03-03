@@ -65,7 +65,7 @@ function SortableAgentItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={`bg-card border rounded-xl p-4 flex items-center gap-4 transition-colors ${isSelected ? 'border-primary bg-primary/5' : 'border-border'}`}
+      className={`bg-card border rounded-xl p-3 sm:p-4 flex items-center gap-3 sm:gap-4 transition-colors min-w-0 ${isSelected ? 'border-primary bg-primary/5' : 'border-border'}`}
     >
       {selectionMode ? (
         <Checkbox
@@ -85,14 +85,14 @@ function SortableAgentItem({
       )}
 
       <div
-        className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-2xl shrink-0 cursor-pointer"
+        className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 flex items-center justify-center text-xl sm:text-2xl shrink-0 cursor-pointer"
         onClick={() => selectionMode && onToggleSelect(agent.id)}
       >
         {agent.icon_emoji || '🤖'}
       </div>
 
-      <div className="flex-1 min-w-0" onClick={() => selectionMode && onToggleSelect(agent.id)} role={selectionMode ? 'button' : undefined}>
-        <div className="flex items-center gap-2 mb-1">
+      <div className="flex-1 min-w-0 overflow-hidden" onClick={() => selectionMode && onToggleSelect(agent.id)} role={selectionMode ? 'button' : undefined}>
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
           <h3 className="font-semibold text-foreground">{agent.name}</h3>
           {!agent.is_active && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
