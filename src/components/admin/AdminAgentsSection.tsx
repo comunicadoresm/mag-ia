@@ -307,6 +307,46 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
     }
   };
 
+  const handleDuplicateAgent = async (agent: AdminAgent) => {
+    try {
+      const newSlug = `${agent.slug}-copia-${Date.now().toString(36)}`;
+      const agentData = {
+        name: `${agent.name} (Cópia)`,
+        slug: newSlug,
+        description: (agent as any).description || '',
+        icon_emoji: (agent as any).icon_emoji || '🤖',
+        system_prompt: (agent as any).system_prompt,
+        welcome_message: (agent as any).welcome_message || '',
+        model: (agent as any).model,
+        api_key: (agent as any).api_key || null,
+        is_active: false,
+        display_order: agents.length,
+        ice_breakers: (agent as any).ice_breakers || [],
+        billing_type: (agent as any).billing_type || 'per_messages',
+        credit_cost: (agent as any).credit_cost || 1,
+        message_package_size: (agent as any).message_package_size || 5,
+        output_markers: (agent as any).output_markers || null,
+        plan_access: (agent as any).plan_access || 'magnetic',
+        is_public: false,
+        public_message_limit: (agent as any).public_message_limit || 20,
+      };
+      const { data, error } = await supabase.from('agents').insert(agentData).select().single();
+      if (error) throw error;
+
+      // Copy tags
+      const originalTags = agentTags[agent.id] || [];
+      if (originalTags.length > 0) {
+        await supabase.from('agent_tags').insert(originalTags.map(tagId => ({ agent_id: data.id, tag_id: tagId })));
+        setAgentTags(prev => ({ ...prev, [data.id]: originalTags }));
+      }
+
+      setAgents(prev => [...prev, data as AdminAgent]);
+      toast({ title: 'Agente duplicado', description: `"${data.name}" foi criado como cópia.` });
+    } catch (error) {
+      toast({ title: 'Erro ao duplicar', description: 'Não foi possível duplicar o agente.', variant: 'destructive' });
+    }
+  };
+
   const handleReorderAgents = async (reorderedAgents: AdminAgent[]) => {
     setAgents(reorderedAgents);
     try {
@@ -359,7 +399,7 @@ export default function AdminAgentsSection({ section = 'agents' }: AdminAgentsSe
           <Button onClick={() => handleOpenForm()}>Criar primeiro agente</Button>
         </div>
       ) : (
-        <SortableAgentList agents={agents} agentTags={agentTags} tags={tags} aiModels={AI_MODELS} onReorder={handleReorderAgents} onEdit={handleOpenForm} onDelete={setDeleteAgent} />
+        <SortableAgentList agents={agents} agentTags={agentTags} tags={tags} aiModels={AI_MODELS} onReorder={handleReorderAgents} onEdit={handleOpenForm} onDelete={setDeleteAgent} onDuplicate={handleDuplicateAgent} />
       )}
 
       {/* Agent Form Dialog */}

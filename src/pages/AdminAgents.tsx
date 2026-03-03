@@ -619,6 +619,7 @@ export default function AdminAgents() {
             onReorder={handleReorderAgents}
             onEdit={handleOpenForm}
             onDelete={setDeleteAgent}
+            onDuplicate={() => {}}
           />
         )}
           </TabsContent>
