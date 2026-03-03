@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { PublicAgentHeader } from '@/components/public/PublicAgentHeader';
@@ -173,6 +174,7 @@ export default function PublicAgent() {
       }
     } catch (err) {
       console.error('Error creating lead/session:', err);
+      toast.error('Erro ao iniciar conversa. Tente novamente.');
     } finally {
       setFormLoading(false);
     }
