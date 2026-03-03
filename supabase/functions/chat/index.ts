@@ -478,13 +478,55 @@ Use estas informações para contextualizar respostas e roteiros.`;
     const agentModel = agent.model || "claude-sonnet-4-20250514";
     console.log(`Using model: ${agentModel}, provider: ${provider}`);
 
-    if (provider === "anthropic") {
-      // For Anthropic, pass enriched systemPrompt (with voice DNA / narrative) and knowledge separately for caching
-      result = await callAnthropic(agent.api_key, agentModel, systemPrompt, knowledgeContext, conversationHistory);
-    } else if (provider === "openai") {
-      result = await callOpenAI(agent.api_key, agentModel, systemPrompt, knowledgeContext, conversationHistory);
-    } else {
-      result = await callGemini(agent.api_key, agentModel, systemPrompt, knowledgeContext, conversationHistory);
+    // Helper: call with timeout (45s)
+    async function withTimeout<T>(promise: Promise<T>, ms = 45000): Promise<T> {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("AI_TIMEOUT")), ms)
+      );
+      return Promise.race([promise, timeout]);
+    }
+
+    // Helper: Lovable AI fallback (no API key needed)
+    async function callLovableAIFallback(): Promise<{ text: string; tokens: number | null }> {
+      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
+      if (!lovableKey) throw new Error("LOVABLE_API_KEY not configured");
+      const messages = [
+        { role: "system", content: systemPrompt },
+        ...conversationHistory.map((m) => ({ role: m.role, content: m.content })),
+      ];
+      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
+        body: JSON.stringify({ model: "google/gemini-2.5-flash", messages }),
+      });
+      if (!resp.ok) throw new Error(`Lovable AI error: ${resp.status}`);
+      const data = await resp.json();
+      return {
+        text: data.choices?.[0]?.message?.content || "Desculpe, não consegui gerar uma resposta.",
+        tokens: data.usage?.total_tokens || null,
+      };
+    }
+
+    // Try primary provider with timeout, fallback to Lovable AI
+    try {
+      if (provider === "anthropic") {
+        result = await withTimeout(callAnthropic(agent.api_key, agentModel, systemPrompt, knowledgeContext, conversationHistory));
+      } else if (provider === "openai") {
+        result = await withTimeout(callOpenAI(agent.api_key, agentModel, systemPrompt, knowledgeContext, conversationHistory));
+      } else {
+        result = await withTimeout(callGemini(agent.api_key, agentModel, systemPrompt, knowledgeContext, conversationHistory));
+      }
+    } catch (primaryError) {
+      console.warn(`Primary provider (${provider}) failed: ${primaryError}. Falling back to Lovable AI.`);
+      try {
+        result = await withTimeout(callLovableAIFallback(), 30000);
+      } catch (fallbackError) {
+        console.error("Lovable AI fallback also failed:", fallbackError);
+        return new Response(
+          JSON.stringify({ error: "Todos os provedores de IA estão indisponíveis no momento. Tente novamente em instantes." }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     console.log(`AI response: ${result.tokens} tokens`);
