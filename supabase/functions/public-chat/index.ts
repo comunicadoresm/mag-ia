@@ -11,7 +11,7 @@ interface Message {
   content: string;
 }
 
-function getProvider(model: string): "anthropic" | "openai" | "google" {
+function getProvider(model: string): "anthropic" | "openai" | "google" | "lovable" {
   if (model.startsWith("claude-")) return "anthropic";
   if (model.startsWith("gpt-") || model.startsWith("o1") || model.startsWith("o3")) return "openai";
   if (model.startsWith("gemini-")) return "google";
@@ -55,7 +55,11 @@ async function callAnthropic(apiKey: string, model: string, systemPrompt: string
       messages: history.map((m) => ({ role: m.role, content: m.content })),
     }),
   });
-  if (!response.ok) throw new Error("Erro na API Anthropic");
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Anthropic API error (${response.status}):`, errorText);
+    throw new Error(`Anthropic API error: ${response.status}`);
+  }
   const data = await response.json();
   return data.content?.[0]?.text || "Desculpe, não consegui gerar uma resposta.";
 }
@@ -67,7 +71,11 @@ async function callOpenAI(apiKey: string, model: string, systemPrompt: string, h
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ model, messages, max_tokens: 2048, temperature: 0.7 }),
   });
-  if (!response.ok) throw new Error("Erro na API OpenAI");
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`OpenAI API error (${response.status}):`, errorText);
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
   const data = await response.json();
   return data.choices?.[0]?.message?.content || "Desculpe, não consegui gerar uma resposta.";
 }
@@ -79,9 +87,45 @@ async function callGemini(apiKey: string, model: string, systemPrompt: string, h
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ contents, systemInstruction: { parts: [{ text: systemPrompt }] }, generationConfig: { maxOutputTokens: 2048, temperature: 0.7 } }),
   });
-  if (!response.ok) throw new Error("Erro na API Gemini");
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Gemini API error (${response.status}):`, errorText);
+    throw new Error(`Gemini API error: ${response.status}`);
+  }
   const data = await response.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, não consegui gerar uma resposta.";
+}
+
+// Lovable AI Gateway fallback - no external API key needed
+async function callLovableAI(systemPrompt: string, history: Message[]): Promise<string> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    ...history.map((m) => ({ role: m.role, content: m.content })),
+  ];
+
+  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Lovable AI error (${response.status}):`, errorText);
+    throw new Error(`Lovable AI error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || "Desculpe, não consegui gerar uma resposta.";
 }
 
 Deno.serve(async (req) => {
@@ -170,7 +214,7 @@ Deno.serve(async (req) => {
       systemPrompt += `\n\n## Base de Conhecimento\n${knowledge}`;
     }
 
-    // Resolve API key
+    // Resolve API key and provider
     const provider = getProvider(agent.model || "claude-sonnet-4-20250514");
     let apiKey = agent.api_key;
     if (!apiKey) {
@@ -179,18 +223,20 @@ Deno.serve(async (req) => {
       else if (provider === "google") apiKey = Deno.env.get("GOOGLE_API_KEY");
     }
 
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "API key not configured for this agent" }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const model = agent.model || "claude-sonnet-4-20250514";
     let reply: string;
 
-    if (provider === "anthropic") reply = await callAnthropic(apiKey, model, systemPrompt, history);
-    else if (provider === "openai") reply = await callOpenAI(apiKey, model, systemPrompt, history);
-    else reply = await callGemini(apiKey, model, systemPrompt, history);
+    // Try primary provider, fallback to Lovable AI if it fails
+    try {
+      if (!apiKey) throw new Error("No API key for primary provider");
+
+      if (provider === "anthropic") reply = await callAnthropic(apiKey, model, systemPrompt, history);
+      else if (provider === "openai") reply = await callOpenAI(apiKey, model, systemPrompt, history);
+      else reply = await callGemini(apiKey, model, systemPrompt, history);
+    } catch (primaryError) {
+      console.warn(`Primary provider (${provider}) failed, falling back to Lovable AI:`, primaryError);
+      reply = await callLovableAI(systemPrompt, history);
+    }
 
     // Save assistant message
     await supabase.from("public_messages").insert({ session_id, role: "assistant", content: reply });
