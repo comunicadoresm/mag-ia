@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Pencil, Trash2, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { GripVertical, Pencil, Trash2, ArrowUp, ArrowDown, X, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AdminAgent, Tag } from '@/types';
@@ -28,6 +28,7 @@ interface SortableAgentItemProps {
   aiModels: { value: string; label: string }[];
   onEdit: (agent: AdminAgent) => void;
   onDelete: (agent: AdminAgent) => void;
+  onDuplicate: (agent: AdminAgent) => void;
   isSelected: boolean;
   onToggleSelect: (id: string) => void;
   selectionMode: boolean;
@@ -40,6 +41,7 @@ function SortableAgentItem({
   aiModels,
   onEdit,
   onDelete,
+  onDuplicate,
   isSelected,
   onToggleSelect,
   selectionMode,
@@ -133,8 +135,11 @@ function SortableAgentItem({
       </div>
 
       {!selectionMode && (
-        <div className="flex items-center gap-2 shrink-0">
-          <Button variant="ghost" size="icon" onClick={() => onEdit(agent)}>
+        <div className="flex items-center gap-1 shrink-0">
+          <Button variant="ghost" size="icon" onClick={() => onDuplicate(agent)} title="Duplicar agente">
+            <Copy className="w-4 h-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => onEdit(agent)} title="Editar agente">
             <Pencil className="w-4 h-4" />
           </Button>
           <Button
@@ -142,6 +147,7 @@ function SortableAgentItem({
             size="icon"
             onClick={() => onDelete(agent)}
             className="text-destructive hover:text-destructive"
+            title="Excluir agente"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -159,6 +165,7 @@ interface SortableAgentListProps {
   onReorder: (agents: AdminAgent[]) => void;
   onEdit: (agent: AdminAgent) => void;
   onDelete: (agent: AdminAgent) => void;
+  onDuplicate: (agent: AdminAgent) => void;
 }
 
 export function SortableAgentList({
@@ -169,6 +176,7 @@ export function SortableAgentList({
   onReorder,
   onEdit,
   onDelete,
+  onDuplicate,
 }: SortableAgentListProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const selectionMode = selectedIds.size > 0;
@@ -271,6 +279,7 @@ export function SortableAgentList({
                 aiModels={aiModels}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onDuplicate={onDuplicate}
                 isSelected={selectedIds.has(agent.id)}
                 onToggleSelect={toggleSelect}
                 selectionMode={selectionMode}
