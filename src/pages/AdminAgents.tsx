@@ -58,15 +58,19 @@ import { ScriptTemplateManagement } from '@/components/admin/ScriptTemplateManag
 import { ScriptOptionsManagement } from '@/components/admin/ScriptOptionsManagement';
 
 const AI_MODELS = [
-  // Anthropic models (requires ANTHROPIC_API_KEY)
+  // Anthropic Claude (IDs válidos e atuais)
+  { value: 'claude-opus-4-20250514', label: 'Claude Opus 4 (Premium)', category: 'Claude', provider: 'anthropic' },
   { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4 (Recomendado)', category: 'Claude', provider: 'anthropic' },
   { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet', category: 'Claude', provider: 'anthropic' },
   { value: 'claude-3-5-haiku-20241022', label: 'Claude 3.5 Haiku (Rápido)', category: 'Claude', provider: 'anthropic' },
-  // OpenAI models (requires OPENAI_API_KEY)
+  // OpenAI
+  { value: 'gpt-4.1', label: 'GPT-4.1', category: 'OpenAI', provider: 'openai' },
+  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini (Econômico)', category: 'OpenAI', provider: 'openai' },
+  { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano (Ultra Econômico)', category: 'OpenAI', provider: 'openai' },
   { value: 'gpt-4o', label: 'GPT-4o', category: 'OpenAI', provider: 'openai' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Econômico)', category: 'OpenAI', provider: 'openai' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', category: 'OpenAI', provider: 'openai' },
-  // Google models (requires GOOGLE_AI_API_KEY)
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', category: 'OpenAI', provider: 'openai' },
+  // Google Gemini
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', category: 'Gemini', provider: 'google' },
   { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', category: 'Gemini', provider: 'google' },
   { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', category: 'Gemini', provider: 'google' },
   { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Rápido)', category: 'Gemini', provider: 'google' },
