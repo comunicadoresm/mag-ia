@@ -1,0 +1,1 @@
+UPDATE agents SET api_key = NULL WHERE id IN ('f9820185-bcec-4e98-97e6-869dd0b1ebb4', 'be850e34-97e3-4c47-b682-d0a8c207dc5e');
