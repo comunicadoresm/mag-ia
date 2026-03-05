@@ -48,7 +48,7 @@ async function resolveTagIds(baseUrl: string, acApiKey: string, tagInput: string
     );
     const tags: ActiveCampaignTag[] = searchData.tags || [];
     const normalizedNeedle = input.toLowerCase();
-    const match = tags.find((t) => (t.tag || "").toLowerCase() === normalizedNeedle) || tags[0];
+    const match = tags.find((t) => (t.tag || "").toLowerCase() === normalizedNeedle);
     if (match?.id) ids.add(String(match.id));
   }
   return ids;
