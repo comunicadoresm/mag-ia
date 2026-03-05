@@ -53,17 +53,33 @@ async function resolveTagIds(baseUrl: string, acApiKey: string, tagInput: string
     );
     const tags: ActiveCampaignTag[] = searchData.tags || [];
     const normalizedNeedle = input.toLowerCase();
-    const match = tags.find((t) => (t.tag || "").toLowerCase() === normalizedNeedle) || tags[0];
+    // EXACT match only — no fallback to tags[0] to avoid wrong matches
+    const match = tags.find((t) => (t.tag || "").toLowerCase() === normalizedNeedle);
 
     if (match?.id) {
       ids.add(String(match.id));
       console.log(`Resolved tag "${input}" -> id ${match.id} (${match.tag})`);
     } else {
-      console.log(`Could not resolve tag "${input}"`);
+      console.log(`Could not resolve tag "${input}" — no exact match found. AC returned: ${tags.map(t => `${t.id}:${t.tag}`).join(", ") || "(empty)"}`);
     }
   }
 
   return ids;
+}
+
+async function getContactTagNames(baseUrl: string, acApiKey: string, tagIds: Set<string>): Promise<Map<string, string>> {
+  const tagNames = new Map<string, string>();
+  for (const tagId of tagIds) {
+    try {
+      const data = await fetchJson(`${baseUrl}/api/3/tags/${tagId}`, acApiKey);
+      if (data.tag?.tag) {
+        tagNames.set(tagId, data.tag.tag);
+      }
+    } catch {
+      // ignore individual tag fetch errors
+    }
+  }
+  return tagNames;
 }
 
 async function detectPlanFromAC(
