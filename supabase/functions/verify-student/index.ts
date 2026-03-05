@@ -113,6 +113,11 @@ async function detectPlanFromAC(
   const contactTagIds = new Set<string>(contactTags.map((ct: { tag: string }) => String(ct.tag)));
   console.log(`Contact tag IDs: ${Array.from(contactTagIds).join(",") || "(none)"}`);
 
+  // Fetch actual tag names for debugging
+  const tagNames = await getContactTagNames(baseUrl, acApiKey, contactTagIds);
+  const tagNamesList = Array.from(tagNames.entries()).map(([id, name]) => `${id}:${name}`).join(", ");
+  console.log(`Contact tag names: ${tagNamesList || "(could not resolve)"}`);
+
   // Step 3: For each plan (highest display_order first), check if contact has the ac_tag
   for (const plan of planTypes) {
     const tagIds = await resolveTagIds(baseUrl, acApiKey, plan.ac_tag);
