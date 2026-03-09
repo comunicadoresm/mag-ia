@@ -111,7 +111,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchProfile(existingSession.user.id).then(setProfile);
       }
       
-      setLoading(false);
+      // Only stop loading if we're NOT waiting for URL token processing
+      // If tokens are in the URL, onAuthStateChange will handle it
+      if (!hasAuthTokensInHash()) {
+        setLoading(false);
+      } else {
+        // Set a timeout to prevent infinite loading if token processing fails
+        setTimeout(() => {
+          setLoading(false);
+          setAwaitingTokenProcessing(false);
+        }, 5000);
+      }
     });
 
     return () => subscription.unsubscribe();
