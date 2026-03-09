@@ -63,8 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-        // Auth tokens from URL have been processed
+        // Auth tokens from URL have been processed - stop loading
         setAwaitingTokenProcessing(false);
+        setLoading(false);
 
         // Defer Supabase calls with setTimeout to prevent deadlock
         if (currentSession?.user) {
