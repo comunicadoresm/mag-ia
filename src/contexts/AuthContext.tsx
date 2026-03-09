@@ -16,11 +16,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Check if URL hash contains auth tokens (magic link redirect)
+function hasAuthTokensInHash(): boolean {
+  const hash = window.location.hash;
+  return hash.includes('access_token=') || hash.includes('type=recovery') || hash.includes('type=magiclink') || hash.includes('type=signup') || hash.includes('type=email');
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  // Track if we're waiting for auth tokens in URL to be processed
+  const [awaitingTokenProcessing, setAwaitingTokenProcessing] = useState(hasAuthTokensInHash());
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -55,6 +63,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, currentSession) => {
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
+        // Auth tokens from URL have been processed - stop loading
+        setAwaitingTokenProcessing(false);
+        setLoading(false);
 
         // Defer Supabase calls with setTimeout to prevent deadlock
         if (currentSession?.user) {
@@ -101,7 +112,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchProfile(existingSession.user.id).then(setProfile);
       }
       
-      setLoading(false);
+      // Only stop loading if we're NOT waiting for URL token processing
+      // If tokens are in the URL, onAuthStateChange will handle it
+      if (!hasAuthTokensInHash()) {
+        setLoading(false);
+      } else {
+        // Set a timeout to prevent infinite loading if token processing fails
+        setTimeout(() => {
+          setLoading(false);
+          setAwaitingTokenProcessing(false);
+        }, 5000);
+      }
     });
 
     return () => subscription.unsubscribe();
