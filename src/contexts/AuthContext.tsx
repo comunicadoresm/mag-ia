@@ -16,11 +16,19 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Check if URL hash contains auth tokens (magic link redirect)
+function hasAuthTokensInHash(): boolean {
+  const hash = window.location.hash;
+  return hash.includes('access_token=') || hash.includes('type=recovery') || hash.includes('type=magiclink') || hash.includes('type=signup') || hash.includes('type=email');
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  // Track if we're waiting for auth tokens in URL to be processed
+  const [awaitingTokenProcessing, setAwaitingTokenProcessing] = useState(hasAuthTokensInHash());
 
   const fetchProfile = async (userId: string) => {
     try {
