@@ -349,9 +349,9 @@ export function FormatQuizSetup({ open, onComplete, onSkip }: FormatQuizSetupPro
           <h2 className="text-lg font-bold text-foreground">
             {step === 'intro' && '🎯 Quiz de Formato Sustentável'}
             {step === 0 && '📹 Experiência com Gravação'}
-            {step === 1 && '⏱️ Tempo de Roteiro'}
-            {step === 2 && '🎬 Tempo de Gravação'}
-            {step === 3 && '✂️ Tempo de Edição'}
+            {step === 1 && '⏱️ Tempo Dedicado'}
+            {step === 2 && '🎬 Equipamentos'}
+            {step === 3 && '✂️ Apps e Nível de Edição'}
             {step === 4 && '📅 Frequência'}
             {step === 'result' && '🎉 Seu Formato Sustentável'}
           </h2>
