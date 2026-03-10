@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlanPermissions } from '@/hooks/usePlanPermissions';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,12 +30,11 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
   const { planType } = usePlanPermissions();
   const [currentStep, setCurrentStep] = useState(onboardingStep);
   const [isAnimating, setIsAnimating] = useState(false);
+  const skipHandledRef = useRef(false);
 
   const isMagnetic = ['magnetic', 'magnetic_pro', 'magnetico', 'magnetico_pro'].includes(planType);
 
   const skipSteps = ['voice_dna', 'format_quiz', 'narrative', 'first_script'];
-
-  if (!isMagnetic || currentStep === 'completed') return null;
 
   const goToStep = async (nextStep: string) => {
     if (!user) return;
@@ -54,12 +53,19 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
     await refreshProfile();
   };
 
-  // ===== BYPASS: auto-advance users stuck on disabled steps =====
-  if (skipSteps.includes(currentStep)) {
-    // Auto-complete for users stuck on disabled steps
-    goToStep('completed');
-    return null;
-  }
+  // ===== BYPASS: auto-advance users stuck on disabled steps (via useEffect, not during render) =====
+  useEffect(() => {
+    if (!isMagnetic || currentStep === 'completed' || skipHandledRef.current) return;
+    if (skipSteps.includes(currentStep)) {
+      skipHandledRef.current = true;
+      goToStep('completed');
+    }
+  }, [currentStep, isMagnetic]);
+
+  if (!isMagnetic || currentStep === 'completed') return null;
+
+  // If we're on a skip step, show nothing while the useEffect handles the transition
+  if (skipSteps.includes(currentStep)) return null;
 
   // ===== BASIC INFO — now as a Dialog/popup like the other steps =====
   const currentIndex = STEPS.findIndex(s => s.key === currentStep);
@@ -68,7 +74,7 @@ export function MagneticOnboarding({ onboardingStep }: MagneticOnboardingProps) 
     <Dialog open={true}>
       <DialogContent
         className={cn(
-          'max-w-md [&>button.absolute]:hidden transition-opacity duration-300',
+          'max-w-md [&>button.absolute]:hidden transition-opacity duration-300 max-h-[90vh] overflow-y-auto',
           isAnimating ? 'opacity-0' : 'opacity-100'
         )}
         onPointerDownOutside={(e) => e.preventDefault()}
