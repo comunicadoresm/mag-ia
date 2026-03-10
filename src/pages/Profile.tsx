@@ -210,12 +210,9 @@ export default function Profile() {
                       )}
                     </p>
                   </div>
-                  <button
-                    onClick={() => setActiveOnboarding('voice_dna')}
-                    className="text-xs text-primary hover:text-primary/80 font-medium shrink-0 transition-colors"
-                  >
-                    {voiceProfile?.is_calibrated ? 'Reconfigurar' : 'Configurar'}
-                  </button>
+                  <span className="text-xs text-yellow-500 font-medium shrink-0 flex items-center gap-1">
+                    🔧 Em Atualização
+                  </span>
                 </div>
 
                 {/* Narrative */}
